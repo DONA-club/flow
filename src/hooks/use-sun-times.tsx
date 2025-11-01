@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-type SunTimes = {
+export type SunTimes = {
   sunrise: number | null;
   sunset: number | null;
   loading: boolean;
@@ -15,7 +15,7 @@ export function useSunTimes(): SunTimes {
   const [sunset, setSunset] = useState<number | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSunTimes = useCallback(() => {
@@ -35,15 +35,14 @@ export function useSunTimes(): SunTimes {
         setLatitude(lat);
         setLongitude(lon);
 
-        // Calcul simple du lever/coucher du soleil (exemple, à remplacer par une vraie API si besoin)
-        // Ici, lever = 6h + (lat/90)*2, coucher = 21h - (lat/90)*2 (juste pour la démo)
+        // Demo calculation for sunrise/sunset; replace with real data if needed
         const sunriseCalc = 6 + (lat / 90) * 2;
         const sunsetCalc = 21 - (lat / 90) * 2;
         setSunrise(Number(sunriseCalc.toFixed(2)));
         setSunset(Number(sunsetCalc.toFixed(2)));
         setLoading(false);
       },
-      (err) => {
+      () => {
         setError("Impossible d'obtenir la localisation.");
         setLoading(false);
       }
