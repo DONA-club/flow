@@ -232,14 +232,40 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {wedges.map((w) => (
-          <path
-            key={w.key}
-            d={w.d}
-            fill={w.fill}
-            stroke="none"
-          />
-        ))}
+        {/* Fondu des bords via masque + flou */}
+        <defs>
+          <filter id="ringEdgeBlur" x="0" y="0" width="1" height="1">
+            <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
+          </filter>
+          <mask id="ringFadeMask">
+            {/* Base du masque: invisible par défaut */}
+            <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
+            {/* Anneau blanc (visible) avec flou sur les bords */}
+            <g filter="url(#ringEdgeBlur)">
+              <circle
+                cx={cx}
+                cy={cy}
+                r={(INNER_RADIUS + RADIUS) / 2}
+                stroke="white"
+                strokeWidth={RING_THICKNESS}
+                fill="none"
+              />
+            </g>
+          </mask>
+        </defs>
+
+        {/* Appliquer le masque aux secteurs de l'anneau */}
+        <g mask="url(#ringFadeMask)">
+          {wedges.map((w) => (
+            <path
+              key={w.key}
+              d={w.d}
+              fill={w.fill}
+              stroke="none"
+            />
+          ))}
+        </g>
+
         {hourDividers}
         {hourNumbers}
         <line
