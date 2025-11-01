@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Apple } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -27,17 +26,20 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
   };
 
   return (
-    <Button
-      variant="outline"
-      size="lg"
+    <button
+      type="button"
       onClick={handleAppleLogin}
       disabled={loading}
-      className={className}
       aria-label="Se connecter avec Apple"
+      title="Se connecter avec Apple"
+      className={[
+        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none",
+        loading ? "opacity-50 pointer-events-none" : "",
+        className || ""
+      ].join(" ").trim()}
     >
-      <Apple className="text-black dark:text-white" />
-      <span>Se connecter avec Apple</span>
-    </Button>
+      <Apple className="w-12 h-12 text-black dark:text-white" />
+    </button>
   );
 };
 
