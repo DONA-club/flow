@@ -23,6 +23,8 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
         provider: "google",
         options: {
           redirectTo: window.location.origin,
+          scopes: "https://www.googleapis.com/auth/calendar.readonly",
+          queryParams: { prompt: "consent", access_type: "offline" },
         },
       })
       .then(({ error }) => {
@@ -31,6 +33,10 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
             description: "Le fournisseur Google n'est pas activé dans Supabase.",
           });
           setLoading(false);
+        } else {
+          toast.success("Connexion Google", {
+            description: "Autorisation du calendrier accordée, retour à l'app…",
+          });
         }
       });
   };

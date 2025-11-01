@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
+import { useGoogleCalendar } from "@/hooks/use-google-calendar";
+import EventInfoBubble from "@/components/EventInfoBubble";
+import { toast } from "sonner";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -40,11 +43,13 @@ type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
+  const { events: gEvents, loading: gLoading, error: gError, connected } = useGoogleCalendar();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number } | null>(null);
 
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
@@ -63,6 +68,16 @@ const CircularCalendarDemo = () => {
     }
   }, [loading, error, sunrise, sunset]);
 
+  useEffect(() => {
+    if (gLoading) {
+      setLogs([{ message: "Synchronisation du calendrier…", type: "info" }]);
+    } else if (gError) {
+      setLogs([{ message: gError, type: "error" }]);
+    } else if (connected && gEvents.length > 0) {
+      setLogs([{ message: "Calendrier Google synchronisé ✔️", type: "success" }]);
+    }
+  }, [gLoading, gError, connected, gEvents.length]);
+
   function formatHour(decimal: number) {
     const h = Math.floor(decimal)
       .toString()
@@ -73,16 +88,35 @@ const CircularCalendarDemo = () => {
     return `${h}:${m}`;
   }
 
+  function formatRange(start?: number, end?: number) {
+    if (start == null || end == null) return "";
+    return `${formatHour(start)} — ${formatHour(end)}`;
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
       <div className="relative" style={{ width: size, height: size }}>
         <CircularCalendar
           sunrise={displaySunrise}
           sunset={displaySunset}
-          events={mockEvents}
+          events={gEvents.length > 0 ? gEvents : mockEvents}
           size={size}
           eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
+          onEventClick={(evt) => {
+            setSelectedEvent(evt);
+            toast.info("Détails de l'événement", {
+              description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
+            });
+          }}
         />
+        {selectedEvent && (
+          <EventInfoBubble
+            title={selectedEvent.title}
+            place={selectedEvent.place}
+            time={formatRange(selectedEvent.start, selectedEvent.end)}
+            onClose={() => setSelectedEvent(null)}
+          />
+        )}
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
             <span>{error}</span>
