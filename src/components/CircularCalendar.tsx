@@ -68,6 +68,26 @@ function getWedgePath(
   ].join(" ");
 }
 
+// NEW: arc helper for stroked arcs (no fill)
+function getArcPath(
+  cx: number,
+  cy: number,
+  r: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const startRad = (Math.PI / 180) * startAngle;
+  const endRad = (Math.PI / 180) * endAngle;
+  const x1 = cx + r * Math.cos(startRad);
+  const y1 = cy + r * Math.sin(startRad);
+  const x2 = cx + r * Math.cos(endRad);
+  const y2 = cy + r * Math.sin(endRad);
+  const delta = ((endAngle - startAngle + 360) % 360);
+  const largeArc = delta > 180 ? 1 : 0;
+  const sweep = 1; // clockwise
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}`;
+}
+
 function getCurrentOrNextEvent(events: Event[], now: number): Event | undefined {
   const current = events.find((e) => now >= e.start && now < e.end);
   if (current) return current;
@@ -184,6 +204,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
+  // Hover state for ring interactions
+  const [hoverRing, setHoverRing] = React.useState(false);
+
   // Position des icônes sunrise/sunset sur la graduation
   const rMid = (INNER_RADIUS + RADIUS) / 2;
   const angleFromHour = (time: number) => (time / 24) * 360 - 90;
@@ -200,6 +223,30 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunsetPt = toPoint(sunsetAngle, iconRadius);
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
+
+  // Arcs concentriques (jour passé / jour à venir)
+  const nowAngleDeg = angleFromHour(hourDecimal);
+  const innerArcRadius = Math.max(0, INNER_RADIUS - Math.max(4, RING_THICKNESS * 0.25));
+  const outerArcRadius = RADIUS + Math.max(4, RING_THICKNESS * 0.25);
+  const arcStroke = Math.max(2, Math.round(3 * scale));
+
+  // Calcul des angles pour les arcs (cas standard: sunrise < sunset)
+  let pastArc: { start: number; end: number } | null = null;
+  let futureArc: { start: number; end: number } | null = null;
+  if (sunrise < sunset) {
+    if (hourDecimal <= sunrise) {
+      // Avant le lever: rien de passé, tout à venir
+      futureArc = { start: sunriseAngle, end: sunsetAngle };
+    } else if (hourDecimal >= sunset) {
+      // Après le coucher: tout est passé
+      pastArc = { start: sunriseAngle, end: sunsetAngle };
+    } else {
+      // En journée
+      pastArc = { start: sunriseAngle, end: nowAngleDeg };
+      futureArc = { start: nowAngleDeg, end: sunsetAngle };
+    }
+  }
+  // NOTE: cas rares (sunrise >= sunset) non traités pour rester simple
 
   // Position du tooltip côté intérieur (vers le centre) selon la position de l'icône
   type Side = "top" | "right" | "bottom" | "left";
@@ -315,7 +362,11 @@ export const CircularCalendar: React.FC<Props> = ({
           </defs>
 
           {/* Appliquer le masque aux secteurs de l'anneau */}
-          <g mask="url(#ringFadeMask)">
+          <g
+            mask="url(#ringFadeMask)"
+            onMouseEnter={() => setHoverRing(true)}
+            onMouseLeave={() => setHoverRing(false)}
+          >
             {wedges.map((w) => (
               <path
                 key={w.key}
@@ -325,6 +376,28 @@ export const CircularCalendar: React.FC<Props> = ({
               />
             ))}
           </g>
+
+          {/* Arcs jour passé / à venir au survol */}
+          {hoverRing && pastArc && (
+            <path
+              d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
+              fill="none"
+              stroke={SEASON_COLORS[currentSeason]}
+              strokeOpacity={0.95}
+              strokeWidth={arcStroke}
+              strokeLinecap="round"
+            />
+          )}
+          {hoverRing && futureArc && (
+            <path
+              d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)}
+              fill="none"
+              stroke={SEASON_COLORS[currentSeason]}
+              strokeOpacity={0.55}
+              strokeWidth={arcStroke}
+              strokeLinecap="round"
+            />
+          )}
 
           {hourDividers}
           {hourNumbers}
@@ -372,6 +445,7 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
 
         {/* Icône Sunrise alignée sur sa graduation avec tooltip */}
+        {!hoverRing && (
         <Tooltip>
           <TooltipTrigger asChild>
             <div
@@ -400,8 +474,10 @@ export const CircularCalendar: React.FC<Props> = ({
             </span>
           </TooltipContent>
         </Tooltip>
+        )}
 
         {/* Icône Sunset alignée sur sa graduation avec tooltip */}
+        {!hoverRing && (
         <Tooltip>
           <TooltipTrigger asChild>
             <div
@@ -430,6 +506,7 @@ export const CircularCalendar: React.FC<Props> = ({
             </span>
           </TooltipContent>
         </Tooltip>
+        )}
       </div>
     </div>
   );
