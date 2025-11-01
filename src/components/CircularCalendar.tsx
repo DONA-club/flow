@@ -1,4 +1,5 @@
 import React from "react";
+import { Sunrise, Sunset } from "lucide-react";
 
 type Event = {
   title: string;
@@ -29,11 +30,7 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-
-// Couleur de fond du projet (bg-gray-50)
 const BACKGROUND_COLOR = "#f9fafb";
-
-// Découpage en 1440 segments (1 par minute)
 const SEGMENTS = 1440;
 
 function getWedgePath(
@@ -82,16 +79,23 @@ function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
   return "winter";
 }
 
-// Précision à la minute près
 function isDayMinute(minute: number, sunrise: number, sunset: number) {
-  // minute: 0 à 1439
   const hour = minute / 60;
   if (sunrise < sunset) {
     return hour >= sunrise && hour < sunset;
   } else {
-    // Cas où le jour traverse minuit
     return hour >= sunrise || hour < sunset;
   }
+}
+
+function formatHour(decimal: number) {
+  const h = Math.floor(decimal)
+    .toString()
+    .padStart(2, "0");
+  const m = Math.round((decimal % 1) * 60)
+    .toString()
+    .padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 export const CircularCalendar: React.FC<Props> = ({
@@ -112,7 +116,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const event = getCurrentOrNextEvent(events, hour);
 
   const SIZE = size;
-  const RADIUS = SIZE / 2 - 8; // 8px de marge intérieure
+  const RADIUS = SIZE / 2 - 8;
   const INNER_RADIUS = RADIUS - RING_THICKNESS;
 
   const cx = SIZE / 2;
@@ -124,11 +128,10 @@ export const CircularCalendar: React.FC<Props> = ({
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
 
-    // Séparation visuelle à chaque heure pile : transparent
     if (i % 60 === 0) {
       return {
         d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
-        fill: "none", // transparent
+        fill: "none",
         key: i,
       };
     }
@@ -149,7 +152,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
-  // 24 séparateurs horaires (traits fins, couleur de fond)
+  // 24 séparateurs horaires
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const x1 = cx + INNER_RADIUS * Math.cos(angle);
@@ -170,11 +173,10 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Chiffres horaires parfaitement centrés et équilibrés
-  const hourFontSize = RING_THICKNESS * 0.92; // Plus grand, mais sans chevauchement
+  // Chiffres horaires centrés, police réduite
+  const hourFontSize = RING_THICKNESS * 0.7; // Réduit pour éviter chevauchement
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
-    // Rayon : centre exact de l’anneau
     const r = (RADIUS + INNER_RADIUS) / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -212,7 +214,6 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Segments horaires à la minute près, avec séparation nette chaque heure */}
         {wedges.map((w) => (
           <path
             key={w.key}
@@ -221,11 +222,8 @@ export const CircularCalendar: React.FC<Props> = ({
             stroke="none"
           />
         ))}
-        {/* Séparateurs horaires */}
         {hourDividers}
-        {/* Chiffres horaires fusionnés avec l’anneau */}
         {hourNumbers}
-        {/* Ligne de curseur */}
         <line
           x1={cursorX1}
           y1={cursorY1}
@@ -261,6 +259,17 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
         <div className="text-sm text-gray-600">
           {event ? event.place : "Enjoy your time!"}
+        </div>
+        {/* Sunrise & Sunset au centre */}
+        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <Sunrise className="w-4 h-4 text-yellow-400" aria-label="Sunrise" />
+            {formatHour(sunrise)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Sunset className="w-4 h-4 text-orange-400" aria-label="Sunset" />
+            {formatHour(sunset)}
+          </span>
         </div>
       </div>
     </div>
