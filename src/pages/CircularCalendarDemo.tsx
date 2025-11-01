@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
+import type { SunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
 
@@ -39,7 +40,8 @@ function useGoldenCircleSize() {
 type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
-  const { sunrise, sunset, loading, error, retry, latitude, longitude } = useSunTimes();
+  const sunTimes: SunTimes = useSunTimes();
+  const { sunrise, sunset, loading, error, retry, latitude, longitude } = sunTimes;
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const [displayLat, setDisplayLat] = useState<number | undefined>(undefined);
