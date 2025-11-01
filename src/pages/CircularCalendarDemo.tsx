@@ -10,6 +10,7 @@ import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
+import UpcomingEventsList from "@/components/UpcomingEventsList";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -155,8 +156,19 @@ const CircularCalendarDemo = () => {
   return (
     <>
       <FontLoader />
+
+      {/* Liste des événements à venir (fixe en haut à gauche) */}
+      <UpcomingEventsList
+        events={combinedEvents}
+        onSelect={(evt) => {
+          setSelectedEvent(evt);
+          toast.info("Détails de l'événement", {
+            description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
+          });
+        }}
+      />
+
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
-        {/* En-tête supprimé (boutons Outlook et rafraîchir) */}
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
@@ -185,7 +197,7 @@ const CircularCalendarDemo = () => {
             />
           )}
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg.white/80 z-10 text-red-500 gap-2">
               <span>{error}</span>
               <Button variant="outline" size="sm" onClick={retry}>
                 Réessayer
