@@ -170,18 +170,13 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Chiffres horaires fusionnés avec l’anneau
-  // On les place au centre de l’anneau (moitié sur la couleur, moitié sur le fond)
-  // On ajoute une ombre portée pour la lisibilité
+  // Chiffres horaires fusionnés avec l’anneau, police Inter sans serif
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
-    // Position : au centre de l’anneau (moitié sur la couleur, moitié sur le fond)
-    const r = RADIUS - RING_THICKNESS / 2 + 2; // +2 pour bien chevaucher
+    const r = RADIUS - RING_THICKNESS / 2 + 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle) + 4;
 
-    // Couleur : blanc avec ombre foncée pour fusionner avec l’anneau
-    // Surligné si l’heure courante
     const isCurrent = i === hour;
     return (
       <text
@@ -199,7 +194,7 @@ export const CircularCalendar: React.FC<Props> = ({
             ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)"
             : "drop-shadow(0 1px 0 #0008)",
           opacity: isCurrent ? 1 : 0.92,
-          fontFamily: "'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', monospace",
+          fontFamily: "'Inter', 'Montserrat', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",
           stroke: "#000",
           strokeWidth: isCurrent ? 0.7 : 0.5,
@@ -211,7 +206,7 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   return (
-    <div className="flex flex-col items-center justify-center font-mono">
+    <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         {/* Segments horaires à la minute près, avec séparation nette chaque heure */}
         {wedges.map((w) => (
@@ -256,11 +251,11 @@ export const CircularCalendar: React.FC<Props> = ({
         role={event ? "button" : undefined}
         aria-label={event ? `Open event: ${event.title}` : undefined}
       >
-        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center font-mono" : "text-lg font-bold mb-1 font-mono"}>
+        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}>
           {event && eventIcon}
           {event ? event.title : "No events"}
         </div>
-        <div className="text-sm text-gray-600 font-mono">
+        <div className="text-sm text-gray-600">
           {event ? event.place : "Enjoy your time!"}
         </div>
       </div>
