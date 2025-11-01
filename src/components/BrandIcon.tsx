@@ -1,18 +1,18 @@
 "use client";
 
 import React from "react";
-import { siGoogle, siApple, siFacebook } from "simple-icons/icons";
-import siAmazon from "simple-icons/icons/amazon";
-import siMicrosoft from "simple-icons/icons/microsoft";
+import * as simpleIcons from "simple-icons";
 
 type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft";
 
+const iconsAny = simpleIcons as any;
+
 const ICONS: Record<BrandName, { path: string; hex: string; title: string }> = {
-  google: siGoogle,
-  apple: siApple,
-  facebook: siFacebook,
-  amazon: siAmazon,
-  microsoft: siMicrosoft,
+  google: iconsAny.siGoogle,
+  apple: iconsAny.siApple,
+  facebook: iconsAny.siFacebook,
+  amazon: iconsAny.siAmazon,
+  microsoft: iconsAny.siMicrosoft,
 };
 
 type Props = {
