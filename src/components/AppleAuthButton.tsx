@@ -42,12 +42,12 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
       aria-label="Se connecter avec Apple"
       title="Se connecter avec Apple"
       className={[
-        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none",
+        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
         loading ? "opacity-50 pointer-events-none" : "",
         className || ""
       ].join(" ").trim()}
     >
-      <Apple className="w-12 h-12 text-black dark:text-white" />
+      <Apple className="w-12 h-12 text-black dark:text-white filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100" />
     </button>
   );
 };

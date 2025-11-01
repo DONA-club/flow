@@ -8,25 +8,25 @@ type Props = {
   className?: string;
 };
 
-const OutlookAuthButton: React.FC<Props> = ({ className }) => {
+const FacebookAuthButton: React.FC<Props> = ({ className }) => {
   const [loading, setLoading] = React.useState(false);
 
-  const handleOutlookLogin = () => {
-    toast("Redirection vers Outlook…", {
+  const handleFacebookLogin = () => {
+    toast("Redirection vers Facebook…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
     setLoading(true);
     supabase.auth
       .signInWithOAuth({
-        provider: "azure",
+        provider: "facebook",
         options: {
           redirectTo: window.location.origin,
         },
       })
       .then(({ error }) => {
         if (error) {
-          toast.error("Connexion Outlook indisponible", {
-            description: "Le fournisseur Microsoft (Azure) n'est pas activé dans Supabase.",
+          toast.error("Connexion Facebook indisponible", {
+            description: "Le fournisseur Facebook n'est pas activé dans Supabase.",
           });
           setLoading(false);
         }
@@ -36,10 +36,10 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <button
       type="button"
-      onClick={handleOutlookLogin}
+      onClick={handleFacebookLogin}
       disabled={loading}
-      aria-label="Se connecter avec Outlook"
-      title="Se connecter avec Outlook"
+      aria-label="Se connecter avec Facebook"
+      title="Se connecter avec Facebook"
       className={[
         "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
         loading ? "opacity-50 pointer-events-none" : "",
@@ -53,13 +53,14 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
         role="img"
         aria-hidden="true"
       >
-        <rect x="20" y="20" width="100" height="100" fill="#F25022" rx="8" />
-        <rect x="136" y="20" width="100" height="100" fill="#7FBA00" rx="8" />
-        <rect x="20" y="136" width="100" height="100" fill="#00A4EF" rx="8" />
-        <rect x="136" y="136" width="100" height="100" fill="#FFB900" rx="8" />
+        <circle cx="128" cy="128" r="110" fill="#1877F2" />
+        <path
+          d="M154 92h-18c-9 0-16 7-16 16v22h-18v26h18v52h28v-52h20l4-26h-24v-16c0-3.3 2.7-6 6-6h16z"
+          fill="#fff"
+        />
       </svg>
     </button>
   );
 };
 
-export default OutlookAuthButton;
+export default FacebookAuthButton;

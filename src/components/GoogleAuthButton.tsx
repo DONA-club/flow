@@ -41,13 +41,13 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
       aria-label="Se connecter avec Google"
       title="Se connecter avec Google"
       className={[
-        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none",
+        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
         loading ? "opacity-50 pointer-events-none" : "",
         className || ""
       ].join(" ").trim()}
     >
       <svg
-        className="w-12 h-12"
+        className="w-12 h-12 filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100"
         viewBox="0 0 256 262"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
