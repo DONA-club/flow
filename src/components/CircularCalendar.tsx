@@ -1,5 +1,6 @@
 import React from "react";
 import { Sunrise, Sunset } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 type Event = {
   title: string;
@@ -170,6 +171,18 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
+  // Position des icônes sunrise/sunset sur la graduation
+  const rMid = (INNER_RADIUS + RADIUS) / 2;
+  const angleFromHour = (time: number) => (time / 24) * 360 - 90;
+  const toPoint = (angleDeg: number, r: number) => {
+    const rad = (Math.PI / 180) * angleDeg;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  };
+  const sunriseAngle = angleFromHour(sunrise);
+  const sunsetAngle = angleFromHour(sunset);
+  const sunrisePt = toPoint(sunriseAngle, rMid);
+  const sunsetPt = toPoint(sunsetAngle, rMid);
+
   // 24 séparateurs horaires
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
@@ -242,109 +255,146 @@ export const CircularCalendar: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        <defs>
-          <filter
-            id="ringEdgeBlur"
-            filterUnits="userSpaceOnUse"
-            x={cx - (RADIUS + RING_THICKNESS)}
-            y={cy - (RADIUS + RING_THICKNESS)}
-            width={(RADIUS + RING_THICKNESS) * 2}
-            height={(RADIUS + RING_THICKNESS) * 2}
-          >
-            <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
-          </filter>
-          <mask
-            id="ringFadeMask"
-            maskUnits="userSpaceOnUse"
-            maskContentUnits="userSpaceOnUse"
-            x={0}
-            y={0}
-            width={SIZE}
-            height={SIZE}
-          >
-            {/* Base du masque: invisible par défaut */}
-            <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
-            {/* Anneau blanc (visible) avec flou sur les bords */}
-            <g filter="url(#ringEdgeBlur)">
-              <circle
-                cx={cx}
-                cy={cy}
-                r={(INNER_RADIUS + RADIUS) / 2}
-                stroke="white"
-                strokeWidth={RING_THICKNESS}
-                fill="none"
+      <div style={{ position: "relative", width: SIZE, height: SIZE }}>
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+          <defs>
+            <filter
+              id="ringEdgeBlur"
+              filterUnits="userSpaceOnUse"
+              x={cx - (RADIUS + RING_THICKNESS)}
+              y={cy - (RADIUS + RING_THICKNESS)}
+              width={(RADIUS + RING_THICKNESS) * 2}
+              height={(RADIUS + RING_THICKNESS) * 2}
+            >
+              <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
+            </filter>
+            <mask
+              id="ringFadeMask"
+              maskUnits="userSpaceOnUse"
+              maskContentUnits="userSpaceOnUse"
+              x={0}
+              y={0}
+              width={SIZE}
+              height={SIZE}
+            >
+              {/* Base du masque: invisible par défaut */}
+              <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
+              {/* Anneau blanc (visible) avec flou sur les bords */}
+              <g filter="url(#ringEdgeBlur)">
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={(INNER_RADIUS + RADIUS) / 2}
+                  stroke="white"
+                  strokeWidth={RING_THICKNESS}
+                  fill="none"
+                />
+              </g>
+            </mask>
+          </defs>
+
+          {/* Appliquer le masque aux secteurs de l'anneau */}
+          <g mask="url(#ringFadeMask)">
+            {wedges.map((w) => (
+              <path
+                key={w.key}
+                d={w.d}
+                fill={w.fill}
+                stroke="none"
               />
-            </g>
-          </mask>
-        </defs>
+            ))}
+          </g>
 
-        {/* Appliquer le masque aux secteurs de l'anneau */}
-        <g mask="url(#ringFadeMask)">
-          {wedges.map((w) => (
-            <path
-              key={w.key}
-              d={w.d}
-              fill={w.fill}
-              stroke="none"
-            />
-          ))}
-        </g>
-
-        {hourDividers}
-        {hourNumbers}
-        <line
-          x1={cursorX1}
-          y1={cursorY1}
-          x2={cursorX2}
-          y2={cursorY2}
-          stroke="#2563eb"
-          strokeWidth={3}
-          strokeLinecap="round"
-          style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
-        />
-      </svg>
-      {/* Centre info */}
-      <div
-        className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
-        style={{
-          transform: `translate(-50%, -50%)`,
-          position: "absolute",
-          width: INNER_RADIUS * 1.5,
-          maxWidth: "80%",
-          pointerEvents: event ? "auto" : "none",
-          top: `calc(50% + 0px)`,
-          left: `calc(50% + 0px)`,
-          cursor: event ? "pointer" : "default",
-          overflowWrap: "anywhere",
-          wordBreak: "break-word",
-        }}
-        onClick={() => event && onEventClick && onEventClick(event)}
-        tabIndex={event ? 0 : -1}
-        role={event ? "button" : undefined}
-        aria-label={event ? `Open event: ${event.title}` : undefined}
-      >
+          {hourDividers}
+          {hourNumbers}
+          <line
+            x1={cursorX1}
+            y1={cursorY1}
+            x2={cursorX2}
+            y2={cursorY2}
+            stroke="#2563eb"
+            strokeWidth={3}
+            strokeLinecap="round"
+            style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
+          />
+        </svg>
+        {/* Centre info */}
         <div
-          className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}
-          style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
+          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
+          style={{
+            transform: `translate(-50%, -50%)`,
+            position: "absolute",
+            width: INNER_RADIUS * 1.5,
+            maxWidth: "80%",
+            pointerEvents: event ? "auto" : "none",
+            top: `calc(50% + 0px)`,
+            left: `calc(50% + 0px)`,
+            cursor: event ? "pointer" : "default",
+            overflowWrap: "anywhere",
+            wordBreak: "break-word",
+          }}
+          onClick={() => event && onEventClick && onEventClick(event)}
+          tabIndex={event ? 0 : -1}
+          role={event ? "button" : undefined}
+          aria-label={event ? `Open event: ${event.title}` : undefined}
         >
-          {event && eventIcon}
-          {event ? event.title : "No events"}
+          <div
+            className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}
+            style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
+          >
+            {event && eventIcon}
+            {event ? event.title : "No events"}
+          </div>
+          <div className="text-sm text-gray-600" style={{ fontSize: subFontSize, lineHeight: 1.25 }}>
+            {event ? event.place : "Enjoy your time!"}
+          </div>
         </div>
-        <div className="text-sm text-gray-600" style={{ fontSize: subFontSize, lineHeight: 1.25 }}>
-          {event ? event.place : "Enjoy your time!"}
-        </div>
-        {/* Sunrise & Sunset au centre */}
-        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500" style={{ fontSize: metaFontSize }}>
-          <span className="flex items-center gap-1">
-            <Sunrise className="text-yellow-400" aria-label="Sunrise" size={metaIconSize} />
+
+        {/* Icône Sunrise alignée sur sa graduation avec tooltip */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="absolute"
+              style={{
+                left: sunrisePt.x - metaIconSize / 2,
+                top: sunrisePt.y - metaIconSize / 2,
+              }}
+              aria-label={`Sunrise at ${formatHour(sunrise)}`}
+            >
+              <Sunrise
+                className="text-yellow-400"
+                size={metaIconSize}
+                style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
             {formatHour(sunrise)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Sunset className="text-orange-400" aria-label="Sunset" size={metaIconSize} />
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Icône Sunset alignée sur sa graduation avec tooltip */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="absolute"
+              style={{
+                left: sunsetPt.x - metaIconSize / 2,
+                top: sunsetPt.y - metaIconSize / 2,
+              }}
+              aria-label={`Sunset at ${formatHour(sunset)}`}
+            >
+              <Sunset
+                className="text-orange-400"
+                size={metaIconSize}
+                style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
             {formatHour(sunset)}
-          </span>
-        </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
