@@ -17,12 +17,21 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
     setLoading(true);
-    void supabase.auth.signInWithOAuth({
-      provider: "apple",
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
+    supabase.auth
+      .signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      })
+      .then(({ error }) => {
+        if (error) {
+          toast.error("Connexion Apple indisponible", {
+            description: "Le fournisseur Apple n'est pas activé dans Supabase.",
+          });
+          setLoading(false);
+        }
+      });
   };
 
   return (
