@@ -268,9 +268,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs concentriques avec écart identique du ring, en tenant compte du stroke/2
+  // Arcs: quasi collés au bord du ring, avec un très fin liseret
   const arcStroke = Math.max(2, Math.round(3 * scale));
-  const arcGap = Math.max(6, Math.round(RING_THICKNESS * 0.22));
+  const arcGap = Math.max(1, Math.round(scale)); // liseret fin (1–2px selon la taille)
   const innerArcRadius = Math.max(arcStroke, INNER_RADIUS - arcGap - arcStroke / 2);
   const outsideArcRadius = RADIUS + arcGap + arcStroke / 2;
 

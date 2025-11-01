@@ -11,26 +11,27 @@ type Log = {
 
 type Props = {
   logs: { message: string; type?: LogType }[];
-  fadeOutDuration?: number; // durée totale avant suppression (ms)
+  // Compat: si fourni, on l’interprète comme la durée du fade (ms).
+  fadeOutDuration?: number;
 };
 
 export const StackedEphemeralLogs: React.FC<Props> = ({
   logs,
-  fadeOutDuration = 5000,
+  fadeOutDuration, // si absent => 5000ms
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
   const idRef = useRef(0);
 
-  // Map pour les timeouts par log
+  // Map des timeouts par log
   const timersRef = useRef<
     Map<number, { fadeTimeout?: number; removeTimeout?: number }>
   >(new Map());
 
-  // Refs pour FLIP (animation de repositionnement)
+  // FLIP animation
   const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const prevPositions = useRef<Map<number, number>>(new Map());
 
-  // Gestion du flux: empiler, et remplacer un "..." par la confirmation/erreur
+  // Flux: empilement + remplacement du "..." par confirmation/erreur
   useEffect(() => {
     if (logs.length === 0) return;
 
@@ -40,9 +41,8 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     const lastDisplayed = displayed[displayed.length - 1];
 
     setDisplayed((prev) => {
-      // Remplacement si le dernier affiché est "..." (loading)
       if (lastDisplayed && lastDisplayed.message.includes("...") && !isEllipsis) {
-        // Remplacer en place (même id -> pas de saut visuel)
+        // Remplacer en place (même position visuelle)
         const replaced = prev.map((l, idx) =>
           idx === prev.length - 1
             ? { ...l, message: last.message, type: incomingType, fading: false }
@@ -52,7 +52,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
       }
 
       if (isEllipsis) {
-        // Un seul "..." à la fois: si le dernier est déjà le même "...", ignorer
         if (
           lastDisplayed &&
           lastDisplayed.message === last.message &&
@@ -60,7 +59,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
         ) {
           return prev;
         }
-        // Ajouter un nouveau "..." empilé (ne démarre pas de timer)
         return [
           ...prev,
           {
@@ -72,7 +70,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
         ];
       }
 
-      // Message normal: on empile
       return [
         ...prev,
         {
@@ -86,15 +83,16 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs.map((l) => l.message + (l.type ?? "info")).join(",")]);
 
-  // Planifier fade/suppression pour chaque message non "..." qui n'a pas encore de timers
-  useEffect(() => {
-    const total = Math.max(1500, fadeOutDuration);
-    const fadeMs = Math.min(1500, Math.max(500, Math.floor(total * 0.3)));
-    const visibleMs = total - fadeMs;
+  // Durées: visible 10s, fade 5s (ou fadeOutDuration si fourni)
+  const visibleMs = 10000;
+  const fadeMs = fadeOutDuration ?? 5000;
+  const totalMs = visibleMs + fadeMs;
 
+  // Planification fade/suppression pour les messages non "..."
+  useEffect(() => {
     displayed.forEach((log) => {
       const isEllipsis = log.message.includes("...");
-      if (isEllipsis) return; // pas de timer pour "..."
+      if (isEllipsis) return;
 
       const already = timersRef.current.get(log.id);
       if (already) return;
@@ -107,19 +105,18 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
 
       const removeTimeout = window.setTimeout(() => {
         setDisplayed((prev) => prev.filter((l) => l.id !== log.id));
-        // Nettoyage de la map
         timersRef.current.delete(log.id);
-      }, total);
+      }, totalMs);
 
       timersRef.current.set(log.id, { fadeTimeout, removeTimeout });
     });
 
     return () => {
-      // pas de cleanup global ici pour ne pas annuler des timers actifs lors de re-renders normaux
+      // pas de cleanup global pour éviter d’annuler des timers actifs sur re-render
     };
-  }, [displayed, fadeOutDuration]);
+  }, [displayed, visibleMs, fadeMs, totalMs]);
 
-  // Cleanup complet des timers au démontage
+  // Cleanup complet au démontage
   useEffect(() => {
     return () => {
       timersRef.current.forEach((t) => {
@@ -130,7 +127,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     };
   }, []);
 
-  // Animation FLIP: quand la liste change (ajout/suppression), les éléments se "repositionnent" en glissant
+  // FLIP repositionnement
   useLayoutEffect(() => {
     const newPositions = new Map<number, number>();
     displayed.forEach((log) => {
@@ -148,10 +145,8 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
 
       const dy = prevTop - top;
       if (dy !== 0) {
-        // Applique la translation inverse puis anime vers 0
         el.style.transition = "none";
         el.style.transform = `translateY(${dy}px)`;
-        // Force reflow
         void el.getBoundingClientRect();
         el.style.transition = "transform 220ms ease, opacity 300ms ease";
         el.style.transform = "translateY(0)";
@@ -162,24 +157,13 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   }, [displayed]);
 
   const setNodeRef = (id: number) => (el: HTMLDivElement | null) => {
-    if (el) {
-      nodeRefs.current.set(id, el);
-    } else {
-      nodeRefs.current.delete(id);
-    }
+    if (el) nodeRefs.current.set(id, el);
+    else nodeRefs.current.delete(id);
   };
 
   const baseTextClass =
     "text-sm leading-tight tracking-tight select-none transition-all";
-  const typeClass = (_t: LogType) => {
-    // Texte légèrement gris, lisible, homogène
-    return "text-gray-300";
-  };
-
-  const computedFadeMs = Math.min(
-    1500,
-    Math.max(500, Math.floor(Math.max(1500, fadeOutDuration) * 0.3))
-  );
+  const typeClass = (_t: LogType) => "text-gray-300";
 
   return (
     <div
@@ -195,9 +179,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
             log.fading ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
           }`}
           style={{
-            transition: `opacity ${
-              log.fading ? computedFadeMs : 300
-            }ms ease, transform ${log.fading ? computedFadeMs : 220}ms ease`,
+            transition: `opacity ${log.fading ? fadeMs : 300}ms ease, transform ${log.fading ? fadeMs : 220}ms ease`,
             willChange: "transform, opacity",
           }}
         >
