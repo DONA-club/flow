@@ -161,9 +161,9 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     else nodeRefs.current.delete(id);
   };
 
-  // Style plus doux: texte moins contrasté, s'adapte au thème
+  // Style doux et fondu avec le fond: opacité plus faible
   const baseTextClass =
-    "text-sm leading-tight tracking-tight select-none transition-all text-foreground/60";
+    "text-sm leading-tight tracking-tight select-none transition-all text-foreground/50";
   const typeClass = (_t: LogType) => "";
 
   return (
@@ -177,7 +177,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
           key={log.id}
           ref={setNodeRef(log.id)}
           className={`${baseTextClass} ${typeClass(log.type)} ${
-            log.fading ? "opacity-50 translate-y-1" : "opacity-100 translate-y-0"
+            log.fading ? "opacity-40 translate-y-1" : "opacity-100 translate-y-0"
           }`}
           style={{
             transition: `opacity ${log.fading ? fadeMs : 300}ms ease, transform ${log.fading ? fadeMs : 220}ms ease`,

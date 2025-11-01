@@ -41,12 +41,14 @@ async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  const fromProviderToken: string | null = session?.provider_token ?? null;
-
+  // Tokens potentiels
   const msIdentity = resolveMicrosoftIdentity(session);
   const fromIdentities: string | null =
     msIdentity?.identity_data?.access_token ?? null;
 
+  const fromProviderToken: string | null = session?.provider_token ?? null;
+
+  // On préfère d'abord celui de l'identité, sinon provider_token (si c'est bien un token Microsoft)
   return fromIdentities || fromProviderToken || null;
 }
 
@@ -62,6 +64,11 @@ async function resolveMicrosoftRefreshToken(): Promise<string | null> {
     msIdentity?.identity_data?.refresh_token ?? null;
 
   return fromIdentities || null;
+}
+
+function isLikelyJwt(token: string | null): boolean {
+  if (!token || typeof token !== "string") return false;
+  return token.split(".").length === 3;
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
@@ -94,36 +101,56 @@ export function useOutlookCalendar(): Result {
     setError(null);
 
     let token = await resolveMicrosoftAccessToken();
-    if (!token) {
+
+    // Si le token est absent ou n'a pas la forme d'un JWT, on tente un refresh côté Edge
+    if (!isLikelyJwt(token || null)) {
       const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
+      if (refreshed && isLikelyJwt(refreshed)) {
         token = refreshed;
         setConnected(true);
       } else {
         setConnected(false);
         setEvents([]);
         setLoading(false);
-        setError("Aucun jeton Microsoft disponible. Connectez votre compte Outlook et autorisez Calendars.Read.");
+        setError(
+          "Token Microsoft invalide/expiré. Veuillez reconnecter votre compte et autoriser Calendars.Read."
+        );
         return;
       }
     } else {
       setConnected(true);
     }
 
+    // Fenêtre de 3 jours via calendarView
+    const now = new Date();
+    const end = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const startISO = now.toISOString();
+    const endISO = end.toISOString();
+
     const url =
-      "https://graph.microsoft.com/v1.0/me/events?$orderby=start/dateTime&$top=10&$select=subject,organizer,start,end,location,webLink";
+      "https://graph.microsoft.com/v1.0/me/calendarview" +
+      `?startDateTime=${encodeURIComponent(startISO)}` +
+      `&endDateTime=${encodeURIComponent(endISO)}` +
+      "&$orderby=start/dateTime" +
+      "&$select=subject,organizer,start,end,location,webLink";
 
     const doFetch = async (tkn: string) => {
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${tkn}` },
+        headers: {
+          Authorization: `Bearer ${tkn}`,
+          // Optionnel: sans forcer de timezone ici pour rester simple
+          Accept: "application/json",
+        },
       });
       return res;
     };
 
-    let res = await doFetch(token);
+    let res = await doFetch(token as string);
     if (!res.ok && (res.status === 401 || res.status === 403)) {
+      // Tentative de refresh si non autorisé
       const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
+      if (refreshed && isLikelyJwt(refreshed)) {
         token = refreshed;
         setConnected(true);
         res = await doFetch(token);
@@ -143,7 +170,7 @@ export function useOutlookCalendar(): Result {
 
     const json = await res.json();
     const items: any[] = json?.value ?? [];
-    const now = new Date();
+    const nowRef = new Date();
 
     const mapped: CalendarEvent[] = items
       .map((item) => {
@@ -170,10 +197,11 @@ export function useOutlookCalendar(): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
+    // Même si calendarView filtre déjà, on garde une sécurité: événements à venir seulement
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;
-      return startDate ? startDate.getTime() >= now.getTime() : true;
+      return startDate ? startDate.getTime() >= nowRef.getTime() : true;
     });
 
     setEvents(upcoming);
