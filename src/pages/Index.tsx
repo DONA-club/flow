@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import AppleAuthButton from "@/components/AppleAuthButton";
+import AmazonAuthButton from "@/components/AmazonAuthButton";
+import OutlookAuthButton from "@/components/OutlookAuthButton";
 import { Toaster } from "sonner";
 
 const Index = () => {
@@ -14,7 +17,12 @@ const Index = () => {
             tabIndex={0}
           />
         </Link>
-        <GoogleAuthButton />
+        <div className="flex items-center gap-4">
+          <GoogleAuthButton />
+          <AppleAuthButton />
+          <AmazonAuthButton />
+          <OutlookAuthButton />
+        </div>
       </div>
     </>
   );
