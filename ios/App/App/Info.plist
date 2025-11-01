@@ -45,5 +45,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<!-- Autorisation de localisation (nécessaire même pour navigator.geolocation dans WKWebView) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cette application utilise votre position pour estimer les heures de lever/coucher du soleil et personnaliser l’affichage à votre lieu.</string>
 </dict>
 </plist>

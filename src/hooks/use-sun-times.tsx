@@ -25,16 +25,20 @@ export function useSunTimes(): SunTimes {
     // Fallback de localisation (Paris) si la géolocalisation est indisponible
     const DEFAULT_COORDS = { lat: 48.8566, lon: 2.3522 };
 
-    if (!navigator.geolocation) {
-      const { lat, lon } = DEFAULT_COORDS;
-      setLatitude(lat);
-      setLongitude(lon);
-
+    const applyCalc = (lat: number) => {
       const sunriseCalc = 6 + (lat / 90) * 2;
       const sunsetCalc = 21 - (lat / 90) * 2;
       setSunrise(Number(sunriseCalc.toFixed(2)));
       setSunset(Number(sunsetCalc.toFixed(2)));
+    };
+
+    if (!navigator.geolocation) {
+      const { lat, lon } = DEFAULT_COORDS;
+      setLatitude(lat);
+      setLongitude(lon);
+      applyCalc(lat);
       setLoading(false);
+      setError("La géolocalisation n’est pas disponible sur cet appareil. Utilisation de Paris par défaut.");
       return;
     }
 
@@ -44,11 +48,7 @@ export function useSunTimes(): SunTimes {
         const lon = pos.coords.longitude;
         setLatitude(lat);
         setLongitude(lon);
-
-        const sunriseCalc = 6 + (lat / 90) * 2;
-        const sunsetCalc = 21 - (lat / 90) * 2;
-        setSunrise(Number(sunriseCalc.toFixed(2)));
-        setSunset(Number(sunsetCalc.toFixed(2)));
+        applyCalc(lat);
         setLoading(false);
       },
       () => {
@@ -56,13 +56,14 @@ export function useSunTimes(): SunTimes {
         const { lat, lon } = DEFAULT_COORDS;
         setLatitude(lat);
         setLongitude(lon);
-
-        const sunriseCalc = 6 + (lat / 90) * 2;
-        const sunsetCalc = 21 - (lat / 90) * 2;
-        setSunrise(Number(sunriseCalc.toFixed(2)));
-        setSunset(Number(sunsetCalc.toFixed(2)));
-        setError(null);
+        applyCalc(lat);
+        setError("Position indisponible (permission refusée ou temporairement inconnue). Utilisation de Paris par défaut.");
         setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,      // 15s avant fallback
+        maximumAge: 300000,  // accepte une position récente (≤5min)
       }
     );
   }, []);
