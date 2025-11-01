@@ -18,8 +18,6 @@ type Props = {
 
 const SIZE = 320; // SVG size in px
 const RADIUS = 140; // Outer radius
-
-// Cercle plus fin
 const RING_THICKNESS = 32;
 const INNER_RADIUS = RADIUS - RING_THICKNESS;
 
@@ -32,10 +30,17 @@ const SEASON_COLORS: Record<string, string> = {
 
 const NIGHT_COLOR = "#d1d5db";
 
-// Découpage en 24 segments horaires
-const SEGMENTS = 24;
+// Découpage en 1440 segments (1 par minute)
+const SEGMENTS = 1440;
 
-function getWedgePath(cx: number, cy: number, r1: number, r2: number, startAngle: number, endAngle: number) {
+function getWedgePath(
+  cx: number,
+  cy: number,
+  r1: number,
+  r2: number,
+  startAngle: number,
+  endAngle: number
+) {
   const startRad = (Math.PI / 180) * startAngle;
   const endRad = (Math.PI / 180) * endAngle;
 
@@ -56,14 +61,14 @@ function getWedgePath(cx: number, cy: number, r1: number, r2: number, startAngle
     `A ${r1} ${r1} 0 ${largeArc} 1 ${x2} ${y2}`,
     `L ${x3} ${y3}`,
     `A ${r2} ${r2} 0 ${largeArc} 0 ${x4} ${y4}`,
-    "Z"
+    "Z",
   ].join(" ");
 }
 
 function getCurrentOrNextEvent(events: Event[], now: number): Event | undefined {
-  const current = events.find(e => now >= e.start && now < e.end);
+  const current = events.find((e) => now >= e.start && now < e.end);
   if (current) return current;
-  return events.find(e => e.start > now);
+  return events.find((e) => e.start > now);
 }
 
 function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
@@ -74,13 +79,15 @@ function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
   return "winter";
 }
 
-// Précision à l'heure près
-function isDayHour(hour: number, sunrise: number, sunset: number) {
+// Précision à la minute près
+function isDayMinute(minute: number, sunrise: number, sunset: number) {
+  // minute: 0 à 1439
+  const hour = minute / 60;
   if (sunrise < sunset) {
-    return hour + 0.5 >= sunrise && hour + 0.5 < sunset;
+    return hour >= sunrise && hour < sunset;
   } else {
     // Cas où le jour traverse minuit
-    return hour + 0.5 >= sunrise || hour + 0.5 < sunset;
+    return hour >= sunrise || hour < sunset;
   }
 }
 
@@ -103,12 +110,11 @@ export const CircularCalendar: React.FC<Props> = ({
   const cy = SIZE / 2;
   const blockAngle = 360 / SEGMENTS;
 
-  // 24 blocs horaires avec contour blanc
+  // 1440 blocs (1 par minute)
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
-    // On colore selon si l'heure centrale du bloc est de jour ou de nuit
-    const isDayBlock = isDayHour(i, sunrise, sunset);
+    const isDayBlock = isDayMinute(i, sunrise, sunset);
     return {
       d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
       fill: isDayBlock ? SEASON_COLORS[currentSeason] : NIGHT_COLOR,
@@ -117,7 +123,7 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   // Ligne de curseur
-  const cursorAngle = ((hourDecimal / 24) * 360) - 90;
+  const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   const cursorX1 = cx + INNER_RADIUS * Math.cos(cursorRad);
   const cursorY1 = cy + INNER_RADIUS * Math.sin(cursorRad);
@@ -127,14 +133,13 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Segments horaires avec contour blanc */}
-        {wedges.map(w => (
+        {/* Segments horaires à la minute près */}
+        {wedges.map((w) => (
           <path
             key={w.key}
             d={w.d}
             fill={w.fill}
-            stroke="#fff"
-            strokeWidth={1}
+            stroke="none"
           />
         ))}
         {/* Nombres d'heures toutes les heures */}
