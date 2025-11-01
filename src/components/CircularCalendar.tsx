@@ -15,6 +15,7 @@ type Props = {
   season?: "spring" | "summer" | "autumn" | "winter";
   onEventClick?: (event: Event) => void;
   size?: number; // diamètre du cercle en px
+  eventIcon?: React.ReactNode;
 };
 
 const DEFAULT_SIZE = 320;
@@ -98,6 +99,7 @@ export const CircularCalendar: React.FC<Props> = ({
   season,
   onEventClick,
   size = DEFAULT_SIZE,
+  eventIcon,
 }) => {
   const now = new Date();
   const hourDecimal =
@@ -231,7 +233,8 @@ export const CircularCalendar: React.FC<Props> = ({
         role={event ? "button" : undefined}
         aria-label={event ? `Open event: ${event.title}` : undefined}
       >
-        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700" : "text-lg font-bold mb-1"}>
+        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}>
+          {event && eventIcon}
           {event ? event.title : "No events"}
         </div>
         <div className="text-sm text-gray-600">

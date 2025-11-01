@@ -3,6 +3,7 @@ import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
+import { Sunrise, Sunset, Calendar } from "lucide-react";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -71,6 +72,17 @@ const CircularCalendarDemo = () => {
     // eslint-disable-next-line
   }, [loading, error, sunrise, sunset]);
 
+  // Formatage heure
+  function formatHour(decimal: number) {
+    const h = Math.floor(decimal)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.round((decimal % 1) * 60)
+      .toString()
+      .padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
       <div className="relative" style={{ width: size, height: size }}>
@@ -79,6 +91,7 @@ const CircularCalendarDemo = () => {
           sunset={displaySunset}
           events={mockEvents}
           size={size}
+          eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
         />
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
@@ -92,20 +105,15 @@ const CircularCalendarDemo = () => {
           </div>
         )}
       </div>
-      <div className="mt-6 text-center text-gray-500 text-sm">
-        {loading
-          ? "Recherche de la position…"
-          : sunrise !== null && sunset !== null
-          ? `Sunrise: ${Math.floor(sunrise)
-              .toString()
-              .padStart(2, "0")}:${Math.round((sunrise % 1) * 60)
-              .toString()
-              .padStart(2, "0")} | Sunset: ${Math.floor(sunset)
-              .toString()
-              .padStart(2, "0")}:${Math.round((sunset % 1) * 60)
-              .toString()
-              .padStart(2, "0")}`
-          : ""}
+      <div className="mt-6 flex items-center justify-center gap-6 text-gray-500 text-sm">
+        <span className="flex items-center gap-1">
+          <Sunrise className="w-5 h-5 text-yellow-400" aria-label="Sunrise" />
+          {formatHour(displaySunrise)}
+        </span>
+        <span className="flex items-center gap-1">
+          <Sunset className="w-5 h-5 text-orange-400" aria-label="Sunset" />
+          {formatHour(displaySunset)}
+        </span>
       </div>
       <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
     </div>
