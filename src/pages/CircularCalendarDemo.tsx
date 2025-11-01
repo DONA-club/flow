@@ -54,11 +54,9 @@ const CircularCalendarDemo = () => {
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number } | null>(null);
 
-  // Heures simulées: lever 07:47, coucher 22:32
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
-  // Priorité Google Fit si disponible, sinon valeurs simulées
   const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
@@ -112,7 +110,6 @@ const CircularCalendarDemo = () => {
     return `${formatHour(start)} — ${formatHour(end)}`;
   }
 
-  // Padding externe pour éviter que les arcs extérieurs ne soient rognés
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
   return (
@@ -158,7 +155,8 @@ const CircularCalendarDemo = () => {
             </div>
           )}
         </div>
-        <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
+        {/* Notifications éphemères: texte simple, ~5s de durée totale */}
+        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
     </>
   );
