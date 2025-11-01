@@ -41,22 +41,53 @@ function resolveMicrosoftIdentity(session: any) {
   );
 }
 
-// IMPORTANT: n'utilise plus provider_token pour Microsoft (risque de récupérer le jeton Google)
+function resolveGoogleIdentity(session: any) {
+  const identities: any[] = session?.user?.identities ?? [];
+  return identities.find((i) => i?.provider === "google");
+}
+
+function isAzureActive(session: any) {
+  const p = session?.user?.app_metadata?.provider;
+  return (
+    p === "azure" ||
+    p === "azure-oidc" ||
+    p === "azuread" ||
+    p === "microsoft" ||
+    p === "outlook"
+  );
+}
+
+// IMPORTANT: on privilégie les jetons dans l’identité; sinon on bascule sur provider_* uniquement si Azure est actif et Google absent
 async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const msIdentity = resolveMicrosoftIdentity(session);
   const fromIdentity: string | null = msIdentity?.identity_data?.access_token ?? null;
-  return fromIdentity || null;
+
+  if (fromIdentity) return fromIdentity;
+
+  // Fallback sécurisé: utiliser provider_token seulement quand Azure est le provider actif et qu’aucune identité Google n’est présente
+  const hasGoogle = !!resolveGoogleIdentity(session);
+  if (isAzureActive(session) && !hasGoogle) {
+    return session?.provider_token ?? null;
+  }
+  return null;
 }
 
-// IMPORTANT: n'utilise plus provider_refresh_token pour Microsoft (risque de récupérer le refresh Google)
+// IMPORTANT: idem pour le refresh_token
 async function resolveMicrosoftRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const msIdentity = resolveMicrosoftIdentity(session);
   const fromIdentity: string | null = msIdentity?.identity_data?.refresh_token ?? null;
-  return fromIdentity || null;
+
+  if (fromIdentity) return fromIdentity;
+
+  const hasGoogle = !!resolveGoogleIdentity(session);
+  if (isAzureActive(session) && !hasGoogle) {
+    return session?.provider_refresh_token ?? null;
+  }
+  return null;
 }
 
 function isLikelyJwt(token: string | null): boolean {

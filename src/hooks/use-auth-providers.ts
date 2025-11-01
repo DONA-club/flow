@@ -35,6 +35,17 @@ function resolveAmazonIdentity(session: any) {
   return identities.find((i) => i?.provider === "amazon");
 }
 
+function isAzureActive(session: any) {
+  const p = session?.user?.app_metadata?.provider;
+  return (
+    p === "azure" ||
+    p === "azure-oidc" ||
+    p === "azuread" ||
+    p === "microsoft" ||
+    p === "outlook"
+  );
+}
+
 export function useAuthProviders() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [microsoftConnected, setMicrosoftConnected] = useState(false);
@@ -47,17 +58,21 @@ export function useAuthProviders() {
     const { data } = await supabase.auth.getSession();
     const session: any = data?.session ?? null;
 
+    // Google: on garde une logique stricte basée sur le jeton pour éviter les préchargements “fantômes”
     const g = !!resolveGoogleIdentity(session)?.identity_data?.access_token;
-    const m = !!resolveMicrosoftIdentity(session)?.identity_data?.access_token;
-    const a = !!resolveAppleIdentity(session)?.identity_data?.access_token;
-    const f = !!resolveFacebookIdentity(session)?.identity_data?.access_token;
-    const am = !!resolveAmazonIdentity(session)?.identity_data?.access_token;
+
+    // Microsoft: considérer l’identité ou le provider actif comme “connecté”
+    const m = !!resolveMicrosoftIdentity(session) || isAzureActive(session);
+
+    const a = !!resolveAppleIdentity(session);
+    const f = !!resolveFacebookIdentity(session);
+    const am = !!resolveAmazonIdentity(session);
 
     setGoogleConnected(g);
     setMicrosoftConnected(m);
-    setAppleConnected(a);
-    setFacebookConnected(f);
-    setAmazonConnected(am);
+    setAppleConnected(!!a);
+    setFacebookConnected(!!f);
+    setAmazonConnected(!!am);
     setChecking(false);
   };
 
