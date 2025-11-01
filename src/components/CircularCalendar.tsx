@@ -83,6 +83,9 @@ export const CircularCalendar: React.FC<Props> = ({
   onEventClick,
 }) => {
   const now = new Date();
+  // Heure exacte en décimal (ex: 14h30 = 14.5)
+  const hourDecimal =
+    now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const hour = now.getHours();
   const currentSeason = season || getSeason(now);
 
@@ -102,8 +105,8 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }
 
-  // Cursor line
-  const cursorAngle = ((hour / 24) * 360) - 90;
+  // Cursor line (proportionnelle à l'heure exacte)
+  const cursorAngle = ((hourDecimal / 24) * 360) - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   const cursorX1 = cx + INNER_RADIUS * Math.cos(cursorRad);
   const cursorY1 = cy + INNER_RADIUS * Math.sin(cursorRad);
