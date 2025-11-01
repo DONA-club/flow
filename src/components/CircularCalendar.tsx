@@ -188,7 +188,12 @@ export const CircularCalendar: React.FC<Props> = ({
   wakeHour,
   bedHour,
 }) => {
-  const now = new Date();
+  const [now, setNow] = React.useState<Date>(() => new Date());
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const hourDecimal =
     now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const hour = now.getHours();
