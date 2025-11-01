@@ -22,8 +22,18 @@ export function useSunTimes(): SunTimes {
     setLoading(true);
     setError(null);
 
+    // Fallback de localisation (Paris) si la géolocalisation est indisponible
+    const DEFAULT_COORDS = { lat: 48.8566, lon: 2.3522 };
+
     if (!navigator.geolocation) {
-      setError("La géolocalisation n'est pas supportée par ce navigateur.");
+      const { lat, lon } = DEFAULT_COORDS;
+      setLatitude(lat);
+      setLongitude(lon);
+
+      const sunriseCalc = 6 + (lat / 90) * 2;
+      const sunsetCalc = 21 - (lat / 90) * 2;
+      setSunrise(Number(sunriseCalc.toFixed(2)));
+      setSunset(Number(sunsetCalc.toFixed(2)));
       setLoading(false);
       return;
     }
@@ -35,7 +45,6 @@ export function useSunTimes(): SunTimes {
         setLatitude(lat);
         setLongitude(lon);
 
-        // Demo calculation for sunrise/sunset; replace with real data if needed
         const sunriseCalc = 6 + (lat / 90) * 2;
         const sunsetCalc = 21 - (lat / 90) * 2;
         setSunrise(Number(sunriseCalc.toFixed(2)));
@@ -43,7 +52,16 @@ export function useSunTimes(): SunTimes {
         setLoading(false);
       },
       () => {
-        setError("Impossible d'obtenir la localisation.");
+        // Fallback si l'utilisateur refuse ou si une erreur survient
+        const { lat, lon } = DEFAULT_COORDS;
+        setLatitude(lat);
+        setLongitude(lon);
+
+        const sunriseCalc = 6 + (lat / 90) * 2;
+        const sunsetCalc = 21 - (lat / 90) * 2;
+        setSunrise(Number(sunriseCalc.toFixed(2)));
+        setSunset(Number(sunsetCalc.toFixed(2)));
+        setError(null);
         setLoading(false);
       }
     );
