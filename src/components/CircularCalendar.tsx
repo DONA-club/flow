@@ -314,8 +314,8 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }
 
-  // Fentes nettes dans le masque (largeur de la “découpe”)
-  const dividerWidth = Math.max(2, Math.round(4 * scale));
+  // Fentes nettes plus fines (moitié d'épaisseur)
+  const dividerWidth = Math.max(1, Math.round(2 * scale));
   const hourSlits = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const x1 = cx + INNER_RADIUS * Math.cos(angle);
@@ -329,13 +329,12 @@ export const CircularCalendar: React.FC<Props> = ({
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke="black" // noir dans le mask => cache (transparent)
+        stroke="black"
         strokeWidth={dividerWidth}
       />
     );
   });
 
-  // Nombres des heures (conservés)
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const angleDeg = (i / 24) * 360 - 90;
@@ -403,9 +402,7 @@ export const CircularCalendar: React.FC<Props> = ({
               width={SIZE}
               height={SIZE}
             >
-              {/* tout cacher par défaut */}
               <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
-              {/* anneau visible avec léger flou sur les bords */}
               <g filter="url(#ringEdgeBlur)">
                 <circle
                   cx={cx}
@@ -416,14 +413,12 @@ export const CircularCalendar: React.FC<Props> = ({
                   fill="none"
                 />
               </g>
-              {/* fentes nettes à chaque heure (noir => découpe transparente) */}
               <g>
                 {hourSlits}
               </g>
             </mask>
           </defs>
 
-          {/* anneau découpé par le mask: les fentes laissent voir le fond */}
           <g
             mask="url(#ringFadeMask)"
             onMouseEnter={() => setHoverRing(true)}
@@ -439,7 +434,6 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* arcs contexte passé/futur au survol */}
           {hoverRing && pastArc && (
             <path
               d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
@@ -464,10 +458,8 @@ export const CircularCalendar: React.FC<Props> = ({
             />
           )}
 
-          {/* nombres d'heures (conservés) */}
           {hourNumbers}
 
-          {/* curseur de l'heure actuelle */}
           <line
             x1={cursorX1}
             y1={cursorY1}
@@ -480,7 +472,6 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
-        {/* bloc central interactif */}
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
           style={{
@@ -534,7 +525,6 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* icônes lever/coucher avec tooltip */}
         {!hoverRing && (
           <Tooltip>
             <TooltipTrigger asChild>
