@@ -32,9 +32,8 @@ const SEASON_COLORS: Record<string, string> = {
 
 const NIGHT_COLOR = "#d1d5db";
 
-// Découpe en 96 segments de 15 minutes
-const SEGMENTS = 96;
-const MINUTES_PER_SEGMENT = 24 * 60 / SEGMENTS; // 15
+// Découpage en 24 segments horaires
+const SEGMENTS = 24;
 
 function getWedgePath(cx: number, cy: number, r1: number, r2: number, startAngle: number, endAngle: number) {
   const startRad = (Math.PI / 180) * startAngle;
@@ -75,13 +74,13 @@ function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
   return "winter";
 }
 
-// Précision à la minute près
-function isDayMinute(hourDecimal: number, sunrise: number, sunset: number) {
+// Précision à l'heure près
+function isDayHour(hour: number, sunrise: number, sunset: number) {
   if (sunrise < sunset) {
-    return hourDecimal >= sunrise && hourDecimal < sunset;
+    return hour + 0.5 >= sunrise && hour + 0.5 < sunset;
   } else {
     // Cas où le jour traverse minuit
-    return hourDecimal >= sunrise || hourDecimal < sunset;
+    return hour + 0.5 >= sunrise || hour + 0.5 < sunset;
   }
 }
 
@@ -104,14 +103,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const cy = SIZE / 2;
   const blockAngle = 360 / SEGMENTS;
 
-  // Découpage fin : chaque segment = 15 minutes
+  // 24 blocs horaires
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
-    // Heure décimale du centre du segment
-    const minuteOfDay = i * MINUTES_PER_SEGMENT + MINUTES_PER_SEGMENT / 2;
-    const wedgeHourDecimal = minuteOfDay / 60;
-    const isDayBlock = isDayMinute(wedgeHourDecimal, sunrise, sunset);
+    // On colore selon si l'heure centrale du bloc est de jour ou de nuit
+    const isDayBlock = isDayHour(i, sunrise, sunset);
     return {
       d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
       fill: isDayBlock ? SEASON_COLORS[currentSeason] : NIGHT_COLOR,
@@ -130,7 +127,7 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Segments fins sans bordure */}
+        {/* Segments horaires */}
         {wedges.map(w => (
           <path
             key={w.key}
