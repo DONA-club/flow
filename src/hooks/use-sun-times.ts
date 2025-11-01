@@ -28,14 +28,13 @@ function toLocalDecimalHour(utcIsoString: string): number {
 }
 
 async function getLocationByIP() {
-  // Utilisation de ip-api.com (pas besoin de clé, limité à 45 requêtes/min)
-  const res = await fetch("https://ip-api.com/json/?fields=lat,lon,status,message");
+  // Utilisation de ipinfo.io (pas besoin de clé pour 50k requêtes/mois)
+  const res = await fetch("https://ipinfo.io/json?token=");
+  if (!res.ok) throw new Error("Impossible de localiser par IP.");
   const data = await res.json();
-  if (data.status === "success") {
-    return { latitude: data.lat, longitude: data.lon };
-  } else {
-    throw new Error(data.message || "Impossible de localiser par IP.");
-  }
+  if (!data.loc) throw new Error("Impossible de localiser par IP.");
+  const [latitude, longitude] = data.loc.split(",").map(Number);
+  return { latitude, longitude };
 }
 
 export function useSunTimes(): SunTimes {
