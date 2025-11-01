@@ -278,12 +278,6 @@ export const CircularCalendar: React.FC<Props> = ({
         <div className="text-sm text-gray-600">
           {event ? event.place : "Enjoy your time!"}
         </div>
-        {/* Localisation géographique précise */}
-        <div className="mt-1 text-xs text-gray-500 font-mono">
-          {typeof latitude === "number" && typeof longitude === "number"
-            ? `${formatCoord(latitude, "lat")}, ${formatCoord(longitude, "lon")}`
-            : "Localisation indisponible"}
-        </div>
         {/* Sunrise & Sunset au centre */}
         <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
           <span className="flex items-center gap-1">

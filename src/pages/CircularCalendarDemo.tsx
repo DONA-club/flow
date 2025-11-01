@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
-import type { SunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
 
@@ -40,12 +39,9 @@ function useGoldenCircleSize() {
 type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
-  const sunTimes: SunTimes = useSunTimes();
-  const { sunrise, sunset, loading, error, retry, latitude, longitude } = sunTimes;
+  const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
-  const [displayLat, setDisplayLat] = useState<number | undefined>(undefined);
-  const [displayLon, setDisplayLon] = useState<number | undefined>(undefined);
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
@@ -55,11 +51,7 @@ const CircularCalendarDemo = () => {
       setDisplaySunrise(sunrise);
       setDisplaySunset(sunset);
     }
-    if (latitude !== null && longitude !== null && !loading && !error) {
-      setDisplayLat(latitude);
-      setDisplayLon(longitude);
-    }
-  }, [sunrise, sunset, latitude, longitude, loading, error]);
+  }, [sunrise, sunset, loading, error]);
 
   useEffect(() => {
     if (loading) {
@@ -90,8 +82,6 @@ const CircularCalendarDemo = () => {
           events={mockEvents}
           size={size}
           eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
-          latitude={displayLat}
-          longitude={displayLon}
         />
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
