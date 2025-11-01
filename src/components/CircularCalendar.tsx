@@ -437,7 +437,7 @@ export const CircularCalendar: React.FC<Props> = ({
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.95}
-              strokeWidth={arcStroke}
+              strokeWidth={Math.max(2, Math.round(3 * scale))}
               strokeLinecap="round"
               style={{ pointerEvents: "none" }}
             />
@@ -445,11 +445,11 @@ export const CircularCalendar: React.FC<Props> = ({
 
           {hoverRing && futureArc && (
             <path
-              d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
+              d={getArcPath(cx, cy, RADIUS + Math.max(1, Math.round(scale)) + Math.max(2, Math.round(3 * scale)) / 2, futureArc.start, futureArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.6}
-              strokeWidth={arcStroke}
+              strokeWidth={Math.max(2, Math.round(3 * scale))}
               strokeLinecap="round"
               style={{ pointerEvents: "none" }}
             />
@@ -490,7 +490,7 @@ export const CircularCalendar: React.FC<Props> = ({
         >
           {event && dayBadge && (
             <div
-              className="mb-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-gray-900 text-white/90 text-xs"
+              className="mb-1 text-xs text-gray-400"
               style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
               aria-label={dayBadge}
             >

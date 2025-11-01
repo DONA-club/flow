@@ -6,11 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import CircularCalendarDemo from "./pages/CircularCalendarDemo";
+import SystemThemeWatcher from "@/components/SystemThemeWatcher";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <SystemThemeWatcher />
     <TooltipProvider>
       <Toaster />
       <Sonner />
