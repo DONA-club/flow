@@ -75,10 +75,13 @@ export function useGoogleCalendar(): Result {
     setLoading(true);
     setError(null);
 
-    const timeMin = new Date().toISOString();
+    const now = new Date();
+    const timeMin = now.toISOString();
+    const timeMax = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
       timeMin
-    )}&maxResults=10`;
+    )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
     let token = await resolveGoogleAccessToken();
     if (!token) {
