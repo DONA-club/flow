@@ -1,7 +1,9 @@
 "use client";
 
 import React from "react";
-import { siGoogle, siApple, siFacebook, siAmazon, siMicrosoft } from "simple-icons";
+import { siGoogle, siApple, siFacebook } from "simple-icons/icons";
+import siAmazon from "simple-icons/icons/amazon";
+import siMicrosoft from "simple-icons/icons/microsoft";
 
 type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft";
 
