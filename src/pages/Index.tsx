@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import AppleAuthButton from "@/components/AppleAuthButton";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 import { Toaster } from "sonner";
 
 const Index = () => {
@@ -14,7 +14,7 @@ const Index = () => {
             tabIndex={0}
           />
         </Link>
-        <AppleAuthButton />
+        <GoogleAuthButton />
       </div>
     </>
   );
