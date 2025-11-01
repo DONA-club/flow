@@ -287,9 +287,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunsetRotation = sunsetAngle + 90;
 
   // Arcs concentriques
-  const innerArcRadius = Math.max(0, INNER_RADIUS - Math.max(4, RING_THICKNESS * 0.25));
-  const outerArcRadius = RADIUS + Math.max(4, RING_THICKNESS * 0.25);
+  // Ajustement: garder les 2 arcs à l'intérieur de l'anneau pour éviter tout clipping par le bord du SVG
+  const arcInset = Math.max(2, Math.round(RING_THICKNESS * 0.2));
+  const innerArcRadius = Math.max(INNER_RADIUS + arcInset, INNER_RADIUS + 2);
+  const outerArcRadius = Math.min(RADIUS - arcInset, RADIUS - 2);
   const arcStroke = Math.max(2, Math.round(3 * scale));
+
   // Calcul des arcs dynamiques:
   // - Si wakeHour/bedHour sont fournis (Google Fit), on les utilise:
   //   intérieur = écoulé depuis le lever, extérieur = restant jusqu'au coucher
@@ -411,7 +414,12 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <div style={{ position: "relative", width: SIZE, height: SIZE }}>
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+        <svg
+          width={SIZE}
+          height={SIZE}
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          style={{ overflow: "visible" }}
+        >
           <defs>
             <filter
               id="ringEdgeBlur"
