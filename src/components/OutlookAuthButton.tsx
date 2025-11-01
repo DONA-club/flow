@@ -17,12 +17,12 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
 
   const handleOutlookLogin = async () => {
     setLoading(true);
-    toast(microsoftConnected ? "Renouvellement de l’accès Microsoft…" : "Redirection vers Microsoft…", {
-      description: "Veuillez compléter la connexion dans la fenêtre suivante.",
-    });
-
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
+    toast(
+      microsoftConnected
+        ? "Renouvellement de l’accès Microsoft…"
+        : "Redirection vers Microsoft…",
+      { description: "Veuillez compléter la connexion dans la fenêtre suivante." }
+    );
 
     const oauthOptions = {
       redirectTo: window.location.origin,
@@ -30,30 +30,25 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       queryParams: { prompt: "consent" },
     } as const;
 
-    const doAuth = user
-      ? supabase.auth.linkIdentity({ provider: "azure", options: oauthOptions })
-      : supabase.auth.signInWithOAuth({ provider: "azure", options: oauthOptions });
-
-    const { error } = await doAuth;
+    // Important: utiliser signInWithOAuth pour que la session active soit 'azure'
+    // et expose provider_token/provider_refresh_token à notre watcher.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: oauthOptions,
+    });
 
     if (error) {
-      const msg = String((error as any)?.message || "");
-      if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
-        toast.error("Liaison Microsoft désactivée", {
-          description:
-            "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour lier plusieurs fournisseurs au même compte.",
-        });
-      } else {
-        toast.error("Connexion Microsoft indisponible", {
-          description: "Le fournisseur Azure n'est pas activé ou a rencontré une erreur.",
-        });
-      }
+      toast.error("Connexion Microsoft indisponible", {
+        description:
+          "Le fournisseur Azure n'est pas activé ou a rencontré une erreur.",
+      });
       setLoading(false);
       return;
     }
 
     toast.success("Microsoft connecté", {
-      description: "Vos événements Outlook seront inclus et fusionnés dans le calendrier.",
+      description:
+        "Vos événements Outlook seront inclus et fusionnés dans le calendrier.",
     });
   };
 
