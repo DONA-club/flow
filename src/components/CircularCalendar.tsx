@@ -29,6 +29,7 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
+const HOUR_SEPARATOR_COLOR = "#fff"; // blanc pour la séparation
 
 // Découpage en 1440 segments (1 par minute)
 const SEGMENTS = 1440;
@@ -114,6 +115,16 @@ export const CircularCalendar: React.FC<Props> = ({
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
+
+    // Séparation visuelle à chaque heure pile
+    if (i % 60 === 0) {
+      return {
+        d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
+        fill: HOUR_SEPARATOR_COLOR,
+        key: i,
+      };
+    }
+
     const isDayBlock = isDayMinute(i, sunrise, sunset);
     return {
       d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
@@ -130,7 +141,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
-  // 24 séparateurs horaires
+  // 24 séparateurs horaires (traits fins)
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const x1 = cx + INNER_RADIUS * Math.cos(angle);
@@ -154,7 +165,7 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Segments horaires à la minute près */}
+        {/* Segments horaires à la minute près, avec séparation nette chaque heure */}
         {wedges.map((w) => (
           <path
             key={w.key}
