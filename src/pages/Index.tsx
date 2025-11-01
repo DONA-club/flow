@@ -10,13 +10,15 @@ import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import { toast } from "sonner";
 
 const Index = () => {
-  // Précharge: Google Calendar, Outlook Calendar, Fit
-  useGoogleCalendar();
-  useOutlookCalendar();
-  useGoogleFitSleep();
+  // État de connexion providers
+  const { googleConnected, microsoftConnected } = useAuthProviders();
+
+  // Précharge conditionnelle: Google Calendar, Outlook Calendar, Fit
+  useGoogleCalendar({ enabled: googleConnected });
+  useOutlookCalendar({ enabled: microsoftConnected });
+  useGoogleFitSleep({ enabled: googleConnected });
 
   // Confirmation visible quand une connexion est détectée
-  const { googleConnected, microsoftConnected } = useAuthProviders();
   const prevGoogle = useRef<boolean>(false);
   const prevMicrosoft = useRef<boolean>(false);
 

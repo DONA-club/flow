@@ -20,6 +20,10 @@ type Result = {
   refresh: () => void;
 };
 
+type Options = {
+  enabled?: boolean;
+};
+
 function toHourDecimal(iso: string): number {
   const d = new Date(iso);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
@@ -83,13 +87,17 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
   return accessToken || null;
 }
 
-export function useOutlookCalendar(): Result {
+export function useOutlookCalendar(options?: Options): Result {
+  const enabled = options?.enabled ?? true;
+
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [connected, setConnected] = React.useState(false);
 
   const fetchEvents = React.useCallback(async () => {
+    if (!enabled) return;
+
     setLoading(true);
     setError(null);
 
@@ -204,18 +212,20 @@ export function useOutlookCalendar(): Result {
 
     setEvents(upcoming);
     setLoading(false);
-  }, []);
+  }, [enabled]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     fetchEvents();
-  }, [fetchEvents]);
+  }, [enabled, fetchEvents]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     const { data } = supabase.auth.onAuthStateChange(() => {
       fetchEvents();
     });
     return () => data.subscription.unsubscribe();
-  }, [fetchEvents]);
+  }, [enabled, fetchEvents]);
 
   return {
     events,

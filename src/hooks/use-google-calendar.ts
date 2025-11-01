@@ -20,6 +20,10 @@ type Result = {
   connected: boolean;
 };
 
+type Options = {
+  enabled?: boolean;
+};
+
 function toHourDecimal(iso: string): number {
   const d = new Date(iso);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
@@ -28,9 +32,8 @@ function toHourDecimal(iso: string): number {
 async function resolveGoogleAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
-  const fromProviderToken: string | null = session?.provider_token ?? null;
-  if (fromProviderToken) return fromProviderToken;
 
+  // IMPORTANT: ne plus utiliser session.provider_token (peut être celui de Microsoft)
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
   const fromIdentities: string | null = googleIdentity?.identity_data?.access_token ?? null;
@@ -41,9 +44,7 @@ async function resolveGoogleRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
-  if (fromProviderRefresh) return fromProviderRefresh;
-
+  // IMPORTANT: ne plus utiliser session.provider_refresh_token (peut être celui d’un autre provider)
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
   const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
@@ -70,13 +71,17 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
   return accessToken || null;
 }
 
-export function useGoogleCalendar(): Result {
+export function useGoogleCalendar(options?: Options): Result {
+  const enabled = options?.enabled ?? true;
+
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [connected, setConnected] = React.useState(false);
 
   const fetchEvents = React.useCallback(async () => {
+    if (!enabled) return;
+
     setLoading(true);
     setError(null);
 
@@ -90,7 +95,6 @@ export function useGoogleCalendar(): Result {
 
     let token = await resolveGoogleAccessToken();
     if (!token) {
-      // Essaie un refresh silencieux via Edge Function
       const refreshed = await refreshAccessTokenViaEdge();
       if (refreshed) {
         token = refreshed;
@@ -163,18 +167,20 @@ export function useGoogleCalendar(): Result {
 
     setEvents(mapped);
     setLoading(false);
-  }, []);
+  }, [enabled]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     fetchEvents();
-  }, [fetchEvents]);
+  }, [enabled, fetchEvents]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     const { data } = supabase.auth.onAuthStateChange(() => {
       fetchEvents();
     });
     return () => data.subscription.unsubscribe();
-  }, [fetchEvents]);
+  }, [enabled, fetchEvents]);
 
   return {
     events,

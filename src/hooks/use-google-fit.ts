@@ -12,6 +12,10 @@ type Result = {
   refresh: () => void;
 };
 
+type Options = {
+  enabled?: boolean;
+};
+
 function toLocalDecimalHourFromMillis(ms: number): number {
   const d = new Date(ms);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
@@ -20,9 +24,8 @@ function toLocalDecimalHourFromMillis(ms: number): number {
 async function getGoogleAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
-  const fromProviderToken: string | null = session?.provider_token ?? null;
-  if (fromProviderToken) return fromProviderToken;
 
+  // IMPORTANT: ne plus utiliser session.provider_token (peut être celui d’un autre provider)
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
   const fromIdentities: string | null = googleIdentity?.identity_data?.access_token ?? null;
@@ -32,9 +35,8 @@ async function getGoogleAccessToken(): Promise<string | null> {
 async function getGoogleRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
-  const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
-  if (fromProviderRefresh) return fromProviderRefresh;
 
+  // IMPORTANT: ne plus utiliser session.provider_refresh_token
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
   const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
@@ -48,11 +50,9 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
   const supaAccess = session?.access_token;
 
   if (!refreshToken) {
-    // Pas de refresh_token disponible côté client: on arrête proprement
     return null;
   }
   if (!supaAccess) {
-    // Session Supabase absente: impossible d’appeler l’Edge Function
     return null;
   }
 
@@ -68,7 +68,9 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
   return accessToken || null;
 }
 
-export function useGoogleFitSleep(): Result {
+export function useGoogleFitSleep(options?: Options): Result {
+  const enabled = options?.enabled ?? true;
+
   const [wakeHour, setWakeHour] = React.useState<number | null>(null);
   const [bedHour, setBedHour] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
@@ -76,6 +78,8 @@ export function useGoogleFitSleep(): Result {
   const [connected, setConnected] = React.useState<boolean>(false);
 
   const fetchSleep = React.useCallback(async () => {
+    if (!enabled) return;
+
     setLoading(true);
     setError(null);
 
@@ -167,18 +171,20 @@ export function useGoogleFitSleep(): Result {
     setWakeHour(Number(lastEndHour.toFixed(4)));
     setBedHour(Number(lastStartHour.toFixed(4)));
     setLoading(false);
-  }, []);
+  }, [enabled]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     fetchSleep();
-  }, [fetchSleep]);
+  }, [enabled, fetchSleep]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     const { data } = supabase.auth.onAuthStateChange(() => {
       fetchSleep();
     });
     return () => data.subscription.unsubscribe();
-  }, [fetchSleep]);
+  }, [enabled, fetchSleep]);
 
   return { wakeHour, bedHour, loading, error, connected, refresh: fetchSleep };
 }
