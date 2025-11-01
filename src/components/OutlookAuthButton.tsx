@@ -22,39 +22,25 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
 
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
     const oauthOptions = {
       redirectTo: window.location.origin,
       scopes: "openid profile email offline_access Calendars.Read",
       queryParams: { prompt: "consent" },
     } as const;
 
-    const action = user
-      ? supabase.auth.linkIdentity({ provider: "azure", options: oauthOptions })
-      : supabase.auth.signInWithOAuth({ provider: "azure", options: oauthOptions });
-
-    action.then(({ error }) => {
-      if (error) {
-        const msg = String((error as any)?.message || "");
-        if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
-          toast.error("Liaison de compte désactivée", {
-            description:
-              "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour connecter plusieurs fournisseurs au même compte.",
-          });
-        } else {
-          toast.error("Connexion Outlook indisponible", {
-            description: "Le fournisseur Microsoft (Azure) n'est pas activé ou a rencontré une erreur.",
-          });
-        }
-        setLoading(false);
-      } else {
-        toast.success("Microsoft connecté", {
-          description: "Accès à l’agenda Outlook accordé.",
-        });
-      }
+    // Important: on force une vraie session Azure pour obtenir provider_token/refreshtoken
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: oauthOptions,
     });
+
+    if (error) {
+      toast.error("Connexion Outlook indisponible", {
+        description:
+          "Le fournisseur Microsoft (Azure) n'est pas activé ou a rencontré une erreur.",
+      });
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,7 +52,9 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       className={[
         className || "",
         microsoftConnected ? "grayscale opacity-70 hover:opacity-80" : "",
-      ].join(" ").trim()}
+      ]
+        .join(" ")
+        .trim()}
     >
       <BrandIcon name="microsoft" />
     </SocialAuthIconButton>

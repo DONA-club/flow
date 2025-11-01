@@ -58,11 +58,13 @@ export function useAuthProviders() {
     const { data } = await supabase.auth.getSession();
     const session: any = data?.session ?? null;
 
-    // Google: on garde une logique stricte basée sur le jeton pour éviter les préchargements “fantômes”
+    // Google: stricte présence d’un access_token
     const g = !!resolveGoogleIdentity(session)?.identity_data?.access_token;
 
-    // Microsoft: considérer l’identité ou le provider actif comme “connecté”
-    const m = !!resolveMicrosoftIdentity(session) || isAzureActive(session);
+    // Microsoft: connecté si Azure est actif (provider) OU si l’identité expose un vrai access_token
+    const m =
+      isAzureActive(session) ||
+      !!resolveMicrosoftIdentity(session)?.identity_data?.access_token;
 
     const a = !!resolveAppleIdentity(session);
     const f = !!resolveFacebookIdentity(session);
@@ -84,5 +86,12 @@ export function useAuthProviders() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  return { googleConnected, microsoftConnected, appleConnected, facebookConnected, amazonConnected, checking };
+  return {
+    googleConnected,
+    microsoftConnected,
+    appleConnected,
+    facebookConnected,
+    amazonConnected,
+    checking,
+  };
 }

@@ -57,34 +57,33 @@ function isAzureActive(session: any) {
   );
 }
 
-// IMPORTANT: on privilégie les jetons dans l’identité; sinon on bascule sur provider_* uniquement si Azure est actif et Google absent
+// On privilégie les jetons dans l’identité; sinon on bascule sur provider_* si Azure est le provider actif.
 async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentity: string | null = msIdentity?.identity_data?.access_token ?? null;
+  const fromIdentity: string | null =
+    msIdentity?.identity_data?.access_token ?? null;
 
   if (fromIdentity) return fromIdentity;
 
-  // Fallback sécurisé: utiliser provider_token seulement quand Azure est le provider actif et qu’aucune identité Google n’est présente
-  const hasGoogle = !!resolveGoogleIdentity(session);
-  if (isAzureActive(session) && !hasGoogle) {
+  if (isAzureActive(session)) {
     return session?.provider_token ?? null;
   }
   return null;
 }
 
-// IMPORTANT: idem pour le refresh_token
+// Idem pour le refresh_token
 async function resolveMicrosoftRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentity: string | null = msIdentity?.identity_data?.refresh_token ?? null;
+  const fromIdentity: string | null =
+    msIdentity?.identity_data?.refresh_token ?? null;
 
   if (fromIdentity) return fromIdentity;
 
-  const hasGoogle = !!resolveGoogleIdentity(session);
-  if (isAzureActive(session) && !hasGoogle) {
+  if (isAzureActive(session)) {
     return session?.provider_refresh_token ?? null;
   }
   return null;
@@ -106,12 +105,15 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
 
   const scopes = "Calendars.Read offline_access openid profile email";
 
-  const { data: resp, error } = await supabase.functions.invoke("microsoft-token-refresh", {
-    body: { refresh_token: refreshToken, scope: scopes },
-    headers: {
-      Authorization: `Bearer ${supaAccess}`,
-    },
-  });
+  const { data: resp, error } = await supabase.functions.invoke(
+    "microsoft-token-refresh",
+    {
+      body: { refresh_token: refreshToken, scope: scopes },
+      headers: {
+        Authorization: `Bearer ${supaAccess}`,
+      },
+    }
+  );
 
   if (error) return null;
   const accessToken: string | undefined = (resp as any)?.access_token;
@@ -134,7 +136,7 @@ export function useOutlookCalendar(options?: Options): Result {
 
     let token = await resolveMicrosoftAccessToken();
 
-    // Si pas de token identité ou token non-JWT => tenter refresh uniquement si on a un refresh_token Microsoft
+    // Si pas de token identité ou token non-JWT => tenter refresh si on a un refresh_token Microsoft
     if (!isLikelyJwt(token || null)) {
       const refreshed = await refreshAccessTokenViaEdge();
       if (refreshed && isLikelyJwt(refreshed)) {
@@ -179,7 +181,7 @@ export function useOutlookCalendar(options?: Options): Result {
 
     let res = await doFetch(token as string);
     if (!res.ok && (res.status === 401 || res.status === 403)) {
-      // Tentative de refresh si non autorisé (et si refresh_token Microsoft disponible)
+      // Tentative de refresh si non autorisé
       const refreshed = await refreshAccessTokenViaEdge();
       if (refreshed && isLikelyJwt(refreshed)) {
         token = refreshed;
@@ -189,7 +191,9 @@ export function useOutlookCalendar(options?: Options): Result {
         setConnected(false);
         setEvents([]);
         setLoading(false);
-        setError("Session Microsoft expirée et aucun refresh disponible. Reconnectez Microsoft (consent).");
+        setError(
+          "Session Microsoft expirée et aucun refresh disponible. Reconnectez Microsoft (consent)."
+        );
         return;
       }
     }
@@ -234,7 +238,7 @@ export function useOutlookCalendar(options?: Options): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
-    // Sécurité: ne garder que les événements à venir
+    // Ne garder que les événements à venir
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;
