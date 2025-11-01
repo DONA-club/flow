@@ -3,9 +3,9 @@ import { BarChart2, Building2, CloudSun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/monitoring", label: "Evap Cooling", icon: <BarChart2 className="w-5 h-5" /> },
-  { to: "/building", label: "Building Model", icon: <Building2 className="w-5 h-5" /> },
-  { to: "/meteo", label: "Meteo", icon: <CloudSun className="w-5 h-5" /> },
+  { to: "/monitoring/evap", label: "Evap Cooling", icon: <BarChart2 className="w-5 h-5" /> },
+  { to: "/monitoring/building", label: "Building Model", icon: <Building2 className="w-5 h-5" /> },
+  { to: "/monitoring/meteo", label: "Meteo", icon: <CloudSun className="w-5 h-5" /> },
 ];
 
 export const Sidebar = () => {
