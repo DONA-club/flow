@@ -61,10 +61,9 @@ export function useAuthProviders() {
     // Google: stricte présence d’un access_token
     const g = !!resolveGoogleIdentity(session)?.identity_data?.access_token;
 
-    // Microsoft: connecté si Azure est actif (provider) OU si l’identité expose un vrai access_token
-    const m =
-      isAzureActive(session) ||
-      !!resolveMicrosoftIdentity(session)?.identity_data?.access_token;
+    // Microsoft: connecté si identité Microsoft liée OU si Azure est actif
+    const hasMsIdentity = !!resolveMicrosoftIdentity(session);
+    const m = hasMsIdentity || isAzureActive(session);
 
     const a = !!resolveAppleIdentity(session);
     const f = !!resolveFacebookIdentity(session);
