@@ -162,11 +162,6 @@ const CircularCalendarDemo = () => {
           <Button variant="ghost" size="sm" onClick={() => refreshOutlook()} disabled={oLoading}>
             Rafraîchir Outlook
           </Button>
-          {!oConnected && (
-            <span className="text-xs opacity-80">
-              Connectez votre compte Outlook pour afficher vos événements.
-            </span>
-          )}
         </div>
 
         <div
