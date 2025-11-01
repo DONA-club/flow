@@ -130,6 +130,27 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
+  // 24 séparateurs horaires
+  const hourDividers = Array.from({ length: 24 }).map((_, i) => {
+    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
+    const x1 = cx + INNER_RADIUS * Math.cos(angle);
+    const y1 = cy + INNER_RADIUS * Math.sin(angle);
+    const x2 = cx + RADIUS * Math.cos(angle);
+    const y2 = cy + RADIUS * Math.sin(angle);
+    return (
+      <line
+        key={i}
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="#374151"
+        strokeWidth={1.2}
+        opacity={0.7}
+      />
+    );
+  });
+
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
@@ -142,6 +163,8 @@ export const CircularCalendar: React.FC<Props> = ({
             stroke="none"
           />
         ))}
+        {/* Séparateurs horaires */}
+        {hourDividers}
         {/* Nombres d'heures toutes les heures */}
         {Array.from({ length: 24 }).map((_, i) => {
           const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
