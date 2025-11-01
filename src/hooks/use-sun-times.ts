@@ -7,10 +7,25 @@ type SunTimes = {
   error: string | null;
 };
 
-function toDecimalHour(dateStr: string): number {
-  // dateStr format: "2024-07-01T04:56:00+00:00"
-  const date = new Date(dateStr);
-  return date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+function toLocalDecimalHour(utcIsoString: string): number {
+  // Convertit une date ISO UTC en heure locale décimale
+  const utcDate = new Date(utcIsoString);
+  const localDate = new Date(
+    utcDate.getUTCFullYear(),
+    utcDate.getUTCMonth(),
+    utcDate.getUTCDate(),
+    utcDate.getUTCHours(),
+    utcDate.getUTCMinutes(),
+    utcDate.getUTCSeconds()
+  );
+  // Décalage entre UTC et local
+  const tzOffsetMin = localDate.getTimezoneOffset();
+  localDate.setMinutes(localDate.getMinutes() - tzOffsetMin);
+  return (
+    localDate.getHours() +
+    localDate.getMinutes() / 60 +
+    localDate.getSeconds() / 3600
+  );
 }
 
 export function useSunTimes(): SunTimes {
@@ -29,7 +44,6 @@ export function useSunTimes(): SunTimes {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        // Appel à l'API sunrise-sunset.org (format ISO8601, UTC)
         fetch(
           `https://api.sunrise-sunset.org/json?lat=${latitude}&lng=${longitude}&formatted=0`
         )
@@ -40,13 +54,11 @@ export function useSunTimes(): SunTimes {
               setLoading(false);
               return;
             }
-            // On convertit l'heure UTC en heure locale
-            const sunriseUTC = new Date(data.results.sunrise);
-            const sunsetUTC = new Date(data.results.sunset);
-            const sunriseLocal = new Date(sunriseUTC.toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
-            const sunsetLocal = new Date(sunsetUTC.toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
-            setSunrise(sunriseLocal.getHours() + sunriseLocal.getMinutes() / 60 + sunriseLocal.getSeconds() / 3600);
-            setSunset(sunsetLocal.getHours() + sunsetLocal.getMinutes() / 60 + sunsetLocal.getSeconds() / 3600);
+            // Conversion UTC → heure locale décimale
+            const sunriseDec = toLocalDecimalHour(data.results.sunrise);
+            const sunsetDec = toLocalDecimalHour(data.results.sunset);
+            setSunrise(sunriseDec);
+            setSunset(sunsetDec);
             setLoading(false);
           })
           .catch(() => {
@@ -55,7 +67,11 @@ export function useSunTimes(): SunTimes {
           });
       },
       (err) => {
-        setError("Impossible d'obtenir la localisation.");
+        if (err.code === 1) {
+          setError("Autorisation de localisation refusée.");
+        } else {
+          setError("Impossible d'obtenir la localisation.");
+        }
         setLoading(false);
       }
     );
