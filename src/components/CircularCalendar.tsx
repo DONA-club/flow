@@ -379,7 +379,10 @@ export const CircularCalendar: React.FC<Props> = ({
             </div>
           </TooltipTrigger>
           <TooltipContent side="top">
-            {formatHour(sunrise)}
+            {/* Tooltip doux et lisible */}
+            <span className="rounded-lg border border-gray-200 bg-white/90 backdrop-blur-sm px-3 py-2 shadow-lg text-base font-semibold text-gray-900 whitespace-nowrap">
+              {formatHour(sunrise)}
+            </span>
           </TooltipContent>
         </Tooltip>
 
@@ -404,7 +407,10 @@ export const CircularCalendar: React.FC<Props> = ({
             </div>
           </TooltipTrigger>
           <TooltipContent side="top">
-            {formatHour(sunset)}
+            {/* Tooltip doux et lisible */}
+            <span className="rounded-lg border border-gray-200 bg-white/90 backdrop-blur-sm px-3 py-2 shadow-lg text-base font-semibold text-gray-900 whitespace-nowrap">
+              {formatHour(sunset)}
+            </span>
           </TooltipContent>
         </Tooltip>
       </div>
