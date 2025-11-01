@@ -102,7 +102,7 @@ function formatHour(decimal: number) {
 
 function formatCoord(coord?: number, type: "lat" | "lon" = "lat") {
   if (typeof coord !== "number") return "";
-  const abs = Math.abs(coord).toFixed(4);
+  const abs = Math.abs(coord).toFixed(5);
   const dir =
     type === "lat"
       ? coord >= 0
@@ -279,11 +279,11 @@ export const CircularCalendar: React.FC<Props> = ({
           {event ? event.place : "Enjoy your time!"}
         </div>
         {/* Localisation géographique précise */}
-        {(latitude !== undefined && longitude !== undefined) && (
-          <div className="mt-1 text-xs text-gray-500 font-mono">
-            {formatCoord(latitude, "lat")}, {formatCoord(longitude, "lon")}
-          </div>
-        )}
+        <div className="mt-1 text-xs text-gray-500 font-mono">
+          {typeof latitude === "number" && typeof longitude === "number"
+            ? `${formatCoord(latitude, "lat")}, ${formatCoord(longitude, "lon")}`
+            : "Localisation indisponible"}
+        </div>
         {/* Sunrise & Sunset au centre */}
         <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
           <span className="flex items-center gap-1">
