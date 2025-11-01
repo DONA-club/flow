@@ -1,10 +1,7 @@
 import { Link } from "react-router-dom";
 import AuthProviderScroller from "@/components/AuthProviderScroller";
-import ParticleBurst from "@/components/ParticleBurst";
 import EventDrivenBurst from "@/components/EventDrivenBurst";
 import { Toaster } from "sonner";
-import GoogleAuthButton from "@/components/GoogleAuthButton";
-import OutlookAuthButton from "@/components/OutlookAuthButton";
 import { useAuthProviders } from "@/hooks/use-auth-providers";
 import { useEffect, useRef } from "react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
@@ -14,9 +11,9 @@ import { toast } from "sonner";
 
 const Index = () => {
   // Précharge: Google Calendar, Outlook Calendar, Fit
-  const g = useGoogleCalendar();
-  const o = useOutlookCalendar();
-  const f = useGoogleFitSleep();
+  useGoogleCalendar();
+  useOutlookCalendar();
+  useGoogleFitSleep();
 
   // Confirmation visible quand une connexion est détectée
   const { googleConnected, microsoftConnected } = useAuthProviders();
@@ -58,13 +55,8 @@ const Index = () => {
           </Link>
         </div>
 
-        {/* Strip des deux fournisseurs pour cohabiter les connexions */}
-        <div className="flex items-center justify-center gap-3">
-          <GoogleAuthButton />
-          <OutlookAuthButton />
-        </div>
-
-        {/* Scroller existant pour parcourir les autres providers si besoin */}
+        {/* Scroller unique: choisir un provider, cliquer pour se connecter; 
+           les fournisseurs déjà connectés sont grisées et un toast confirme la connexion */}
         <AuthProviderScroller />
       </div>
     </>
