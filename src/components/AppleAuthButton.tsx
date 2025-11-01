@@ -5,6 +5,7 @@ import BrandIcon from "@/components/BrandIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 
 type Props = {
   className?: string;
@@ -12,27 +13,38 @@ type Props = {
 
 const AppleAuthButton: React.FC<Props> = ({ className }) => {
   const [loading, setLoading] = React.useState(false);
+  const { appleConnected } = useAuthProviders();
 
-  const handleAppleLogin = () => {
+  const handleAppleLogin = async () => {
     toast("Redirection vers Apple…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
     setLoading(true);
-    supabase.auth
-      .signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      })
-      .then(({ error }) => {
-        if (error) {
-          toast.error("Connexion Apple indisponible", {
-            description: "Le fournisseur Apple n'est pas activé dans Supabase.",
-          });
-          setLoading(false);
-        }
-      });
+
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    const oauthOptions = {
+      redirectTo: window.location.origin,
+    } as const;
+
+    const action = user
+      ? supabase.auth.linkIdentity({ provider: "apple", options: oauthOptions })
+      : supabase.auth.signInWithOAuth({ provider: "apple", options: oauthOptions });
+
+    action.then(({ error }) => {
+      if (error) {
+        toast.error("Connexion Apple indisponible", {
+          description:
+            "Le fournisseur Apple n'est pas activé dans Supabase ou a rencontré une erreur.",
+        });
+        setLoading(false);
+      } else {
+        toast.success("Apple connecté", {
+          description: "Votre compte Apple a été relié avec succès.",
+        });
+      }
+    });
   };
 
   return (
@@ -41,7 +53,12 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
       disabled={loading}
       ariaLabel="Se connecter avec Apple"
       title="Se connecter avec Apple"
-      className={className}
+      className={[
+        className || "",
+        appleConnected ? "grayscale opacity-70 hover:opacity-80" : "",
+      ]
+        .join(" ")
+        .trim()}
     >
       <BrandIcon name="apple" />
     </SocialAuthIconButton>

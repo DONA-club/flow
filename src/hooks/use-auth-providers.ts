@@ -20,18 +20,28 @@ function resolveGoogleIdentity(session: any) {
   return identities.find((i) => i?.provider === "google");
 }
 
+function resolveAppleIdentity(session: any) {
+  const identities: any[] = session?.user?.identities ?? [];
+  return identities.find((i) => i?.provider === "apple");
+}
+
 export function useAuthProviders() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [microsoftConnected, setMicrosoftConnected] = useState(false);
+  const [appleConnected, setAppleConnected] = useState(false);
   const [checking, setChecking] = useState(true);
 
   const compute = async () => {
     const { data } = await supabase.auth.getSession();
     const session: any = data?.session ?? null;
+
     const g = !!resolveGoogleIdentity(session)?.identity_data?.access_token;
     const m = !!resolveMicrosoftIdentity(session)?.identity_data?.access_token;
+    const a = !!resolveAppleIdentity(session)?.identity_data?.access_token;
+
     setGoogleConnected(g);
     setMicrosoftConnected(m);
+    setAppleConnected(a);
     setChecking(false);
   };
 
@@ -43,5 +53,5 @@ export function useAuthProviders() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  return { googleConnected, microsoftConnected, checking };
+  return { googleConnected, microsoftConnected, appleConnected, checking };
 }
