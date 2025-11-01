@@ -24,11 +24,16 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
+    // Forcer le re-consent + offline access pour obtenir un refresh_token
     const oauthOptions = {
       redirectTo: window.location.origin,
       scopes:
         "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
-      queryParams: { prompt: "consent", access_type: "offline" },
+      queryParams: {
+        prompt: "consent",
+        access_type: "offline",
+        include_granted_scopes: "true",
+      },
     } as const;
 
     const action = user
@@ -51,7 +56,8 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
         setLoading(false);
       } else {
         toast.success("Google connecté", {
-          description: "Accès au calendrier et au sommeil accordé.",
+          description:
+            "Accès au calendrier et au sommeil accordé. Si un rafraîchissement échoue, re-cliquez pour re-consentir.",
         });
       }
     });
