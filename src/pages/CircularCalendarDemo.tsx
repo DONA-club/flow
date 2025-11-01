@@ -8,6 +8,7 @@ import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
+import FontLoader from "@/components/FontLoader";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -118,45 +119,48 @@ const CircularCalendarDemo = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
-      <div className="relative" style={{ width: size, height: size }}>
-        <CircularCalendar
-          sunrise={displaySunrise}
-          sunset={displaySunset}
-          events={gEvents.length > 0 ? gEvents : mockEvents}
-          size={size}
-          wakeHour={effectiveWake}
-          bedHour={effectiveBed}
-          eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
-          onEventClick={(evt) => {
-            setSelectedEvent(evt);
-            toast.info("Détails de l'événement", {
-              description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
-            });
-          }}
-        />
-        {selectedEvent && (
-          <EventInfoBubble
-            title={selectedEvent.title}
-            place={selectedEvent.place}
-            time={formatRange(selectedEvent.start, selectedEvent.end)}
-            onClose={() => setSelectedEvent(null)}
+    <>
+      <FontLoader />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
+        <div className="relative" style={{ width: size, height: size }}>
+          <CircularCalendar
+            sunrise={displaySunrise}
+            sunset={displaySunset}
+            events={gEvents.length > 0 ? gEvents : mockEvents}
+            size={size}
+            wakeHour={effectiveWake}
+            bedHour={effectiveBed}
+            eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
+            onEventClick={(evt) => {
+              setSelectedEvent(evt);
+              toast.info("Détails de l'événement", {
+                description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
+              });
+            }}
           />
-        )}
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
-            <span>{error}</span>
-            <Button variant="outline" size="sm" onClick={retry}>
-              Réessayer
-            </Button>
-            <span className="text-xs text-gray-400 mt-2">
-              Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
-            </span>
-          </div>
-        )}
+          {selectedEvent && (
+            <EventInfoBubble
+              title={selectedEvent.title}
+              place={selectedEvent.place}
+              time={formatRange(selectedEvent.start, selectedEvent.end)}
+              onClose={() => setSelectedEvent(null)}
+            />
+          )}
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
+              <span>{error}</span>
+              <Button variant="outline" size="sm" onClick={retry}>
+                Réessayer
+              </Button>
+              <span className="text-xs text-gray-400 mt-2">
+                Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
+              </span>
+            </div>
+          )}
+        </div>
+        <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
       </div>
-      <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
-    </div>
+    </>
   );
 };
 

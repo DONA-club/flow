@@ -28,10 +28,10 @@ const DEFAULT_SIZE = 320;
 const RING_THICKNESS = 32;
 
 const SEASON_COLORS: Record<string, string> = {
-  spring: "#4ade80", // green-400
-  summer: "#fde047", // yellow-300
-  autumn: "#fb923c", // orange-400
-  winter: "#7dd3fc", // sky-300 (ice blue)
+  spring: "#4ade80",
+  summer: "#fde047",
+  autumn: "#fb923c",
+  winter: "#7dd3fc",
 };
 
 const NIGHT_COLOR = "#d1d5db";
@@ -70,7 +70,6 @@ function getWedgePath(
   ].join(" ");
 }
 
-// NEW: arc helper for stroked arcs (no fill)
 function getArcPath(
   cx: number,
   cy: number,
@@ -86,16 +85,14 @@ function getArcPath(
   const y2 = cy + r * Math.sin(endRad);
   const delta = ((endAngle - startAngle + 360) % 360);
   const largeArc = delta > 180 ? 1 : 0;
-  const sweep = 1; // clockwise
+  const sweep = 1;
   return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}`;
 }
 
-// Utilise les dates réelles quand disponibles (Google Calendar) sinon se rabat sur l'heure du jour
 function getEventStartDate(e: any, nowRef: Date): Date | null {
   const raw = (e as any)?.raw;
   const iso = raw?.start?.dateTime || raw?.start?.date || null;
   if (iso) return new Date(iso);
-  // fallback: aujourd'hui à l'heure décimale fournie
   const base = new Date(nowRef);
   const hours = Math.floor(e.start || 0);
   const minutes = Math.round(((e.start || 0) % 1) * 60);
@@ -107,7 +104,6 @@ function getEventEndDate(e: any, startDate: Date): Date | null {
   const raw = (e as any)?.raw;
   const iso = raw?.end?.dateTime || raw?.end?.date || null;
   if (iso) return new Date(iso);
-  // fallback: aujourd'hui à l'heure décimale fournie
   const end = new Date(startDate);
   const hours = Math.floor(e.end || 0);
   const minutes = Math.round(((e.end || 0) % 1) * 60);
@@ -117,7 +113,6 @@ function getEventEndDate(e: any, startDate: Date): Date | null {
 
 function getCurrentOrNextEvent(events: Event[], nowDate: Date): Event | undefined {
   const nowMs = nowDate.getTime();
-  // Trie par date de début réelle
   const withDates = events
     .map((e) => {
       const start = getEventStartDate(e, nowDate);
@@ -126,7 +121,6 @@ function getCurrentOrNextEvent(events: Event[], nowDate: Date): Event | undefine
     })
     .filter((x) => x.start) as { e: Event; start: Date; end: Date | null }[];
 
-  // Événement en cours
   const current = withDates.find((x) => {
     const s = x.start.getTime();
     const e = x.end ? x.end.getTime() : s;
@@ -134,7 +128,6 @@ function getCurrentOrNextEvent(events: Event[], nowDate: Date): Event | undefine
   });
   if (current) return current.e;
 
-  // Prochain événement par date de début >= maintenant
   const upcoming = withDates
     .filter((x) => x.start.getTime() >= nowMs)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -202,7 +195,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const currentSeason = season || getSeason(now);
 
   const event = getCurrentOrNextEvent(events, now);
-  // Indicateur "Demain" / "Dans X jours" si l'événement n'est pas aujourd'hui
   let dayBadge: string | null = null;
   if (event) {
     const startDate = getEventStartDate(event as any, now);
@@ -224,20 +216,15 @@ export const CircularCalendar: React.FC<Props> = ({
   const cy = SIZE / 2;
   const blockAngle = 360 / SEGMENTS;
 
-  // Chiffres horaires centrés, police réduite (déplacé ici pour utiliser metaIconSize plus tôt)
   const scale = SIZE / (DEFAULT_SIZE || 1);
-  // Taille proportionnelle au diamètre, bornée pour rester lisible
   const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
-  // Épaisseur du contour du texte qui suit l'échelle
   const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
   const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
-  // Tailles du texte central proportionnelles à la taille du cercle (caps pour lisibilité)
-  const titleFontSize = Math.max(12, Math.min(18 * scale, 18)); // équiv. text-lg max
-  const subFontSize = Math.max(10, Math.min(14 * scale, 14));   // équiv. text-sm max
-  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));   // équiv. text-xs max
-  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
+  const titleFontSize = Math.max(12, Math.min(18 * scale, 18));
+  const subFontSize = Math.max(10, Math.min(14 * scale, 14));
+  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));
+  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16)));
 
-  // 1440 blocs (1 par minute)
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
@@ -258,7 +245,6 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   });
 
-  // Ligne de curseur
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   const cursorX1 = cx + INNER_RADIUS * Math.cos(cursorRad);
@@ -266,10 +252,8 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
-  // Hover state for ring interactions
   const [hoverRing, setHoverRing] = React.useState(false);
 
-  // Position des icônes sunrise/sunset sur la graduation
   const rMid = (INNER_RADIUS + RADIUS) / 2;
   const angleFromHour = (time: number) => (time / 24) * 360 - 90;
   const toPoint = (angleDeg: number, r: number) => {
@@ -278,7 +262,6 @@ export const CircularCalendar: React.FC<Props> = ({
   };
   const sunriseAngle = angleFromHour(sunrise);
   const sunsetAngle = angleFromHour(sunset);
-  // Place l'icône au bord intérieur, puis décale légèrement vers le centre
   const iconGap = Math.max(2, Math.round(metaIconSize * 0.12));
   const iconRadius = Math.max(0, INNER_RADIUS - metaIconSize / 2 - iconGap);
   const sunrisePt = toPoint(sunriseAngle, iconRadius);
@@ -286,46 +269,35 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs concentriques
-  // Ajustement: garder les 2 arcs à l'intérieur de l'anneau pour éviter tout clipping par le bord du SVG
   const arcInset = Math.max(2, Math.round(RING_THICKNESS * 0.2));
   const innerArcRadius = Math.max(INNER_RADIUS + arcInset, INNER_RADIUS + 2);
   const outerArcRadius = Math.min(RADIUS - arcInset, RADIUS - 2);
   const arcStroke = Math.max(2, Math.round(3 * scale));
 
-  // Calcul des arcs dynamiques:
-  // - Si wakeHour/bedHour sont fournis (Google Fit), on les utilise:
-  //   intérieur = écoulé depuis le lever, extérieur = restant jusqu'au coucher
-  // - Sinon, fallback sur sunrise/sunset (jour solaire)
   const nowAngleDeg = angleFromHour(hourDecimal);
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
 
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
-    // Normalisation pour gérer le passage de minuit
     let w = wakeHour;
     let b = bedHour;
     let n = hourDecimal;
-    if (b <= w) b += 24;     // coucher "après minuit"
-    if (n < w) n += 24;      // si on est avant lever, projette sur même échelle
+    if (b <= w) b += 24;
+    if (n < w) n += 24;
 
     const wAngle = angleFromHour(wakeHour % 24);
     const bAngle = angleFromHour(bedHour % 24);
     const nAngle = angleFromHour(hourDecimal % 24);
 
     if (n <= w) {
-      // Avant le lever: rien d'écoulé, tout à venir (lever -> coucher)
       futureArc = { start: wAngle, end: bAngle };
     } else if (n >= b) {
-      // Après le coucher: tout écoulé (lever -> coucher)
       pastArc = { start: wAngle, end: bAngle };
     } else {
-      // Entre lever et coucher
       pastArc = { start: wAngle, end: nAngle };
       futureArc = { start: nAngle, end: bAngle };
     }
   } else {
-    // Fallback: arcs basés sur le jour (sunrise/sunset) si pas de données Fit
     if (sunrise < sunset) {
       if (hourDecimal <= sunrise) {
         futureArc = { start: sunriseAngle, end: sunsetAngle };
@@ -338,7 +310,6 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }
 
-  // Position du tooltip côté intérieur (vers le centre) selon la position de l'icône
   type Side = "top" | "right" | "bottom" | "left";
   const pickInnerSide = (pt: { x: number; y: number }): Side => {
     const dx = cx - pt.x;
@@ -351,7 +322,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseSide = pickInnerSide(sunrisePt);
   const sunsetSide = pickInnerSide(sunsetPt);
 
-  // 24 séparateurs horaires
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const x1 = cx + INNER_RADIUS * Math.cos(angle);
@@ -372,10 +342,9 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Chiffres horaires centrés, police réduite
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
-    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2; // radians pour position
-    const angleDeg = (i / 24) * 360 - 90; // degrés pour rotation
+    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
+    const angleDeg = (i / 24) * 360 - 90;
     const r = (RADIUS + INNER_RADIUS) / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -387,7 +356,7 @@ export const CircularCalendar: React.FC<Props> = ({
         x={x}
         y={y}
         textAnchor="middle"
-        transform={`rotate(${angleDeg + 90} ${x} ${y})`} // rotation tangentielle autour du centre du chiffre
+        transform={`rotate(${angleDeg + 90} ${x} ${y})`}
         fontSize={hourFontSize}
         fontWeight={isCurrent ? "bold" : "600"}
         fill="#fff"
@@ -398,7 +367,7 @@ export const CircularCalendar: React.FC<Props> = ({
             ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)"
             : "drop-shadow(0 1px 0 #0008)",
           opacity: isCurrent ? 1 : 0.92,
-          fontFamily: "'Inter', 'Montserrat', Arial, Helvetica, sans-serif",
+          fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",
           stroke: "#000",
           strokeWidth: isCurrent ? strokeWidthCurrent : strokeWidthNormal,
@@ -440,9 +409,7 @@ export const CircularCalendar: React.FC<Props> = ({
               width={SIZE}
               height={SIZE}
             >
-              {/* Base du masque: invisible par défaut */}
               <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
-              {/* Anneau blanc (visible) avec flou sur les bords */}
               <g filter="url(#ringEdgeBlur)">
                 <circle
                   cx={cx}
@@ -456,7 +423,6 @@ export const CircularCalendar: React.FC<Props> = ({
             </mask>
           </defs>
 
-          {/* Appliquer le masque aux secteurs de l'anneau */}
           <g
             mask="url(#ringFadeMask)"
             onMouseEnter={() => setHoverRing(true)}
@@ -472,7 +438,6 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* Arcs au survol: intérieur = écoulé depuis lever, extérieur = restant jusqu'au coucher */}
           {hoverRing && pastArc && (
             <path
               d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
@@ -507,7 +472,6 @@ export const CircularCalendar: React.FC<Props> = ({
             style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
           />
         </svg>
-        {/* Centre info */}
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
           style={{
@@ -527,7 +491,6 @@ export const CircularCalendar: React.FC<Props> = ({
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}
         >
-          {/* Indicateur de jour au-dessus du titre si l'événement n'est pas aujourd'hui */}
           {event && dayBadge && (
             <div
               className="mb-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-gray-900 text-white/90 text-xs"
@@ -549,7 +512,6 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Icône Sunrise alignée sur sa graduation avec tooltip */}
         {!hoverRing && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -581,7 +543,6 @@ export const CircularCalendar: React.FC<Props> = ({
         </Tooltip>
         )}
 
-        {/* Icône Sunset alignée sur sa graduation avec tooltip */}
         {!hoverRing && (
         <Tooltip>
           <TooltipTrigger asChild>
