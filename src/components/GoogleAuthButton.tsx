@@ -16,16 +16,14 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
   const { googleConnected } = useAuthProviders();
 
   const handleGoogleLogin = async () => {
-    if (googleConnected) return;
     setLoading(true);
-    toast("Redirection vers Google…", {
+    toast(googleConnected ? "Renouvellement de l’accès Google…" : "Redirection vers Google…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
 
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
-    // Forcer le re-consent + offline access pour obtenir un refresh_token
     const oauthOptions = {
       redirectTo: window.location.origin,
       scopes:
@@ -37,39 +35,39 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
       },
     } as const;
 
-    const action = user
+    const doAuth = user
       ? supabase.auth.linkIdentity({ provider: "google", options: oauthOptions })
       : supabase.auth.signInWithOAuth({ provider: "google", options: oauthOptions });
 
-    action.then(({ error }) => {
-      if (error) {
-        const msg = String((error as any)?.message || "");
-        if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
-          toast.error("Liaison de compte désactivée", {
-            description:
-              "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour connecter plusieurs fournisseurs au même compte.",
-          });
-        } else {
-          toast.error("Connexion Google indisponible", {
-            description: "Le fournisseur Google n'est pas activé ou a rencontré une erreur.",
-          });
-        }
-        setLoading(false);
-      } else {
-        toast.success("Google connecté", {
+    const { error } = await doAuth;
+
+    if (error) {
+      const msg = String((error as any)?.message || "");
+      if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
+        toast.error("Liaison Google désactivée", {
           description:
-            "Accès au calendrier et au sommeil accordé. Si un rafraîchissement échoue, re-cliquez pour re-consentir.",
+            "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour lier plusieurs fournisseurs au même compte.",
+        });
+      } else {
+        toast.error("Connexion Google indisponible", {
+          description: "Le fournisseur Google n'est pas activé ou a rencontré une erreur.",
         });
       }
+      setLoading(false);
+      return;
+    }
+
+    toast.success("Google connecté", {
+      description: "Calendrier + sommeil seront disponibles. Si un rafraîchissement échoue, re-consentez.",
     });
   };
 
   return (
     <SocialAuthIconButton
       onClick={handleGoogleLogin}
-      disabled={loading || googleConnected}
+      disabled={loading}
       ariaLabel="Se connecter avec Google"
-      title="Se connecter avec Google"
+      title={googleConnected ? "Reconnecter Google (consent)" : "Se connecter avec Google"}
       className={[
         className || "",
         googleConnected ? "grayscale opacity-70 hover:opacity-80" : "",

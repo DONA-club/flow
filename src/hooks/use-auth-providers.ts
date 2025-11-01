@@ -35,22 +35,6 @@ function resolveAmazonIdentity(session: any) {
   return identities.find((i) => i?.provider === "amazon");
 }
 
-function isAzureActive(session: any) {
-  const p = session?.user?.app_metadata?.provider;
-  return (
-    p === "azure" ||
-    p === "azure-oidc" ||
-    p === "azuread" ||
-    p === "microsoft" ||
-    p === "outlook"
-  );
-}
-
-function isGoogleActive(session: any) {
-  const p = session?.user?.app_metadata?.provider;
-  return p === "google";
-}
-
 export function useAuthProviders() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [microsoftConnected, setMicrosoftConnected] = useState(false);
@@ -63,18 +47,9 @@ export function useAuthProviders() {
     const { data } = await supabase.auth.getSession();
     const session: any = data?.session ?? null;
 
-    // Google: connecté si identité, ou provider actif google, ou tokens provider présents
-    const hasGoogleIdentity = !!resolveGoogleIdentity(session);
-    const hasGoogleProviderTokens =
-      !!session?.provider_token || !!session?.provider_refresh_token;
-    const g = hasGoogleIdentity || isGoogleActive(session) || hasGoogleProviderTokens;
-
-    // Microsoft: connecté si identité Microsoft, provider Azure actif, ou tokens provider présents
-    const hasMsIdentity = !!resolveMicrosoftIdentity(session);
-    const hasMsProviderTokens =
-      !!session?.provider_token || !!session?.provider_refresh_token;
-    const m = hasMsIdentity || isAzureActive(session) || hasMsProviderTokens;
-
+    // Connecté si et seulement si une identité du provider existe
+    const g = !!resolveGoogleIdentity(session);
+    const m = !!resolveMicrosoftIdentity(session);
     const a = !!resolveAppleIdentity(session);
     const f = !!resolveFacebookIdentity(session);
     const am = !!resolveAmazonIdentity(session);

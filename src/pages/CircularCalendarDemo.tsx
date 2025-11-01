@@ -75,7 +75,7 @@ const CircularCalendarDemo = () => {
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number; raw?: any } | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -153,6 +153,48 @@ const CircularCalendarDemo = () => {
       })
     : mockEvents;
 
+  // Auto-choisir l'événement le plus proche à venir pour l'afficher au centre
+  useEffect(() => {
+    // Ne pas écraser une sélection manuelle récente
+    if (selectedEvent) return;
+
+    const now = Date.now();
+    let nearest: any = null;
+    let nearestDelta = Number.POSITIVE_INFINITY;
+
+    const toStartTs = (evt: any) => {
+      const rawIso = evt?.raw?.start?.dateTime || evt?.raw?.start || null;
+      if (rawIso) {
+        const ts = new Date(rawIso).getTime();
+        return ts;
+      }
+      // fallback: construire un timestamp aujourd'hui à l'heure décimale
+      if (typeof evt?.start === "number") {
+        const d = new Date();
+        const h = Math.floor(evt.start);
+        const m = Math.round((evt.start % 1) * 60);
+        d.setHours(h, m, 0, 0);
+        return d.getTime();
+      }
+      return null;
+    };
+
+    combinedEvents.forEach((evt) => {
+      const ts = toStartTs(evt);
+      if (ts && ts >= now) {
+        const delta = ts - now;
+        if (delta < nearestDelta) {
+          nearestDelta = delta;
+          nearest = evt;
+        }
+      }
+    });
+
+    if (nearest) {
+      setSelectedEvent(nearest);
+    }
+  }, [combinedEvents, selectedEvent]);
+
   // Auto-refresh: inclure Google Fit
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -167,7 +209,7 @@ const CircularCalendarDemo = () => {
     <>
       <FontLoader />
 
-      {/* Liste des événements à venir (fixe en haut à gauche) */}
+      {/* Liste des événements à venir (fusionnée) */}
       <UpcomingEventsList
         events={combinedEvents}
         onSelect={(evt) => {

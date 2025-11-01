@@ -21,24 +21,40 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
 
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
     const oauthOptions = {
       redirectTo: window.location.origin,
       scopes: "openid profile email offline_access Calendars.Read",
       queryParams: { prompt: "consent" },
     } as const;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "azure",
-      options: oauthOptions,
-    });
+    const doAuth = user
+      ? supabase.auth.linkIdentity({ provider: "azure", options: oauthOptions })
+      : supabase.auth.signInWithOAuth({ provider: "azure", options: oauthOptions });
+
+    const { error } = await doAuth;
 
     if (error) {
-      toast.error("Connexion Microsoft indisponible", {
-        description:
-          "Le fournisseur Azure n'est pas activé ou a rencontré une erreur.",
-      });
+      const msg = String((error as any)?.message || "");
+      if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
+        toast.error("Liaison Microsoft désactivée", {
+          description:
+            "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour lier plusieurs fournisseurs au même compte.",
+        });
+      } else {
+        toast.error("Connexion Microsoft indisponible", {
+          description: "Le fournisseur Azure n'est pas activé ou a rencontré une erreur.",
+        });
+      }
       setLoading(false);
+      return;
     }
+
+    toast.success("Microsoft connecté", {
+      description: "Vos événements Outlook seront inclus et fusionnés dans le calendrier.",
+    });
   };
 
   return (
