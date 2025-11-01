@@ -51,10 +51,10 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     setOutgoingIdx(index);
     setIncomingIdx(target);
     setPhase("start");
-    
+
     // Déclenche un jet de particules autour du point blanc
     window.dispatchEvent(new CustomEvent("brand-scroll", { detail: { direction: dir } }));
-    
+
     // Trigger the CSS transition on next frame
     requestAnimationFrame(() => {
       setPhase("end");
@@ -68,15 +68,15 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     }, TRANSITION_MS);
   };
 
+  // Scroll local (sur le composant) — on ne bloque plus le scroll de la page
   const handleWheel: React.WheelEventHandler<HTMLDivElement> = (e) => {
-    e.preventDefault();
-    // Seuil pour éviter les micro-déclenchements qui causent un sursaut
+    // Seuil pour éviter les micro-déclenchements
     if (Math.abs(e.deltaY) < 6) return;
     const dir: Direction = e.deltaY > 0 ? "down" : "up";
     beginTransition(dir);
   };
 
-  // Optional: arrow keys for accessibility
+  // Accessibilité locale via flèches
   const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
     if (e.key === "ArrowDown" || e.key === "PageDown") {
       e.preventDefault();
@@ -87,6 +87,31 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     }
   };
 
+  // Écouteurs globaux pour scroll et flèches partout sur la page
+  React.useEffect(() => {
+    const handleGlobalWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) < 6) return;
+      const dir: Direction = e.deltaY > 0 ? "down" : "up";
+      beginTransition(dir);
+    };
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown" || e.key === "PageDown") {
+        beginTransition("down");
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+        beginTransition("up");
+      }
+    };
+
+    window.addEventListener("wheel", handleGlobalWheel, { passive: true });
+    window.addEventListener("keydown", handleGlobalKeyDown);
+
+    return () => {
+      window.removeEventListener("wheel", handleGlobalWheel as EventListener);
+      window.removeEventListener("keydown", handleGlobalKeyDown as EventListener);
+    };
+  }, [beginTransition]);
+
   const containerClasses = [
     "relative overflow-hidden",
     "w-12 h-12", // zone uniforme
@@ -95,7 +120,8 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     .join(" ")
     .trim();
 
-  const layerBase = "absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] filter will-change-transform transform-gpu";
+  const layerBase =
+    "absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] filter will-change-transform transform-gpu";
 
   // Outgoing animation classes
   const outgoingClasses = [

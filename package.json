@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^3.9.0",
     "@iconify/icons-simple-icons": "^1.2.74",
     "@iconify/react": "^6.0.2",
+    "@iconify/types": "^2.0.0",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

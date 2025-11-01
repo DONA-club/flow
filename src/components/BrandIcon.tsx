@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Icon } from "@iconify/react";
+import type { IconifyIcon } from "@iconify/types";
 import googleIcon from "@iconify/icons-simple-icons/google";
 import appleIcon from "@iconify/icons-simple-icons/apple";
 import facebookIcon from "@iconify/icons-simple-icons/facebook";
@@ -11,7 +12,7 @@ import outlookIcon from "@iconify/icons-simple-icons/microsoftoutlook";
 
 type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft" | "outlook";
 
-const ICONS: Record<BrandName, { icon: unknown; defaultColor: string }> = {
+const ICONS: Record<BrandName, { icon: IconifyIcon; defaultColor: string }> = {
   google: { icon: googleIcon, defaultColor: "#4285F4" },
   apple: { icon: appleIcon, defaultColor: "#000000" },
   facebook: { icon: facebookIcon, defaultColor: "#1877F2" },
@@ -35,7 +36,9 @@ const BrandIcon: React.FC<Props> = ({ name, color, className }) => {
         className={[
           "w-full h-full flex items-center justify-center rounded-md bg-neutral-200 text-neutral-600",
           className || "",
-        ].join(" ").trim()}
+        ]
+          .join(" ")
+          .trim()}
         role="img"
         aria-label={name}
       >
