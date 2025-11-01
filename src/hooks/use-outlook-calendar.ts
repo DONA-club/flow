@@ -6,8 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type CalendarEvent = {
   title: string;
   place: string;
-  start: number; // heure décimale (0-23)
-  end: number;   // heure décimale (0-23)
+  start: number;
+  end: number;
   url?: string;
   raw?: any;
 };
@@ -41,11 +41,6 @@ function resolveMicrosoftIdentity(session: any) {
   );
 }
 
-function resolveGoogleIdentity(session: any) {
-  const identities: any[] = session?.user?.identities ?? [];
-  return identities.find((i) => i?.provider === "google");
-}
-
 function isAzureActive(session: any) {
   const p = session?.user?.app_metadata?.provider;
   return (
@@ -57,7 +52,6 @@ function isAzureActive(session: any) {
   );
 }
 
-// On privilégie les jetons dans l’identité; sinon on bascule sur provider_* si Azure est le provider actif.
 async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -73,7 +67,6 @@ async function resolveMicrosoftAccessToken(): Promise<string | null> {
   return null;
 }
 
-// Idem pour le refresh_token
 async function resolveMicrosoftRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -87,11 +80,6 @@ async function resolveMicrosoftRefreshToken(): Promise<string | null> {
     return session?.provider_refresh_token ?? null;
   }
   return null;
-}
-
-function isLikelyJwt(token: string | null): boolean {
-  if (!token || typeof token !== "string") return false;
-  return token.split(".").length === 3;
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
@@ -136,23 +124,20 @@ export function useOutlookCalendar(options?: Options): Result {
 
     let token = await resolveMicrosoftAccessToken();
 
-    // Si pas de token identité ou token non-JWT => tenter refresh si on a un refresh_token Microsoft
-    if (!isLikelyJwt(token || null)) {
+    // Si aucun token, essayer de rafraîchir via refresh_token
+    if (!token) {
       const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed && isLikelyJwt(refreshed)) {
-        token = refreshed;
-        setConnected(true);
-      } else {
-        setConnected(false);
-        setEvents([]);
-        setLoading(false);
-        setError(
-          "Jeton Microsoft manquant/expiré. Cliquez sur Microsoft et acceptez l’accès (Calendars.Read + offline_access)."
-        );
-        return;
-      }
-    } else {
-      setConnected(true);
+      token = refreshed;
+    }
+
+    if (!token) {
+      setConnected(false);
+      setEvents([]);
+      setLoading(false);
+      setError(
+        "Aucun jeton Microsoft disponible. Cliquez sur Microsoft et acceptez l’accès (Calendars.Read + offline_access)."
+      );
+      return;
     }
 
     // Fenêtre de 3 jours via calendarView
@@ -179,14 +164,16 @@ export function useOutlookCalendar(options?: Options): Result {
       return res;
     };
 
-    let res = await doFetch(token as string);
+    // Premier essai avec le token disponible (opaque ou JWT, peu importe)
+    let res = await doFetch(token);
+
+    // Si non autorisé, tenter un refresh et réessayer
     if (!res.ok && (res.status === 401 || res.status === 403)) {
-      // Tentative de refresh si non autorisé
       const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed && isLikelyJwt(refreshed)) {
+      if (refreshed) {
         token = refreshed;
-        setConnected(true);
         res = await doFetch(token);
+        setConnected(true);
       } else {
         setConnected(false);
         setEvents([]);
@@ -196,6 +183,8 @@ export function useOutlookCalendar(options?: Options): Result {
         );
         return;
       }
+    } else {
+      setConnected(true);
     }
 
     if (!res.ok) {
@@ -238,7 +227,6 @@ export function useOutlookCalendar(options?: Options): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
-    // Ne garder que les événements à venir
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;

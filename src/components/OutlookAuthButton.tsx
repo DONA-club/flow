@@ -16,9 +16,8 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   const { microsoftConnected } = useAuthProviders();
 
   const handleOutlookLogin = async () => {
-    if (microsoftConnected) return;
     setLoading(true);
-    toast("Redirection vers Microsoft…", {
+    toast(microsoftConnected ? "Renouvellement de l’accès Microsoft…" : "Redirection vers Microsoft…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
 
@@ -28,7 +27,6 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       queryParams: { prompt: "consent" },
     } as const;
 
-    // Toujours créer une session Azure active pour exposer provider_token/provider_refresh_token
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: oauthOptions,
@@ -46,9 +44,9 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleOutlookLogin}
-      disabled={loading || microsoftConnected}
+      disabled={loading}
       ariaLabel="Se connecter avec Microsoft"
-      title="Se connecter avec Microsoft"
+      title={microsoftConnected ? "Reconnecter Microsoft (consent)" : "Se connecter avec Microsoft"}
       className={[
         className || "",
         microsoftConnected ? "grayscale opacity-70 hover:opacity-80" : "",
