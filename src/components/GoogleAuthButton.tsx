@@ -16,6 +16,7 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
   const { googleConnected } = useAuthProviders();
 
   const handleGoogleLogin = async () => {
+    if (googleConnected) return;
     setLoading(true);
     toast("Redirection vers Google…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
@@ -66,7 +67,7 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleGoogleLogin}
-      disabled={loading}
+      disabled={loading || googleConnected}
       ariaLabel="Se connecter avec Google"
       title="Se connecter avec Google"
       className={[

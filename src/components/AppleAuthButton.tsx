@@ -16,6 +16,7 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
   const { appleConnected } = useAuthProviders();
 
   const handleAppleLogin = async () => {
+    if (appleConnected) return;
     toast("Redirection vers Apple…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
@@ -58,7 +59,7 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleAppleLogin}
-      disabled={loading}
+      disabled={loading || appleConnected}
       ariaLabel="Se connecter avec Apple"
       title="Se connecter avec Apple"
       className={[

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 import BrandIcon from "@/components/BrandIcon";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 
 type Props = {
   className?: string;
@@ -12,8 +13,10 @@ type Props = {
 
 const AmazonAuthButton: React.FC<Props> = ({ className }) => {
   const [loading, setLoading] = React.useState(false);
+  const { amazonConnected } = useAuthProviders();
 
   const handleAmazonLogin = () => {
+    if (amazonConnected) return;
     toast("Redirection vers Amazon…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
@@ -38,10 +41,13 @@ const AmazonAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleAmazonLogin}
-      disabled={loading}
+      disabled={loading || amazonConnected}
       ariaLabel="Se connecter avec Amazon"
       title="Se connecter avec Amazon"
-      className={className}
+      className={[
+        className || "",
+        amazonConnected ? "grayscale opacity-70 hover:opacity-80" : "",
+      ].join(" ").trim()}
     >
       <BrandIcon name="amazon" />
     </SocialAuthIconButton>

@@ -16,6 +16,7 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   const { microsoftConnected } = useAuthProviders();
 
   const handleOutlookLogin = async () => {
+    if (microsoftConnected) return;
     setLoading(true);
     toast("Redirection vers Microsoft…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
@@ -59,7 +60,7 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleOutlookLogin}
-      disabled={loading}
+      disabled={loading || microsoftConnected}
       ariaLabel="Se connecter avec Microsoft"
       title="Se connecter avec Microsoft"
       className={[

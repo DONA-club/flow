@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 import BrandIcon from "@/components/BrandIcon";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 
 type Props = {
   className?: string;
@@ -12,8 +13,10 @@ type Props = {
 
 const FacebookAuthButton: React.FC<Props> = ({ className }) => {
   const [loading, setLoading] = React.useState(false);
+  const { facebookConnected } = useAuthProviders();
 
   const handleFacebookLogin = () => {
+    if (facebookConnected) return;
     toast("Redirection vers Facebook…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
@@ -38,10 +41,13 @@ const FacebookAuthButton: React.FC<Props> = ({ className }) => {
   return (
     <SocialAuthIconButton
       onClick={handleFacebookLogin}
-      disabled={loading}
+      disabled={loading || facebookConnected}
       ariaLabel="Se connecter avec Facebook"
       title="Se connecter avec Facebook"
-      className={className}
+      className={[
+        className || "",
+        facebookConnected ? "grayscale opacity-70 hover:opacity-80" : "",
+      ].join(" ").trim()}
     >
       <BrandIcon name="facebook" />
     </SocialAuthIconButton>
