@@ -7,12 +7,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import CircularCalendarDemo from "./pages/CircularCalendarDemo";
 import SystemThemeWatcher from "@/components/SystemThemeWatcher";
+import AuthTokensWatcher from "@/components/AuthTokensWatcher";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <SystemThemeWatcher />
+    <AuthTokensWatcher />
     <TooltipProvider>
       <Toaster />
       <Sonner />

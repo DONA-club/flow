@@ -4,8 +4,8 @@ import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Result = {
-  wakeHour: number | null; // heure décimale locale (0-24)
-  bedHour: number | null;  // heure décimale locale (0-24) estimée pour ce soir
+  wakeHour: number | null;
+  bedHour: number | null;
   loading: boolean;
   error: string | null;
   connected: boolean;
@@ -16,53 +16,40 @@ type Options = {
   enabled?: boolean;
 };
 
+type TokenRow = {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null;
+};
+
 function toLocalDecimalHourFromMillis(ms: number): number {
   const d = new Date(ms);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-async function getGoogleAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
+async function getSavedGoogleTokens(): Promise<TokenRow | null> {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = (sess?.session as any)?.user?.id ?? null;
+  if (!userId) return null;
 
-  // IMPORTANT: ne plus utiliser session.provider_token (peut être celui d’un autre provider)
-  const identities: any[] = session?.user?.identities ?? [];
-  const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null = googleIdentity?.identity_data?.access_token ?? null;
-  return fromIdentities || null;
+  const { data, error } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (error) return null;
+  return (data as any) ?? null;
 }
 
-async function getGoogleRefreshToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-
-  // IMPORTANT: ne plus utiliser session.provider_refresh_token
-  const identities: any[] = session?.user?.identities ?? [];
-  const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
-  return fromIdentities || null;
-}
-
-async function refreshAccessTokenViaEdge(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-  const refreshToken = await getGoogleRefreshToken();
-  const supaAccess = session?.access_token;
-
-  if (!refreshToken) {
-    return null;
-  }
-  if (!supaAccess) {
-    return null;
-  }
-
+async function refreshAccessTokenViaEdge(refreshToken: string, supaAccess: string): Promise<string | null> {
   const { data: resp, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
     headers: {
       Authorization: `Bearer ${supaAccess}`,
     },
   });
-
   if (error) return null;
   const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
@@ -83,6 +70,38 @@ export function useGoogleFitSleep(options?: Options): Result {
     setLoading(true);
     setError(null);
 
+    const { data: s } = await supabase.auth.getSession();
+    const supaAccess = (s?.session as any)?.access_token ?? null;
+
+    let tokens = await getSavedGoogleTokens();
+    let token = tokens?.access_token ?? null;
+
+    if (!token && tokens?.refresh_token && supaAccess) {
+      const refreshed = await refreshAccessTokenViaEdge(tokens.refresh_token, supaAccess);
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+        const userId = (s?.session as any)?.user?.id;
+        await supabase.from("oauth_tokens").upsert(
+          {
+            user_id: userId,
+            provider: "google",
+            access_token: refreshed,
+          },
+          { onConflict: "user_id,provider" }
+        );
+      }
+    }
+
+    if (!token) {
+      setWakeHour(null);
+      setBedHour(null);
+      setLoading(false);
+      setConnected(false);
+      setError("Autorisation Google Fit manquante/expirée. Reconnecte Google avec l’accès Sommeil.");
+      return;
+    }
+
     // Fenêtre: les 7 derniers jours
     const end = new Date();
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -90,61 +109,24 @@ export function useGoogleFitSleep(options?: Options): Result {
       start.toISOString()
     )}&endTime=${encodeURIComponent(end.toISOString())}`;
 
-    let token = await getGoogleAccessToken();
-    if (!token) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-      } else {
-        setWakeHour(null);
-        setBedHour(null);
-        setLoading(false);
-        setConnected(false);
-        setError("Autorisation Google Fit manquante/expirée. Reconnectez Google avec l’accès Sommeil.");
-        return;
-      }
-    } else {
-      setConnected(true);
-    }
-
-    const doFetch = async (tkn: string) => {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${tkn}` },
-      });
-      return res;
-    };
-
-    let res = await doFetch(token);
-    if (!res.ok && (res.status === 401 || res.status === 403)) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-        res = await doFetch(token);
-      } else {
-        // Évite les appels refresh 400 en boucle
-        setWakeHour(null);
-        setBedHour(null);
-        setLoading(false);
-        setConnected(false);
-        setError("Session Google expirée et refresh indisponible. Cliquez sur Google pour re-consentir (offline).");
-        return;
-      }
-    }
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     if (!res.ok) {
       setWakeHour(null);
       setBedHour(null);
       setLoading(false);
+      setConnected(false);
       setError(
         res.status === 403
-          ? "Accès Google Fit refusé. Autorisez l’accès au sommeil et réessayez."
+          ? "Accès Google Fit refusé. Autorise l’accès au sommeil et réessaye."
           : `Erreur Google Fit (${res.status})`
       );
       return;
     }
 
+    setConnected(true);
     const json = await res.json();
     const sessions: any[] = Array.isArray(json?.session) ? json.session : [];
 

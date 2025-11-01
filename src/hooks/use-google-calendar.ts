@@ -29,64 +29,35 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-function isGoogleActive(session: any) {
-  const p = session?.user?.app_metadata?.provider;
-  return p === "google";
+type TokenRow = {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null;
+};
+
+async function getSavedGoogleTokens(): Promise<TokenRow | null> {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = (sess?.session as any)?.user?.id ?? null;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (error) return null;
+  return (data as any) ?? null;
 }
 
-async function resolveGoogleAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-
-  const identities: any[] = session?.user?.identities ?? [];
-  const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null =
-    googleIdentity?.identity_data?.access_token ?? null;
-
-  if (fromIdentities) return fromIdentities;
-
-  // Si la session active est Google, autoriser l’usage du provider_token
-  if (isGoogleActive(session)) {
-    return session?.provider_token ?? null;
-  }
-
-  return null;
-}
-
-async function resolveGoogleRefreshToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-
-  const identities: any[] = session?.user?.identities ?? [];
-  const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null =
-    googleIdentity?.identity_data?.refresh_token ?? null;
-
-  if (fromIdentities) return fromIdentities;
-
-  // Si la session active est Google, autoriser l’usage du provider_refresh_token
-  if (isGoogleActive(session)) {
-    return session?.provider_refresh_token ?? null;
-  }
-
-  return null;
-}
-
-async function refreshAccessTokenViaEdge(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-  const refreshToken = await resolveGoogleRefreshToken();
-  const supaAccess = session?.access_token;
-
-  if (!refreshToken || !supaAccess) return null;
-
+async function refreshAccessTokenViaEdge(refreshToken: string, supaAccess: string): Promise<string | null> {
   const { data: resp, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
     headers: {
       Authorization: `Bearer ${supaAccess}`,
     },
   });
-
   if (error) return null;
   const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
@@ -106,52 +77,57 @@ export function useGoogleCalendar(options?: Options): Result {
     setLoading(true);
     setError(null);
 
+    const { data: s } = await supabase.auth.getSession();
+    const supaAccess = (s?.session as any)?.access_token ?? null;
+
+    // 1) Récupération des tokens persistés
+    let tokens = await getSavedGoogleTokens();
+    let token = tokens?.access_token ?? null;
+
+    // 2) Si pas d’access_token → tenter refresh
+    if (!token && tokens?.refresh_token && supaAccess) {
+      const refreshed = await refreshAccessTokenViaEdge(tokens.refresh_token, supaAccess);
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+        // Upsert l’access token rafraîchi
+        const userId = (s?.session as any)?.user?.id;
+        await supabase.from("oauth_tokens").upsert(
+          {
+            user_id: userId,
+            provider: "google",
+            access_token: refreshed,
+          },
+          { onConflict: "user_id,provider" }
+        );
+      }
+    }
+
+    if (!token) {
+      setConnected(false);
+      setEvents([]);
+      setLoading(false);
+      setError("Aucun jeton Google disponible. Clique Google et consent offline + calendar.readonly.");
+      return;
+    }
+
     const now = new Date();
     const timeMin = now.toISOString();
     const timeMax = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
-
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
-    let token = await resolveGoogleAccessToken();
-    if (!token) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-      } else {
-        setConnected(false);
-        setEvents([]);
-        setLoading(false);
-        setError("Jeton Google manquant/expiré. Cliquez sur Google pour re-consentir (offline) et accorder Calendar.Readonly.");
-        return;
-      }
-    } else {
-      setConnected(true);
-    }
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-    const doFetch = async (tkn: string) => {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${tkn}` },
-      });
-      return res;
-    };
-
-    let res = await doFetch(token);
-    if (!res.ok && (res.status === 401 || res.status === 403)) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-        res = await doFetch(token);
-      } else {
-        setConnected(false);
-        setEvents([]);
-        setLoading(false);
-        setError("Session Google expirée et refresh indisponible. Reconnectez Google pour récupérer les événements sur 3 jours.");
-        return;
-      }
+    if (res.status === 401 || res.status === 403) {
+      setConnected(false);
+      setEvents([]);
+      setLoading(false);
+      setError("Jeton Google invalide/expiré. Clique Google pour re-consentir.");
+      return;
     }
 
     if (!res.ok) {
@@ -161,6 +137,7 @@ export function useGoogleCalendar(options?: Options): Result {
       return;
     }
 
+    setConnected(true);
     const json = await res.json();
     const items: any[] = json?.items ?? [];
 

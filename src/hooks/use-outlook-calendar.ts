@@ -29,70 +29,30 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-function resolveMicrosoftIdentity(session: any) {
-  const identities: any[] = session?.user?.identities ?? [];
-  return identities.find(
-    (i) =>
-      i?.provider === "azure" ||
-      i?.provider === "azure-oidc" ||
-      i?.provider === "azuread" ||
-      i?.provider === "microsoft" ||
-      i?.provider === "outlook"
-  );
+type TokenRow = {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null;
+};
+
+async function getSavedMicrosoftTokens(): Promise<TokenRow | null> {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = (sess?.session as any)?.user?.id ?? null;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .eq("provider", "microsoft")
+    .maybeSingle();
+
+  if (error) return null;
+  return (data as any) ?? null;
 }
 
-function isAzureActive(session: any) {
-  const p = session?.user?.app_metadata?.provider;
-  return (
-    p === "azure" ||
-    p === "azure-oidc" ||
-    p === "azuread" ||
-    p === "microsoft" ||
-    p === "outlook"
-  );
-}
-
-async function resolveMicrosoftAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-  const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentity: string | null =
-    msIdentity?.identity_data?.access_token ?? null;
-
-  if (fromIdentity) return fromIdentity;
-
-  if (isAzureActive(session)) {
-    return session?.provider_token ?? null;
-  }
-  return null;
-}
-
-async function resolveMicrosoftRefreshToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-  const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentity: string | null =
-    msIdentity?.identity_data?.refresh_token ?? null;
-
-  if (fromIdentity) return fromIdentity;
-
-  if (isAzureActive(session)) {
-    return session?.provider_refresh_token ?? null;
-  }
-  return null;
-}
-
-async function refreshAccessTokenViaEdge(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  const session: any = data?.session ?? null;
-
-  const refreshToken = await resolveMicrosoftRefreshToken();
-  const supaAccess = session?.access_token;
-
-  if (!refreshToken || !supaAccess) return null;
-
+async function refreshAccessTokenViaEdge(refreshToken: string, supaAccess: string): Promise<string | null> {
   const scopes = "Calendars.Read offline_access openid profile email";
-
   const { data: resp, error } = await supabase.functions.invoke(
     "microsoft-token-refresh",
     {
@@ -102,7 +62,6 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
       },
     }
   );
-
   if (error) return null;
   const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
@@ -122,31 +81,45 @@ export function useOutlookCalendar(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    let token = await resolveMicrosoftAccessToken();
+    const { data: s } = await supabase.auth.getSession();
+    const supaAccess = (s?.session as any)?.access_token ?? null;
 
-    // Si aucun token, essayer de rafraîchir via refresh_token
-    if (!token) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      token = refreshed;
+    // 1) Récupère tokens persistés
+    let tokens = await getSavedMicrosoftTokens();
+    let token = tokens?.access_token ?? null;
+
+    // 2) Pas d’access_token → tenter refresh si possible
+    if (!token && tokens?.refresh_token && supaAccess) {
+      const refreshed = await refreshAccessTokenViaEdge(tokens.refresh_token, supaAccess);
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+        // Upsert l’access token rafraîchi
+        const userId = (s?.session as any)?.user?.id;
+        await supabase.from("oauth_tokens").upsert(
+          {
+            user_id: userId,
+            provider: "microsoft",
+            access_token: refreshed,
+          },
+          { onConflict: "user_id,provider" }
+        );
+      }
     }
 
     if (!token) {
       setConnected(false);
       setEvents([]);
       setLoading(false);
-      setError(
-        "Aucun jeton Microsoft disponible. Cliquez sur Microsoft et acceptez l’accès (Calendars.Read + offline_access)."
-      );
+      setError("Aucun jeton Microsoft disponible. Cliques sur Microsoft (seul) pour consenter, puis reviens ici.");
       return;
     }
 
     // Fenêtre de 3 jours via calendarView
     const now = new Date();
     const end = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
     const startISO = now.toISOString();
     const endISO = end.toISOString();
-
     const url =
       "https://graph.microsoft.com/v1.0/me/calendarview" +
       `?startDateTime=${encodeURIComponent(startISO)}` +
@@ -154,53 +127,31 @@ export function useOutlookCalendar(options?: Options): Result {
       "&$orderby=start/dateTime" +
       "&$select=subject,organizer,start,end,location,webLink";
 
-    const doFetch = async (tkn: string) => {
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${tkn}`,
-          Accept: "application/json",
-        },
-      });
-      return res;
-    };
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
 
-    // Premier essai avec le token disponible (opaque ou JWT, peu importe)
-    let res = await doFetch(token);
-
-    // Si non autorisé, tenter un refresh et réessayer
-    if (!res.ok && (res.status === 401 || res.status === 403)) {
-      const refreshed = await refreshAccessTokenViaEdge();
-      if (refreshed) {
-        token = refreshed;
-        res = await doFetch(token);
-        setConnected(true);
-      } else {
-        setConnected(false);
-        setEvents([]);
-        setLoading(false);
-        setError(
-          "Session Microsoft expirée et aucun refresh disponible. Reconnectez Microsoft (consent)."
-        );
-        return;
-      }
-    } else {
-      setConnected(true);
+    if (res.status === 401 || res.status === 403) {
+      setConnected(false);
+      setEvents([]);
+      setLoading(false);
+      setError("Jeton Microsoft invalide/expiré. Clique Microsoft pour re-consentir.");
+      return;
     }
 
     if (!res.ok) {
       setEvents([]);
       setLoading(false);
-      setError(
-        res.status === 403
-          ? "Accès Outlook refusé. Autorisez Calendars.Read et réessayez."
-          : `Erreur Outlook (${res.status})`
-      );
+      setError(`Erreur Outlook (${res.status})`);
       return;
     }
 
+    setConnected(true);
     const json = await res.json();
     const items: any[] = json?.value ?? [];
-    const nowRef = new Date();
 
     const mapped: CalendarEvent[] = items
       .map((item) => {
@@ -227,6 +178,7 @@ export function useOutlookCalendar(options?: Options): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
+    const nowRef = new Date();
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;
