@@ -182,6 +182,8 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunsetAngle = angleFromHour(sunset);
   const sunrisePt = toPoint(sunriseAngle, rMid);
   const sunsetPt = toPoint(sunsetAngle, rMid);
+  const sunriseRotation = sunriseAngle + 90;
+  const sunsetRotation = sunsetAngle + 90;
 
   // 24 séparateurs horaires
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
@@ -358,6 +360,8 @@ export const CircularCalendar: React.FC<Props> = ({
               style={{
                 left: sunrisePt.x - metaIconSize / 2,
                 top: sunrisePt.y - metaIconSize / 2,
+                transform: `rotate(${sunriseRotation}deg)`,
+                transformOrigin: "center",
               }}
               aria-label={`Sunrise at ${formatHour(sunrise)}`}
             >
@@ -381,6 +385,8 @@ export const CircularCalendar: React.FC<Props> = ({
               style={{
                 left: sunsetPt.x - metaIconSize / 2,
                 top: sunsetPt.y - metaIconSize / 2,
+                transform: `rotate(${sunsetRotation}deg)`,
+                transformOrigin: "center",
               }}
               aria-label={`Sunset at ${formatHour(sunset)}`}
             >
