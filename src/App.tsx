@@ -10,6 +10,7 @@ import MonitoringApp from "./pages/MonitoringApp";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import BuildingModel from "./pages/BuildingModel";
 import Meteo from "./pages/Meteo";
+import CircularCalendarDemo from "./pages/CircularCalendarDemo";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<FinanceDashboard />} />
+          <Route path="/calendar" element={<CircularCalendarDemo />} />
           <Route path="/monitoring" element={<MonitoringApp />}>
             <Route index element={<Navigate to="evap" replace />} />
             <Route path="evap" element={<MonitoringDashboard />} />
