@@ -46,6 +46,11 @@ function isAzureActive(session: any) {
   );
 }
 
+function isGoogleActive(session: any) {
+  const p = session?.user?.app_metadata?.provider;
+  return p === "google";
+}
+
 export function useAuthProviders() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [microsoftConnected, setMicrosoftConnected] = useState(false);
@@ -58,17 +63,17 @@ export function useAuthProviders() {
     const { data } = await supabase.auth.getSession();
     const session: any = data?.session ?? null;
 
-    // Google: stricte présence d’un access_token
-    const g = !!resolveGoogleIdentity(session)?.identity_data?.access_token;
-
-    // Microsoft: considéré connecté si
-    // - identité Microsoft liée
-    // - OU provider Azure actif
-    // - OU provider_token/provider_refresh_token présents dans la session
-    const hasMsIdentity = !!resolveMicrosoftIdentity(session);
-    const hasProviderTokens =
+    // Google: connecté si identité, ou provider actif google, ou tokens provider présents
+    const hasGoogleIdentity = !!resolveGoogleIdentity(session);
+    const hasGoogleProviderTokens =
       !!session?.provider_token || !!session?.provider_refresh_token;
-    const m = hasMsIdentity || isAzureActive(session) || hasProviderTokens;
+    const g = hasGoogleIdentity || isGoogleActive(session) || hasGoogleProviderTokens;
+
+    // Microsoft: connecté si identité Microsoft, provider Azure actif, ou tokens provider présents
+    const hasMsIdentity = !!resolveMicrosoftIdentity(session);
+    const hasMsProviderTokens =
+      !!session?.provider_token || !!session?.provider_refresh_token;
+    const m = hasMsIdentity || isAzureActive(session) || hasMsProviderTokens;
 
     const a = !!resolveAppleIdentity(session);
     const f = !!resolveFacebookIdentity(session);

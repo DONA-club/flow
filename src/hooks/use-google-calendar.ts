@@ -29,26 +29,47 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+function isGoogleActive(session: any) {
+  const p = session?.user?.app_metadata?.provider;
+  return p === "google";
+}
+
 async function resolveGoogleAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  // IMPORTANT: ne plus utiliser session.provider_token (peut être celui de Microsoft)
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null = googleIdentity?.identity_data?.access_token ?? null;
-  return fromIdentities || null;
+  const fromIdentities: string | null =
+    googleIdentity?.identity_data?.access_token ?? null;
+
+  if (fromIdentities) return fromIdentities;
+
+  // Si la session active est Google, autoriser l’usage du provider_token
+  if (isGoogleActive(session)) {
+    return session?.provider_token ?? null;
+  }
+
+  return null;
 }
 
 async function resolveGoogleRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  // IMPORTANT: ne plus utiliser session.provider_refresh_token (peut être celui d’un autre provider)
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
-  const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
-  return fromIdentities || null;
+  const fromIdentities: string | null =
+    googleIdentity?.identity_data?.refresh_token ?? null;
+
+  if (fromIdentities) return fromIdentities;
+
+  // Si la session active est Google, autoriser l’usage du provider_refresh_token
+  if (isGoogleActive(session)) {
+    return session?.provider_refresh_token ?? null;
+  }
+
+  return null;
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
