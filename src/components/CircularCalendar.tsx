@@ -29,13 +29,12 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-// const HOUR_SEPARATOR_COLOR = "#f9fafb"; // ancienne couleur de séparation
-
-// Découpage en 1440 segments (1 par minute)
-const SEGMENTS = 1440;
 
 // Couleur de fond du projet (bg-gray-50)
 const BACKGROUND_COLOR = "#f9fafb";
+
+// Découpage en 1440 segments (1 par minute)
+const SEGMENTS = 1440;
 
 function getWedgePath(
   cx: number,
@@ -172,7 +171,7 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   return (
-    <div className="flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center font-mono">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         {/* Segments horaires à la minute près, avec séparation nette chaque heure */}
         {wedges.map((w) => (
@@ -200,7 +199,11 @@ export const CircularCalendar: React.FC<Props> = ({
               fontSize="13"
               fontWeight={i === hour ? "bold" : "normal"}
               fill={i === hour ? "#2563eb" : "#374151"}
-              style={{ pointerEvents: "none", userSelect: "none" }}
+              style={{
+                pointerEvents: "none",
+                userSelect: "none",
+                fontFamily: "'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', monospace"
+              }}
             >
               {i}
             </text>
@@ -236,11 +239,11 @@ export const CircularCalendar: React.FC<Props> = ({
         role={event ? "button" : undefined}
         aria-label={event ? `Open event: ${event.title}` : undefined}
       >
-        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}>
+        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center font-mono" : "text-lg font-bold mb-1 font-mono"}>
           {event && eventIcon}
           {event ? event.title : "No events"}
         </div>
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 font-mono">
           {event ? event.place : "Enjoy your time!"}
         </div>
       </div>
