@@ -29,7 +29,7 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-const HOUR_SEPARATOR_COLOR = "#f9fafb"; // même couleur que bg-gray-50
+// const HOUR_SEPARATOR_COLOR = "#f9fafb"; // ancienne couleur de séparation
 
 // Découpage en 1440 segments (1 par minute)
 const SEGMENTS = 1440;
@@ -122,11 +122,11 @@ export const CircularCalendar: React.FC<Props> = ({
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
 
-    // Séparation visuelle à chaque heure pile
+    // Séparation visuelle à chaque heure pile : transparent
     if (i % 60 === 0) {
       return {
         d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
-        fill: HOUR_SEPARATOR_COLOR,
+        fill: "none", // transparent
         key: i,
       };
     }
