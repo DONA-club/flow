@@ -194,7 +194,7 @@ export const CircularCalendar: React.FC<Props> = ({
   // Chiffres horaires centrés, police réduite
   const scale = SIZE / (DEFAULT_SIZE || 1);
   // Taille proportionnelle au diamètre, bornée pour rester lisible
-  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.75, SIZE * 0.06));
+  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
   // Épaisseur du contour du texte qui suit l'échelle
   const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
   const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
