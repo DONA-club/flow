@@ -254,7 +254,6 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const [hoverRing, setHoverRing] = React.useState(false);
 
-  const rMid = (INNER_RADIUS + RADIUS) / 2;
   const angleFromHour = (time: number) => (time / 24) * 360 - 90;
   const toPoint = (angleDeg: number, r: number) => {
     const rad = (Math.PI / 180) * angleDeg;
@@ -269,9 +268,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  const arcInset = Math.max(2, Math.round(RING_THICKNESS * 0.2));
-  const innerArcRadius = Math.max(INNER_RADIUS + arcInset, INNER_RADIUS + 2);
-  const outerArcRadius = Math.min(RADIUS - arcInset, RADIUS - 2);
+  // Arcs sur la bordure extérieure: même rayon pour passé/à-venir
+  const arcInset = Math.max(2, Math.round(RING_THICKNESS * 0.18));
+  const arcRadius = Math.min(RADIUS - arcInset, RADIUS - 1);
   const arcStroke = Math.max(2, Math.round(3 * scale));
 
   const nowAngleDeg = angleFromHour(hourDecimal);
@@ -309,18 +308,6 @@ export const CircularCalendar: React.FC<Props> = ({
       }
     }
   }
-
-  type Side = "top" | "right" | "bottom" | "left";
-  const pickInnerSide = (pt: { x: number; y: number }): Side => {
-    const dx = cx - pt.x;
-    const dy = cy - pt.y;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      return dx > 0 ? "right" : "left";
-    }
-    return dy > 0 ? "bottom" : "top";
-  };
-  const sunriseSide = pickInnerSide(sunrisePt);
-  const sunsetSide = pickInnerSide(sunsetPt);
 
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
@@ -440,7 +427,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
           {hoverRing && pastArc && (
             <path
-              d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
+              d={getArcPath(cx, cy, arcRadius, pastArc.start, pastArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.95}
@@ -450,7 +437,7 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
           {hoverRing && futureArc && (
             <path
-              d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)}
+              d={getArcPath(cx, cy, arcRadius, futureArc.start, futureArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.6}
@@ -472,6 +459,7 @@ export const CircularCalendar: React.FC<Props> = ({
             style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
           />
         </svg>
+
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
           style={{
@@ -532,7 +520,12 @@ export const CircularCalendar: React.FC<Props> = ({
             </div>
           </TooltipTrigger>
           <TooltipContent
-            side={sunriseSide}
+            side={(() => {
+              const dx = cx - sunrisePt.x;
+              const dy = cy - sunrisePt.y;
+              if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+              return dy > 0 ? "bottom" : "top";
+            })()}
             sideOffset={6}
             className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
           >
@@ -563,7 +556,12 @@ export const CircularCalendar: React.FC<Props> = ({
             </div>
           </TooltipTrigger>
           <TooltipContent
-            side={sunsetSide}
+            side={(() => {
+              const dx = cx - sunsetPt.x;
+              const dy = cy - sunsetPt.y;
+              if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+              return dy > 0 ? "bottom" : "top";
+            })()}
             sideOffset={6}
             className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
           >

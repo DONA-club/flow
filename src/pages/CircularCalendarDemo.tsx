@@ -55,10 +55,10 @@ const CircularCalendarDemo = () => {
   const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number } | null>(null);
 
   // Heures simulées: lever 07:47, coucher 22:32
-  const SIM_WAKE = 7 + 47 / 60;     // 7.7833…
-  const SIM_BED = 22 + 32 / 60;     // 22.5333…
+  const SIM_WAKE = 7 + 47 / 60;
+  const SIM_BED = 22 + 32 / 60;
 
-  // Choisir les heures effectives: Google Fit si dispo, sinon simulation
+  // Priorité Google Fit si disponible, sinon valeurs simulées
   const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
@@ -95,21 +95,15 @@ const CircularCalendarDemo = () => {
     } else if (fitError) {
       setLogs([{ message: fitError, type: "error" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
-      setLogs([{ message: "Heures lever/coucher récupérées ✔️", type: "success" }]);
+      setLogs([{ message: "Heures lever/coucher récupérées ✔️ (Google Fit)", type: "success" }]);
     } else {
-      setLogs([
-        { message: "Mode simulé: lever 07:47 / coucher 22:32", type: "info" },
-      ]);
+      setLogs([{ message: "Mode simulé: lever 07:47 / coucher 22:32", type: "info" }]);
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
   function formatHour(decimal: number) {
-    const h = Math.floor(decimal)
-      .toString()
-      .padStart(2, "0");
-    const m = Math.round((decimal % 1) * 60)
-      .toString()
-      .padStart(2, "0");
+    const h = Math.floor(decimal).toString().padStart(2, "0");
+    const m = Math.round((decimal % 1) * 60).toString().padStart(2, "0");
     return `${h}:${m}`;
   }
 
@@ -118,11 +112,17 @@ const CircularCalendarDemo = () => {
     return `${formatHour(start)} — ${formatHour(end)}`;
   }
 
+  // Padding externe pour éviter que les arcs extérieurs ne soient rognés
+  const outerPad = Math.max(8, Math.round(size * 0.03));
+
   return (
     <>
       <FontLoader />
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
-        <div className="relative" style={{ width: size, height: size }}>
+        <div
+          className="relative flex items-center justify-center"
+          style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
+        >
           <CircularCalendar
             sunrise={displaySunrise}
             sunset={displaySunset}
