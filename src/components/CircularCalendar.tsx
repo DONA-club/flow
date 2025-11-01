@@ -220,7 +220,8 @@ export const CircularCalendar: React.FC<Props> = ({
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
 
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
-    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
+    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2; // radians pour position
+    const angleDeg = (i / 24) * 360 - 90; // degrés pour rotation
     const r = (RADIUS + INNER_RADIUS) / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -232,6 +233,7 @@ export const CircularCalendar: React.FC<Props> = ({
         x={x}
         y={y}
         textAnchor="middle"
+        transform={`rotate(${angleDeg + 90} ${x} ${y})`} // rotation tangentielle autour du centre du chiffre
         fontSize={hourFontSize}
         fontWeight={isCurrent ? "bold" : "600"}
         fill="#fff"
