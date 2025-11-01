@@ -225,28 +225,20 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunsetRotation = sunsetAngle + 90;
 
   // Arcs concentriques (jour passé / jour à venir)
-  const nowAngleDeg = angleFromHour(hourDecimal);
   const innerArcRadius = Math.max(0, INNER_RADIUS - Math.max(4, RING_THICKNESS * 0.25));
   const outerArcRadius = RADIUS + Math.max(4, RING_THICKNESS * 0.25);
   const arcStroke = Math.max(2, Math.round(3 * scale));
 
-  // Calcul des angles pour les arcs (cas standard: sunrise < sunset)
-  let pastArc: { start: number; end: number } | null = null;
-  let futureArc: { start: number; end: number } | null = null;
-  if (sunrise < sunset) {
-    if (hourDecimal <= sunrise) {
-      // Avant le lever: rien de passé, tout à venir
-      futureArc = { start: sunriseAngle, end: sunsetAngle };
-    } else if (hourDecimal >= sunset) {
-      // Après le coucher: tout est passé
-      pastArc = { start: sunriseAngle, end: sunsetAngle };
-    } else {
-      // En journée
-      pastArc = { start: sunriseAngle, end: nowAngleDeg };
-      futureArc = { start: nowAngleDeg, end: sunsetAngle };
-    }
-  }
-  // NOTE: cas rares (sunrise >= sunset) non traités pour rester simple
+  // Arcs "heures" pour lever et coucher (durée 1h : +/- 30° autour de l'angle)
+  const halfHour = 0.5;
+  const sunriseArc = {
+    start: angleFromHour(sunrise - halfHour),
+    end: angleFromHour(sunrise + halfHour),
+  };
+  const sunsetArc = {
+    start: angleFromHour(sunset - halfHour),
+    end: angleFromHour(sunset + halfHour),
+  };
 
   // Position du tooltip côté intérieur (vers le centre) selon la position de l'icône
   type Side = "top" | "right" | "bottom" | "left";
@@ -377,26 +369,26 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* Arcs jour passé / à venir au survol */}
-          {hoverRing && pastArc && (
-            <path
-              d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
-              fill="none"
-              stroke={SEASON_COLORS[currentSeason]}
-              strokeOpacity={0.95}
-              strokeWidth={arcStroke}
-              strokeLinecap="round"
-            />
-          )}
-          {hoverRing && futureArc && (
-            <path
-              d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)}
-              fill="none"
-              stroke={SEASON_COLORS[currentSeason]}
-              strokeOpacity={0.55}
-              strokeWidth={arcStroke}
-              strokeLinecap="round"
-            />
+          {/* Arcs lever/coucher au survol (1h centrée sur chaque événement) */}
+          {hoverRing && (
+            <>
+              <path
+                d={getArcPath(cx, cy, innerArcRadius, sunriseArc.start, sunriseArc.end)}
+                fill="none"
+                stroke={SEASON_COLORS[currentSeason]}
+                strokeOpacity={0.95}
+                strokeWidth={arcStroke}
+                strokeLinecap="round"
+              />
+              <path
+                d={getArcPath(cx, cy, outerArcRadius, sunsetArc.start, sunsetArc.end)}
+                fill="none"
+                stroke={SEASON_COLORS[currentSeason]}
+                strokeOpacity={0.6}
+                strokeWidth={arcStroke}
+                strokeLinecap="round"
+              />
+            </>
           )}
 
           {hourDividers}
