@@ -11,6 +11,7 @@ import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -47,20 +48,26 @@ type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
+
+  // Active les hooks uniquement quand l’identité existe
+  const { googleConnected, microsoftConnected } = useAuthProviders();
+
   const {
     events: gEvents,
     loading: gLoading,
     error: gError,
     connected: gConnected,
     refresh: refreshGoogle,
-  } = useGoogleCalendar();
+  } = useGoogleCalendar({ enabled: googleConnected });
+
   const {
     events: oEvents,
     loading: oLoading,
     error: oError,
     connected: oConnected,
     refresh: refreshOutlook,
-  } = useOutlookCalendar();
+  } = useOutlookCalendar({ enabled: microsoftConnected });
+
   const {
     wakeHour,
     bedHour,
@@ -68,7 +75,7 @@ const CircularCalendarDemo = () => {
     error: fitError,
     connected: fitConnected,
     refresh: refreshFit,
-  } = useGoogleFitSleep();
+  } = useGoogleFitSleep({ enabled: googleConnected });
 
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
@@ -195,7 +202,7 @@ const CircularCalendarDemo = () => {
     }
   }, [combinedEvents, selectedEvent]);
 
-  // Auto-refresh: inclure Google Fit
+  // Auto-refresh: inclure Google Fit si Google est connecté
   useEffect(() => {
     const id = window.setInterval(() => {
       refreshGoogle();
