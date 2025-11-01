@@ -1,6 +1,7 @@
 import React from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSunTimes } from "@/hooks/use-sun-times";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -10,7 +11,8 @@ const mockEvents = [
 ];
 
 const CircularCalendarDemo = () => {
-  // Affichage direct du calendrier, sans auth
+  const { sunrise, sunset, loading, error } = useSunTimes();
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
       <Card className="p-6">
@@ -19,10 +21,30 @@ const CircularCalendarDemo = () => {
         </CardHeader>
         <CardContent>
           <div className="relative" style={{ width: 320, height: 320 }}>
-            <CircularCalendar sunrise={6} sunset={20} events={mockEvents} />
+            {loading ? (
+              <div className="flex items-center justify-center h-full text-gray-500">Chargement de la localisation…</div>
+            ) : error || sunrise === null || sunset === null ? (
+              <div className="flex items-center justify-center h-full text-red-500">
+                {error || "Erreur lors de la récupération des horaires du soleil."}
+              </div>
+            ) : (
+              <CircularCalendar sunrise={sunrise} sunset={sunset} events={mockEvents} />
+            )}
           </div>
           <div className="mt-6 text-center text-gray-500 text-sm">
-            Sunrise: 6:00 &nbsp;|&nbsp; Sunset: 20:00
+            {loading
+              ? "Recherche de la position…"
+              : sunrise !== null && sunset !== null
+              ? `Sunrise: ${Math.floor(sunrise)
+                  .toString()
+                  .padStart(2, "0")}:${Math.round((sunrise % 1) * 60)
+                  .toString()
+                  .padStart(2, "0")} | Sunset: ${Math.floor(sunset)
+                  .toString()
+                  .padStart(2, "0")}:${Math.round((sunset % 1) * 60)
+                  .toString()
+                  .padStart(2, "0")}`
+              : ""}
           </div>
         </CardContent>
       </Card>
