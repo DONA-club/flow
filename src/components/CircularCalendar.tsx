@@ -258,7 +258,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const toPoint = (angleDeg: number, r: number) => {
     const rad = (Math.PI / 180) * angleDeg;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-  };
+    };
   const sunriseAngle = angleFromHour(sunrise);
   const sunsetAngle = angleFromHour(sunset);
   const iconGap = Math.max(2, Math.round(metaIconSize * 0.12));
@@ -268,9 +268,13 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs sur la bordure extérieure: même rayon pour passé/à-venir
-  const arcInset = Math.max(2, Math.round(RING_THICKNESS * 0.18));
-  const arcRadius = Math.min(RADIUS - arcInset, RADIUS - 1);
+  // Arcs concentriques:
+  // - ARC PASSÉ (écoulé depuis le lever) près du bord intérieur
+  // - ARC FUTUR (restant jusqu’au coucher) à l’extérieur du ring
+  const innerInset = Math.max(2, Math.round(RING_THICKNESS * 0.18));
+  const innerArcRadius = Math.max(INNER_RADIUS + innerInset, INNER_RADIUS + 2);
+  const outerOutset = Math.max(6, Math.round(RING_THICKNESS * 0.22));
+  const outsideArcRadius = RADIUS + outerOutset;
   const arcStroke = Math.max(2, Math.round(3 * scale));
 
   const nowAngleDeg = angleFromHour(hourDecimal);
@@ -289,14 +293,18 @@ export const CircularCalendar: React.FC<Props> = ({
     const nAngle = angleFromHour(hourDecimal % 24);
 
     if (n <= w) {
+      // Avant le lever
       futureArc = { start: wAngle, end: bAngle };
     } else if (n >= b) {
+      // Après le coucher
       pastArc = { start: wAngle, end: bAngle };
     } else {
+      // Entre lever et coucher
       pastArc = { start: wAngle, end: nAngle };
       futureArc = { start: nAngle, end: bAngle };
     }
   } else {
+    // Fallback: arcs liés au jour (sunrise/sunset)
     if (sunrise < sunset) {
       if (hourDecimal <= sunrise) {
         futureArc = { start: sunriseAngle, end: sunsetAngle };
@@ -425,9 +433,10 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
+          {/* Arc écoulé (intérieur) */}
           {hoverRing && pastArc && (
             <path
-              d={getArcPath(cx, cy, arcRadius, pastArc.start, pastArc.end)}
+              d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.95}
@@ -435,9 +444,11 @@ export const CircularCalendar: React.FC<Props> = ({
               strokeLinecap="round"
             />
           )}
+
+          {/* Arc restant (extérieur) */}
           {hoverRing && futureArc && (
             <path
-              d={getArcPath(cx, cy, arcRadius, futureArc.start, futureArc.end)}
+              d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.6}
