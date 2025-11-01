@@ -27,6 +27,17 @@ function toLocalDecimalHour(utcIsoString: string): number {
   );
 }
 
+async function getLocationByIP() {
+  // Utilisation de ip-api.com (pas besoin de clé, limité à 45 requêtes/min)
+  const res = await fetch("https://ip-api.com/json/?fields=lat,lon,status,message");
+  const data = await res.json();
+  if (data.status === "success") {
+    return { latitude: data.lat, longitude: data.lon };
+  } else {
+    throw new Error(data.message || "Impossible de localiser par IP.");
+  }
+}
+
 export function useSunTimes(): SunTimes {
   const [sunrise, setSunrise] = useState<number | null>(null);
   const [sunset, setSunset] = useState<number | null>(null);
@@ -39,50 +50,67 @@ export function useSunTimes(): SunTimes {
     setSunrise(null);
     setSunset(null);
 
-    if (!navigator.geolocation) {
-      setError("La géolocalisation n'est pas supportée par ce navigateur.");
-      setLoading(false);
-      return;
+    function fetchSunriseSunset(latitude: number, longitude: number) {
+      fetch(
+        `https://api.sunrise-sunset.org/json?lat=${latitude}&lng=${longitude}&formatted=0`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.status !== "OK") {
+            setError("Erreur lors de la récupération des horaires du soleil.");
+            setLoading(false);
+            return;
+          }
+          const sunriseDec = toLocalDecimalHour(data.results.sunrise);
+          const sunsetDec = toLocalDecimalHour(data.results.sunset);
+          setSunrise(sunriseDec);
+          setSunset(sunsetDec);
+          setLoading(false);
+        })
+        .catch(() => {
+          setError("Impossible de récupérer les horaires du soleil.");
+          setLoading(false);
+        });
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        fetch(
-          `https://api.sunrise-sunset.org/json?lat=${latitude}&lng=${longitude}&formatted=0`
-        )
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.status !== "OK") {
-              setError("Erreur lors de la récupération des horaires du soleil.");
-              setLoading(false);
-              return;
+    // 1. Essayer la géolocalisation navigateur
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          fetchSunriseSunset(latitude, longitude);
+        },
+        async (err) => {
+          // 2. Si refusé ou erreur, fallback sur IP
+          try {
+            const { latitude, longitude } = await getLocationByIP();
+            fetchSunriseSunset(latitude, longitude);
+          } catch (ipErr) {
+            if (err.code === 1) {
+              setError("Autorisation de localisation refusée. Localisation approximative par IP impossible.");
+            } else if (err.code === 2) {
+              setError("Position non disponible. Localisation approximative par IP impossible.");
+            } else if (err.code === 3) {
+              setError("Le délai de localisation a expiré. Localisation approximative par IP impossible.");
+            } else {
+              setError("Erreur inconnue lors de la récupération de la localisation.");
             }
-            const sunriseDec = toLocalDecimalHour(data.results.sunrise);
-            const sunsetDec = toLocalDecimalHour(data.results.sunset);
-            setSunrise(sunriseDec);
-            setSunset(sunsetDec);
             setLoading(false);
-          })
-          .catch(() => {
-            setError("Impossible de récupérer les horaires du soleil.");
-            setLoading(false);
-          });
-      },
-      (err) => {
-        if (err.code === 1) {
-          setError("Autorisation de localisation refusée. Veuillez autoriser l'accès à la localisation dans votre navigateur.");
-        } else if (err.code === 2) {
-          setError("Position non disponible. Essayez de réessayer ou vérifiez votre connexion.");
-        } else if (err.code === 3) {
-          setError("Le délai de localisation a expiré. Essayez de réessayer.");
-        } else {
-          setError("Erreur inconnue lors de la récupération de la localisation.");
-        }
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      // 3. Si pas de support navigateur, fallback sur IP
+      getLocationByIP()
+        .then(({ latitude, longitude }) => {
+          fetchSunriseSunset(latitude, longitude);
+        })
+        .catch(() => {
+          setError("La géolocalisation n'est pas supportée et la localisation par IP a échoué.");
+          setLoading(false);
+        });
+    }
   }, []);
 
   useEffect(() => {
