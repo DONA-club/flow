@@ -185,6 +185,19 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
+  // Position du tooltip côté intérieur (vers le centre) selon la position de l'icône
+  type Side = "top" | "right" | "bottom" | "left";
+  const pickInnerSide = (pt: { x: number; y: number }): Side => {
+    const dx = cx - pt.x;
+    const dy = cy - pt.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      return dx > 0 ? "right" : "left";
+    }
+    return dy > 0 ? "bottom" : "top";
+  };
+  const sunriseSide = pickInnerSide(sunrisePt);
+  const sunsetSide = pickInnerSide(sunsetPt);
+
   // 24 séparateurs horaires
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
@@ -378,9 +391,12 @@ export const CircularCalendar: React.FC<Props> = ({
               />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            {/* Tooltip doux et lisible */}
-            <span className="rounded-lg border border-gray-200 bg-white/90 backdrop-blur-sm px-3 py-2 shadow-lg text-base font-semibold text-gray-900 whitespace-nowrap">
+          <TooltipContent
+            side={sunriseSide}
+            sideOffset={6}
+            className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
+          >
+            <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
               {formatHour(sunrise)}
             </span>
           </TooltipContent>
@@ -406,9 +422,12 @@ export const CircularCalendar: React.FC<Props> = ({
               />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            {/* Tooltip doux et lisible */}
-            <span className="rounded-lg border border-gray-200 bg-white/90 backdrop-blur-sm px-3 py-2 shadow-lg text-base font-semibold text-gray-900 whitespace-nowrap">
+          <TooltipContent
+            side={sunsetSide}
+            sideOffset={6}
+            className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
+          >
+            <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
               {formatHour(sunset)}
             </span>
           </TooltipContent>
