@@ -48,7 +48,7 @@ const CircularCalendarDemo = () => {
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
-  // Pile de logs à afficher
+  // Pile de logs à afficher (thread)
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
 
   // Met à jour l'affichage dès qu'on a la vraie localisation
@@ -59,23 +59,14 @@ const CircularCalendarDemo = () => {
     }
   }, [sunrise, sunset, loading, error]);
 
-  // Ajoute les messages d'état à la pile de logs
+  // Gestion thread : persiste "..." puis transforme en confirmation/erreur
   useEffect(() => {
     if (loading) {
-      setLogs((prev) => [
-        ...prev,
-        { message: "Chargement de la localisation…", type: "info" },
-      ]);
+      setLogs([{ message: "Chargement de la localisation…", type: "info" }]);
     } else if (error) {
-      setLogs((prev) => [
-        ...prev,
-        { message: error, type: "error" },
-      ]);
+      setLogs([{ message: error, type: "error" }]);
     } else if (sunrise !== null && sunset !== null) {
-      setLogs((prev) => [
-        ...prev,
-        { message: "Localisation détectée !", type: "success" },
-      ]);
+      setLogs([{ message: "Localisation détectée !", type: "success" }]);
     }
     // eslint-disable-next-line
   }, [loading, error, sunrise, sunset]);
@@ -116,7 +107,7 @@ const CircularCalendarDemo = () => {
               .padStart(2, "0")}`
           : ""}
       </div>
-      <StackedEphemeralLogs logs={logs} />
+      <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
     </div>
   );
 };

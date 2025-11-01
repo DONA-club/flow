@@ -6,11 +6,12 @@ type Log = {
   id: number;
   message: string;
   type: LogType;
+  fading?: boolean;
 };
 
 type Props = {
   logs: { message: string; type?: LogType }[];
-  duration?: number; // ms
+  fadeOutDuration?: number; // ms
 };
 
 const COLORS: Record<LogType, { bg: string; text: string }> = {
@@ -21,42 +22,93 @@ const COLORS: Record<LogType, { bg: string; text: string }> = {
 
 export const StackedEphemeralLogs: React.FC<Props> = ({
   logs,
-  duration = 3500,
+  fadeOutDuration = 2000,
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
   const idRef = useRef(0);
 
-  // Ajoute les nouveaux logs à la pile
+  // Thread: un seul message "..." à la fois, remplacé par sa confirmation/erreur
   useEffect(() => {
-    logs.forEach((log) => {
+    if (logs.length === 0) return;
+
+    const lastLog = logs[logs.length - 1];
+    const isLoading = lastLog.message.includes("...");
+    const lastDisplayed = displayed[displayed.length - 1];
+
+    if (isLoading) {
+      // Si déjà affiché, ne rien faire
       if (
-        !displayed.some(
-          (d) => d.message === log.message && d.type === (log.type || "info")
-        )
+        lastDisplayed &&
+        lastDisplayed.message === lastLog.message &&
+        lastDisplayed.type === (lastLog.type || "info")
       ) {
-        setDisplayed((prev) => [
-          ...prev,
+        return;
+      }
+      // Affiche le message "..." (remplace tout)
+      setDisplayed([
+        {
+          id: ++idRef.current,
+          message: lastLog.message,
+          type: lastLog.type || "info",
+        },
+      ]);
+    } else {
+      // Si un message "..." est affiché, le remplace par la confirmation/erreur
+      if (
+        lastDisplayed &&
+        lastDisplayed.message.includes("...") &&
+        !lastDisplayed.fading
+      ) {
+        setDisplayed([
+          {
+            id: lastDisplayed.id + 1,
+            message: lastLog.message,
+            type: lastLog.type || "success",
+            fading: false,
+          },
+        ]);
+      } else {
+        // Sinon, ajoute normalement
+        setDisplayed([
           {
             id: ++idRef.current,
-            message: log.message,
-            type: log.type || "info",
+            message: lastLog.message,
+            type: lastLog.type || "success",
+            fading: false,
           },
         ]);
       }
-    });
+    }
     // eslint-disable-next-line
   }, [logs.map((l) => l.message + l.type).join(",")]);
 
-  // Supprime chaque log après duration ms
+  // Fade out pour confirmation/erreur
   useEffect(() => {
     if (displayed.length === 0) return;
-    const timers = displayed.map((log) =>
-      setTimeout(() => {
-        setDisplayed((prev) => prev.filter((l) => l.id !== log.id));
-      }, duration)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [displayed, duration]);
+    const last = displayed[displayed.length - 1];
+    if (
+      last &&
+      !last.message.includes("...") &&
+      !last.fading
+    ) {
+      // Lance le fade out après un court délai (pour laisser le temps de voir le message)
+      const fadeTimeout = setTimeout(() => {
+        setDisplayed((prev) =>
+          prev.map((l) =>
+            l.id === last.id ? { ...l, fading: true } : l
+          )
+        );
+      }, 800); // délai avant fade (0.8s)
+      // Supprime le message après le fade
+      const removeTimeout = setTimeout(() => {
+        setDisplayed((prev) => prev.filter((l) => l.id !== last.id));
+      }, 800 + fadeOutDuration);
+      return () => {
+        clearTimeout(fadeTimeout);
+        clearTimeout(removeTimeout);
+      };
+    }
+  }, [displayed, fadeOutDuration]);
 
   return (
     <div
@@ -71,7 +123,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
             px-4 py-2 rounded-lg shadow
             text-sm font-medium
             transition-all duration-500
-            opacity-100
+            ${log.fading ? "opacity-0" : "opacity-100"}
             ${COLORS[log.type].bg} ${COLORS[log.type].text}
             backdrop-blur
           `}
@@ -79,8 +131,9 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
             marginBottom: 2,
             maxWidth: 320,
             background: log.type === "info"
-              ? "rgba(243,244,246,0.85)" // gris très clair
+              ? "rgba(243,244,246,0.85)"
               : undefined,
+            transition: `opacity ${log.fading ? fadeOutDuration : 500}ms`,
           }}
         >
           {log.message}
