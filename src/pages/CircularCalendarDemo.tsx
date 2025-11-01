@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
 
@@ -30,47 +29,40 @@ const CircularCalendarDemo = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
-      <Card className="p-6">
-        <CardHeader>
-          <CardTitle>Calendrier Circulaire</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative" style={{ width: 320, height: 320 }}>
-            <CircularCalendar sunrise={displaySunrise} sunset={displaySunset} events={mockEvents} />
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 text-gray-500">
-                Chargement de la localisation…
-              </div>
-            )}
-            {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
-                <span>{error}</span>
-                <Button variant="outline" size="sm" onClick={retry}>
-                  Réessayer
-                </Button>
-                <span className="text-xs text-gray-400 mt-2">
-                  Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
-                </span>
-              </div>
-            )}
+      <div className="relative" style={{ width: 320, height: 320 }}>
+        <CircularCalendar sunrise={displaySunrise} sunset={displaySunset} events={mockEvents} />
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 text-gray-500">
+            Chargement de la localisation…
           </div>
-          <div className="mt-6 text-center text-gray-500 text-sm">
-            {loading
-              ? "Recherche de la position…"
-              : sunrise !== null && sunset !== null
-              ? `Sunrise: ${Math.floor(sunrise)
-                  .toString()
-                  .padStart(2, "0")}:${Math.round((sunrise % 1) * 60)
-                  .toString()
-                  .padStart(2, "0")} | Sunset: ${Math.floor(sunset)
-                  .toString()
-                  .padStart(2, "0")}:${Math.round((sunset % 1) * 60)
-                  .toString()
-                  .padStart(2, "0")}`
-              : ""}
+        )}
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Réessayer
+            </Button>
+            <span className="text-xs text-gray-400 mt-2">
+              Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
+      <div className="mt-6 text-center text-gray-500 text-sm">
+        {loading
+          ? "Recherche de la position…"
+          : sunrise !== null && sunset !== null
+          ? `Sunrise: ${Math.floor(sunrise)
+              .toString()
+              .padStart(2, "0")}:${Math.round((sunrise % 1) * 60)
+              .toString()
+              .padStart(2, "0")} | Sunset: ${Math.floor(sunset)
+              .toString()
+              .padStart(2, "0")}:${Math.round((sunset % 1) * 60)
+              .toString()
+              .padStart(2, "0")}`
+          : ""}
+      </div>
     </div>
   );
 };
