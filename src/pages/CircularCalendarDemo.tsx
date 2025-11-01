@@ -53,6 +53,14 @@ const CircularCalendarDemo = () => {
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number } | null>(null);
 
+  // Heures simulées: lever 07:47, coucher 22:32
+  const SIM_WAKE = 7 + 47 / 60;     // 7.7833…
+  const SIM_BED = 22 + 32 / 60;     // 22.5333…
+
+  // Choisir les heures effectives: Google Fit si dispo, sinon simulation
+  const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
+  const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
+
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
       setDisplaySunrise(sunrise);
@@ -87,6 +95,10 @@ const CircularCalendarDemo = () => {
       setLogs([{ message: fitError, type: "error" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
       setLogs([{ message: "Heures lever/coucher récupérées ✔️", type: "success" }]);
+    } else {
+      setLogs([
+        { message: "Mode simulé: lever 07:47 / coucher 22:32", type: "info" },
+      ]);
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
@@ -113,8 +125,8 @@ const CircularCalendarDemo = () => {
           sunset={displaySunset}
           events={gEvents.length > 0 ? gEvents : mockEvents}
           size={size}
-          wakeHour={wakeHour ?? undefined}
-          bedHour={bedHour ?? undefined}
+          wakeHour={effectiveWake}
+          bedHour={effectiveBed}
           eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
           onEventClick={(evt) => {
             setSelectedEvent(evt);
