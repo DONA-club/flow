@@ -269,13 +269,18 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunsetRotation = sunsetAngle + 90;
 
   // Arcs concentriques:
-  // - ARC PASSÉ (écoulé depuis le lever) près du bord intérieur
-  // - ARC FUTUR (restant jusqu’au coucher) à l’extérieur du ring
-  const innerInset = Math.max(2, Math.round(RING_THICKNESS * 0.18));
-  const innerArcRadius = Math.max(INNER_RADIUS + innerInset, INNER_RADIUS + 2);
+  // - ARC PASSÉ (écoulé depuis le lever) À L’INTÉRIEUR du ring, au ras de la bordure intérieure (diamètre inférieur)
+  // - ARC FUTUR (restant jusqu’au coucher) À L’EXTÉRIEUR du ring
+  const arcStroke = Math.max(2, Math.round(3 * scale)); // épaisseur cohérente avec la taille
+  const innerGapTowardCenter = Math.max(4, Math.round(RING_THICKNESS * 0.22)); // distance vers le centre
+  // On place le rayon de l’arc intérieur à l’intérieur du trou central.
+  // On retire la moitié de l’épaisseur de trait pour éviter de toucher le bord du ring.
+  const innerArcRadius = Math.max(
+    arcStroke,
+    INNER_RADIUS - innerGapTowardCenter - arcStroke / 2
+  );
   const outerOutset = Math.max(6, Math.round(RING_THICKNESS * 0.22));
   const outsideArcRadius = RADIUS + outerOutset;
-  const arcStroke = Math.max(2, Math.round(3 * scale));
 
   const nowAngleDeg = angleFromHour(hourDecimal);
   let pastArc: { start: number; end: number } | null = null;
@@ -433,7 +438,7 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* Arc écoulé (intérieur) */}
+          {/* Arc écoulé (intérieur, dans le trou central) */}
           {hoverRing && pastArc && (
             <path
               d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
@@ -442,10 +447,11 @@ export const CircularCalendar: React.FC<Props> = ({
               strokeOpacity={0.95}
               strokeWidth={arcStroke}
               strokeLinecap="round"
+              style={{ pointerEvents: "none" }}
             />
           )}
 
-          {/* Arc restant (extérieur) */}
+          {/* Arc restant (extérieur au ring) */}
           {hoverRing && futureArc && (
             <path
               d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
@@ -454,6 +460,7 @@ export const CircularCalendar: React.FC<Props> = ({
               strokeOpacity={0.6}
               strokeWidth={arcStroke}
               strokeLinecap="round"
+              style={{ pointerEvents: "none" }}
             />
           )}
 
