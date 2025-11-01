@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
-import { useSunTimes } from "@/hooks/use-sun-times";
+import { useSunTimes } from "@/hooks/use-sun-times.tsx";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
 
