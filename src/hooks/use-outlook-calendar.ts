@@ -37,33 +37,22 @@ function resolveMicrosoftIdentity(session: any) {
   );
 }
 
+// IMPORTANT: n'utilise plus provider_token pour Microsoft (risque de récupérer le jeton Google)
 async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
-
-  // Tokens potentiels
   const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentities: string | null =
-    msIdentity?.identity_data?.access_token ?? null;
-
-  const fromProviderToken: string | null = session?.provider_token ?? null;
-
-  // On préfère d'abord celui de l'identité, sinon provider_token (si c'est bien un token Microsoft)
-  return fromIdentities || fromProviderToken || null;
+  const fromIdentity: string | null = msIdentity?.identity_data?.access_token ?? null;
+  return fromIdentity || null;
 }
 
+// IMPORTANT: n'utilise plus provider_refresh_token pour Microsoft (risque de récupérer le refresh Google)
 async function resolveMicrosoftRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
-
-  const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
-  if (fromProviderRefresh) return fromProviderRefresh;
-
   const msIdentity = resolveMicrosoftIdentity(session);
-  const fromIdentities: string | null =
-    msIdentity?.identity_data?.refresh_token ?? null;
-
-  return fromIdentities || null;
+  const fromIdentity: string | null = msIdentity?.identity_data?.refresh_token ?? null;
+  return fromIdentity || null;
 }
 
 function isLikelyJwt(token: string | null): boolean {
@@ -76,12 +65,16 @@ async function refreshAccessTokenViaEdge(): Promise<string | null> {
   const session: any = data?.session ?? null;
 
   const refreshToken = await resolveMicrosoftRefreshToken();
-  if (!refreshToken || !session?.access_token) return null;
+  const supaAccess = session?.access_token;
+
+  if (!refreshToken || !supaAccess) return null;
+
+  const scopes = "Calendars.Read offline_access openid profile email";
 
   const { data: resp, error } = await supabase.functions.invoke("microsoft-token-refresh", {
-    body: { refresh_token: refreshToken },
+    body: { refresh_token: refreshToken, scope: scopes },
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${supaAccess}`,
     },
   });
 
@@ -102,7 +95,7 @@ export function useOutlookCalendar(): Result {
 
     let token = await resolveMicrosoftAccessToken();
 
-    // Si le token est absent ou n'a pas la forme d'un JWT, on tente un refresh côté Edge
+    // Si pas de token identité ou token non-JWT => tenter refresh uniquement si on a un refresh_token Microsoft
     if (!isLikelyJwt(token || null)) {
       const refreshed = await refreshAccessTokenViaEdge();
       if (refreshed && isLikelyJwt(refreshed)) {
@@ -113,7 +106,7 @@ export function useOutlookCalendar(): Result {
         setEvents([]);
         setLoading(false);
         setError(
-          "Token Microsoft invalide/expiré. Veuillez reconnecter votre compte et autoriser Calendars.Read."
+          "Jeton Microsoft manquant/expiré. Cliquez sur Microsoft et acceptez l’accès (Calendars.Read + offline_access)."
         );
         return;
       }
@@ -139,7 +132,6 @@ export function useOutlookCalendar(): Result {
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${tkn}`,
-          // Optionnel: sans forcer de timezone ici pour rester simple
           Accept: "application/json",
         },
       });
@@ -148,12 +140,18 @@ export function useOutlookCalendar(): Result {
 
     let res = await doFetch(token as string);
     if (!res.ok && (res.status === 401 || res.status === 403)) {
-      // Tentative de refresh si non autorisé
+      // Tentative de refresh si non autorisé (et si refresh_token Microsoft disponible)
       const refreshed = await refreshAccessTokenViaEdge();
       if (refreshed && isLikelyJwt(refreshed)) {
         token = refreshed;
         setConnected(true);
         res = await doFetch(token);
+      } else {
+        setConnected(false);
+        setEvents([]);
+        setLoading(false);
+        setError("Session Microsoft expirée et aucun refresh disponible. Reconnectez Microsoft (consent).");
+        return;
       }
     }
 
@@ -162,7 +160,7 @@ export function useOutlookCalendar(): Result {
       setLoading(false);
       setError(
         res.status === 403
-          ? "Accès Outlook refusé. Autorisez l’accès Calendars.Read et réessayez."
+          ? "Accès Outlook refusé. Autorisez Calendars.Read et réessayez."
           : `Erreur Outlook (${res.status})`
       );
       return;
@@ -197,7 +195,7 @@ export function useOutlookCalendar(): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
-    // Même si calendarView filtre déjà, on garde une sécurité: événements à venir seulement
+    // Sécurité: ne garder que les événements à venir
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;
