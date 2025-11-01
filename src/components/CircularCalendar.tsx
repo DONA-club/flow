@@ -17,6 +17,8 @@ type Props = {
   onEventClick?: (event: Event) => void;
   size?: number; // diamètre du cercle en px
   eventIcon?: React.ReactNode;
+  latitude?: number;
+  longitude?: number;
 };
 
 const DEFAULT_SIZE = 320;
@@ -98,6 +100,20 @@ function formatHour(decimal: number) {
   return `${h}:${m}`;
 }
 
+function formatCoord(coord?: number, type: "lat" | "lon" = "lat") {
+  if (typeof coord !== "number") return "";
+  const abs = Math.abs(coord).toFixed(4);
+  const dir =
+    type === "lat"
+      ? coord >= 0
+        ? "N"
+        : "S"
+      : coord >= 0
+      ? "E"
+      : "W";
+  return `${abs}°${dir}`;
+}
+
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -106,6 +122,8 @@ export const CircularCalendar: React.FC<Props> = ({
   onEventClick,
   size = DEFAULT_SIZE,
   eventIcon,
+  latitude,
+  longitude,
 }) => {
   const now = new Date();
   const hourDecimal =
@@ -174,7 +192,7 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   // Chiffres horaires centrés, police réduite
-  const hourFontSize = RING_THICKNESS * 0.7; // Réduit pour éviter chevauchement
+  const hourFontSize = RING_THICKNESS * 0.7;
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const r = (RADIUS + INNER_RADIUS) / 2;
@@ -260,6 +278,12 @@ export const CircularCalendar: React.FC<Props> = ({
         <div className="text-sm text-gray-600">
           {event ? event.place : "Enjoy your time!"}
         </div>
+        {/* Localisation géographique précise */}
+        {(latitude !== undefined && longitude !== undefined) && (
+          <div className="mt-1 text-xs text-gray-500 font-mono">
+            {formatCoord(latitude, "lat")}, {formatCoord(longitude, "lon")}
+          </div>
+        )}
         {/* Sunrise & Sunset au centre */}
         <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
           <span className="flex items-center gap-1">

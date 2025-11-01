@@ -3,7 +3,7 @@ import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
-import { Sunrise, Sunset, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -12,7 +12,6 @@ const mockEvents = [
   { title: "Gym", place: "Fitness Center", start: 18, end: 19 },
 ];
 
-// Valeurs par défaut (ex: Paris en été)
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
 const GOLDEN_RATIO = 1.618;
@@ -24,13 +23,9 @@ function useGoldenCircleSize() {
     function updateSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      // On prend la plus petite dimension pour éviter de dépasser l'écran
       const minDim = Math.min(w, h);
-      // On laisse une marge de 32px autour
       const available = minDim - 32;
-      // Taille selon le nombre d'or
       const golden = Math.floor(available / GOLDEN_RATIO);
-      // On limite à 600px max pour éviter les très grands écrans
       setSize(Math.max(180, Math.min(golden, 600)));
     }
     updateSize();
@@ -44,23 +39,26 @@ function useGoldenCircleSize() {
 type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
-  const { sunrise, sunset, loading, error, retry } = useSunTimes();
+  const { sunrise, sunset, loading, error, retry, latitude, longitude } = useSunTimes();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
+  const [displayLat, setDisplayLat] = useState<number | undefined>(undefined);
+  const [displayLon, setDisplayLon] = useState<number | undefined>(undefined);
   const size = useGoldenCircleSize();
 
-  // Pile de logs à afficher (thread)
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
 
-  // Met à jour l'affichage dès qu'on a la vraie localisation
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
       setDisplaySunrise(sunrise);
       setDisplaySunset(sunset);
     }
-  }, [sunrise, sunset, loading, error]);
+    if (latitude !== null && longitude !== null && !loading && !error) {
+      setDisplayLat(latitude);
+      setDisplayLon(longitude);
+    }
+  }, [sunrise, sunset, latitude, longitude, loading, error]);
 
-  // Gestion thread : persiste "..." puis transforme en confirmation/erreur
   useEffect(() => {
     if (loading) {
       setLogs([{ message: "Chargement de la localisation…", type: "info" }]);
@@ -69,10 +67,8 @@ const CircularCalendarDemo = () => {
     } else if (sunrise !== null && sunset !== null) {
       setLogs([{ message: "Localisation détectée !", type: "success" }]);
     }
-    // eslint-disable-next-line
   }, [loading, error, sunrise, sunset]);
 
-  // Formatage heure
   function formatHour(decimal: number) {
     const h = Math.floor(decimal)
       .toString()
@@ -92,6 +88,8 @@ const CircularCalendarDemo = () => {
           events={mockEvents}
           size={size}
           eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
+          latitude={displayLat}
+          longitude={displayLon}
         />
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
@@ -104,16 +102,6 @@ const CircularCalendarDemo = () => {
             </span>
           </div>
         )}
-      </div>
-      <div className="mt-6 flex items-center justify-center gap-6 text-gray-500 text-sm">
-        <span className="flex items-center gap-1">
-          <Sunrise className="w-5 h-5 text-yellow-400" aria-label="Sunrise" />
-          {formatHour(displaySunrise)}
-        </span>
-        <span className="flex items-center gap-1">
-          <Sunset className="w-5 h-5 text-orange-400" aria-label="Sunset" />
-          {formatHour(displaySunset)}
-        </span>
       </div>
       <StackedEphemeralLogs logs={logs} fadeOutDuration={2000} />
     </div>
