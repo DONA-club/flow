@@ -225,9 +225,10 @@ export const CircularCalendar: React.FC<Props> = ({
   const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
   const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
   const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
-  const titleFontSize = Math.max(12, Math.min(18 * scale, 18));
-  const subFontSize = Math.max(10, Math.min(14 * scale, 14));
-  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));
+  // Augmente légèrement les tailles max pour lisibilité
+  const titleFontSize = Math.max(14, Math.min(22 * scale, 22));
+  const subFontSize = Math.max(12, Math.min(16 * scale, 16));
+  const metaFontSize = Math.max(11, Math.min(14 * scale, 14));
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16)));
 
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
@@ -487,19 +488,17 @@ export const CircularCalendar: React.FC<Props> = ({
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}
         >
-          {/* Heure pointée par le curseur, visible et légère */}
           <div
-            className="mb-1 text-xs text-gray-400"
+            className="mb-1 text-xs calendar-center-meta"
             style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
             aria-label={`Heure actuelle ${formatHour(hourDecimal)}`}
           >
             {formatHour(hourDecimal)}
           </div>
 
-          {/* Indication de jour, discrète */}
           {event && dayBadge && (
             <div
-              className="mb-1 text-xs text-gray-400"
+              className="mb-1 text-xs calendar-center-meta"
               style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
               aria-label={dayBadge}
             >
@@ -508,17 +507,17 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
 
           <div
-            className={
-              event
-                ? "text-lg font-semibold mb-1 text-blue-700 hover:text-blue-800 transition-colors flex items-center justify-center tracking-tight"
-                : "text-lg font-semibold mb-1 tracking-tight"
-            }
+            className="calendar-center-title font-semibold mb-1 flex items-center justify-center tracking-tight transition-colors"
             style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
           >
             {event && eventIcon}
             {event ? event.title : "No events"}
           </div>
-          <div className="text-sm text-gray-600" style={{ fontSize: subFontSize, lineHeight: 1.25 }}>
+
+          <div
+            className="calendar-center-sub"
+            style={{ fontSize: subFontSize, lineHeight: 1.25 }}
+          >
             {event ? event.place : "Enjoy your time!"}
           </div>
         </div>

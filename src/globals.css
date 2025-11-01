@@ -60,6 +60,40 @@ body, html, #root {
   transform: scale(1.08);
 }
 
+/* Texte central du calendrier: couleurs adaptatives */
+
+/* Par défaut (fond sombre) */
+.calendar-center-title {
+  color: #bfdbfe; /* blue-200 */
+  text-shadow: 0 1px 1px rgba(0,0,0,0.35);
+}
+.calendar-center-title:hover {
+  color: #93c5fd; /* blue-300 */
+}
+.calendar-center-sub {
+  color: #94a3b8; /* slate-400 */
+}
+.calendar-center-meta {
+  color: #cbd5e1; /* slate-300 */
+}
+
+/* En mode clair sur la page calendar seulement */
+@media (prefers-color-scheme: light) {
+  .calendar-light-bg .calendar-center-title {
+    color: #1d4ed8; /* blue-700 */
+    text-shadow: none;
+  }
+  .calendar-light-bg .calendar-center-title:hover {
+    color: #1e40af; /* blue-800 */
+  }
+  .calendar-light-bg .calendar-center-sub {
+    color: #374151; /* gray-700 */
+  }
+  .calendar-light-bg .calendar-center-meta {
+    color: #4b5563; /* gray-600 */
+  }
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .glass {
