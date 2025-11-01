@@ -34,6 +34,9 @@ const NIGHT_COLOR = "#d1d5db";
 // Découpage en 1440 segments (1 par minute)
 const SEGMENTS = 1440;
 
+// Couleur de fond du projet (bg-gray-50)
+const BACKGROUND_COLOR = "#f9fafb";
+
 function getWedgePath(
   cx: number,
   cy: number,
@@ -147,7 +150,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
-  // 24 séparateurs horaires (traits fins)
+  // 24 séparateurs horaires (traits fins, couleur de fond)
   const hourDividers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const x1 = cx + INNER_RADIUS * Math.cos(angle);
@@ -161,9 +164,9 @@ export const CircularCalendar: React.FC<Props> = ({
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke="#374151"
-        strokeWidth={1.2}
-        opacity={0.7}
+        stroke={BACKGROUND_COLOR}
+        strokeWidth={2}
+        opacity={1}
       />
     );
   });
