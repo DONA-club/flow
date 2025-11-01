@@ -1,5 +1,4 @@
 import React from "react";
-import { cn } from "@/lib/utils";
 
 type Event = {
   title: string;
@@ -14,14 +13,36 @@ type Props = {
   events: Event[];
 };
 
-const RADIUS = 120; // px
-const BLOCK_SIZE = 28; // px
+const SIZE = 320; // SVG size in px
+const RADIUS = 140; // Outer radius
+const INNER_RADIUS = 90; // Inner radius for donut effect
 
-function getBlockPosition(hour: number, total: number, radius: number) {
-  const angle = ((hour - 6) / total) * 2 * Math.PI; // -6 to start at top
-  const x = radius * Math.cos(angle - Math.PI / 2);
-  const y = radius * Math.sin(angle - Math.PI / 2);
-  return { x, y };
+function getWedgePath(cx: number, cy: number, r1: number, r2: number, startAngle: number, endAngle: number) {
+  // Convert angles to radians
+  const startRad = (Math.PI / 180) * startAngle;
+  const endRad = (Math.PI / 180) * endAngle;
+
+  // Points on outer arc
+  const x1 = cx + r1 * Math.cos(startRad);
+  const y1 = cy + r1 * Math.sin(startRad);
+  const x2 = cx + r1 * Math.cos(endRad);
+  const y2 = cy + r1 * Math.sin(endRad);
+
+  // Points on inner arc
+  const x3 = cx + r2 * Math.cos(endRad);
+  const y3 = cy + r2 * Math.sin(endRad);
+  const x4 = cx + r2 * Math.cos(startRad);
+  const y4 = cy + r2 * Math.sin(startRad);
+
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+  return [
+    `M ${x1} ${y1}`,
+    `A ${r1} ${r1} 0 ${largeArc} 1 ${x2} ${y2}`,
+    `L ${x3} ${y3}`,
+    `A ${r2} ${r2} 0 ${largeArc} 0 ${x4} ${y4}`,
+    "Z"
+  ].join(" ");
 }
 
 function getCurrentOrNextEvent(events: Event[], now: number): Event | undefined {
@@ -42,59 +63,90 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const event = getCurrentOrNextEvent(events, hour);
 
+  // For each hour, calculate start/end angle (0 at top, clockwise)
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const blockAngle = 360 / 24;
+
+  // Handle sunrise/sunset wrap (e.g. sunset < sunrise)
+  function isDay(i: number) {
+    if (sunrise < sunset) {
+      return i >= sunrise && i < sunset;
+    } else {
+      return i >= sunrise || i < sunset;
+    }
+  }
+
   return (
-    <div className="relative flex items-center justify-center" style={{ width: 2*RADIUS+BLOCK_SIZE, height: 2*RADIUS+BLOCK_SIZE }}>
-      {/* Hour blocks */}
-      {Array.from({ length: 24 }).map((_, i) => {
-        const { x, y } = getBlockPosition(i, 24, RADIUS);
-        const isDay = (sunrise < sunset)
-          ? (i >= sunrise && i < sunset)
-          : (i >= sunrise || i < sunset); // handle midnight wrap
-        return (
-          <div
-            key={i}
-            className={cn(
-              "absolute flex items-center justify-center rounded-full border shadow transition-colors",
-              isDay ? "bg-yellow-300 border-yellow-400" : "bg-gray-300 border-gray-400",
-              "text-xs font-semibold",
-              hour === i ? "ring-2 ring-blue-500 z-10" : ""
-            )}
-            style={{
-              width: BLOCK_SIZE,
-              height: BLOCK_SIZE,
-              left: RADIUS + x,
-              top: RADIUS + y,
-              transform: "translate(-50%, -50%)",
-              zIndex: hour === i ? 2 : 1,
-            }}
-            title={`${i}:00`}
-          >
-            {i}
-          </div>
-        );
-      })}
-      {/* Cursor for current hour */}
-      {(() => {
-        const { x, y } = getBlockPosition(hour, 24, RADIUS + 32);
-        return (
-          <div
-            className="absolute w-2 h-2 bg-blue-600 rounded-full shadow"
-            style={{
-              left: RADIUS + x,
-              top: RADIUS + y,
-              transform: "translate(-50%, -50%)",
-              zIndex: 20,
-            }}
-            title="Current hour"
-          />
-        );
-      })()}
+    <div className="flex flex-col items-center justify-center">
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+        {/* Hour wedges */}
+        {Array.from({ length: 24 }).map((_, i) => {
+          const startAngle = -90 + i * blockAngle;
+          const endAngle = startAngle + blockAngle;
+          const isCurrent = i === hour;
+          return (
+            <path
+              key={i}
+              d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle)}
+              fill={isDay(i) ? "#fde047" : "#d1d5db"}
+              stroke={isCurrent ? "#2563eb" : isDay(i) ? "#facc15" : "#9ca3af"}
+              strokeWidth={isCurrent ? 4 : 2}
+              opacity={isCurrent ? 1 : 0.95}
+            >
+            </path>
+          );
+        })}
+        {/* Hour numbers */}
+        {Array.from({ length: 24 }).map((_, i) => {
+          const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
+          const r = (RADIUS + INNER_RADIUS) / 2;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle) + 4;
+          return (
+            <text
+              key={i}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              fontSize="13"
+              fontWeight={i === hour ? "bold" : "normal"}
+              fill={i === hour ? "#2563eb" : "#374151"}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {i}
+            </text>
+          );
+        })}
+        {/* Cursor for current hour */}
+        {(() => {
+          const angle = ((hour / 24) * 2 * Math.PI) - Math.PI / 2;
+          const r = RADIUS + 16;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle);
+          return (
+            <circle
+              cx={x}
+              cy={y}
+              r={6}
+              fill="#2563eb"
+              stroke="#fff"
+              strokeWidth={2}
+              style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
+            />
+          );
+        })()}
+      </svg>
       {/* Center info */}
       <div className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
         style={{
-          transform: "translate(-50%, -50%)",
-          width: RADIUS,
+          transform: `translate(-50%, -50%)`,
+          position: "absolute",
+          width: INNER_RADIUS * 1.5,
           maxWidth: "80%",
+          pointerEvents: "none",
+          top: `calc(50% + 0px)`,
+          left: `calc(50% + 0px)`,
         }}
       >
         <div className="text-lg font-bold mb-1">

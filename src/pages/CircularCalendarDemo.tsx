@@ -18,7 +18,9 @@ const CircularCalendarDemo = () => {
           <CardTitle>Circular Calendar</CardTitle>
         </CardHeader>
         <CardContent>
-          <CircularCalendar sunrise={6} sunset={20} events={mockEvents} />
+          <div className="relative" style={{ width: 320, height: 320 }}>
+            <CircularCalendar sunrise={6} sunset={20} events={mockEvents} />
+          </div>
           <div className="mt-6 text-center text-gray-500 text-sm">
             Sunrise: 6:00 &nbsp;|&nbsp; Sunset: 20:00
           </div>
