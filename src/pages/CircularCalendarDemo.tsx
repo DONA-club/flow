@@ -63,7 +63,8 @@ const CircularCalendarDemo = () => {
           size={size}
         />
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 text-gray-500">
+          <div className="absolute inset-0 flex items-center justify-center z-10 text-gray-500">
+            {/* Plus de fond blanc autour du cercle */}
             Chargement de la localisation…
           </div>
         )}
