@@ -198,6 +198,12 @@ export const CircularCalendar: React.FC<Props> = ({
   // Épaisseur du contour du texte qui suit l'échelle
   const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
   const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
+  // Tailles du texte central proportionnelles à la taille du cercle (caps pour lisibilité)
+  const titleFontSize = Math.max(12, Math.min(18 * scale, 18)); // équiv. text-lg max
+  const subFontSize = Math.max(10, Math.min(14 * scale, 14));   // équiv. text-sm max
+  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));   // équiv. text-xs max
+  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
+
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const r = (RADIUS + INNER_RADIUS) / 2;
@@ -310,27 +316,32 @@ export const CircularCalendar: React.FC<Props> = ({
           top: `calc(50% + 0px)`,
           left: `calc(50% + 0px)`,
           cursor: event ? "pointer" : "default",
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
         }}
         onClick={() => event && onEventClick && onEventClick(event)}
         tabIndex={event ? 0 : -1}
         role={event ? "button" : undefined}
         aria-label={event ? `Open event: ${event.title}` : undefined}
       >
-        <div className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}>
+        <div
+          className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}
+          style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
+        >
           {event && eventIcon}
           {event ? event.title : "No events"}
         </div>
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600" style={{ fontSize: subFontSize, lineHeight: 1.25 }}>
           {event ? event.place : "Enjoy your time!"}
         </div>
         {/* Sunrise & Sunset au centre */}
-        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
+        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500" style={{ fontSize: metaFontSize }}>
           <span className="flex items-center gap-1">
-            <Sunrise className="w-4 h-4 text-yellow-400" aria-label="Sunrise" />
+            <Sunrise className="text-yellow-400" aria-label="Sunrise" size={metaIconSize} />
             {formatHour(sunrise)}
           </span>
           <span className="flex items-center gap-1">
-            <Sunset className="w-4 h-4 text-orange-400" aria-label="Sunset" />
+            <Sunset className="text-orange-400" aria-label="Sunset" size={metaIconSize} />
             {formatHour(sunset)}
           </span>
         </div>
