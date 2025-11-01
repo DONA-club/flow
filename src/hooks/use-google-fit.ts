@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Result = {
   wakeHour: number | null; // heure décimale locale (0-24)
-  bedHour: number | null;  // heure décimale locale (0-24) estimée pour ce soir (basée sur la dernière session)
+  bedHour: number | null;  // heure décimale locale (0-24) estimée pour ce soir
   loading: boolean;
   error: string | null;
   connected: boolean;
@@ -29,6 +29,31 @@ async function getGoogleAccessToken(): Promise<string | null> {
   return fromIdentities || null;
 }
 
+async function getGoogleRefreshToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const session: any = data?.session ?? null;
+  const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
+  if (fromProviderRefresh) return fromProviderRefresh;
+
+  const identities: any[] = session?.user?.identities ?? [];
+  const googleIdentity = identities.find((i) => i?.provider === "google");
+  const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
+  return fromIdentities || null;
+}
+
+async function refreshAccessTokenViaEdge(): Promise<string | null> {
+  const refreshToken = await getGoogleRefreshToken();
+  if (!refreshToken) return null;
+
+  const { data, error } = await supabase.functions.invoke("google-token-refresh", {
+    body: { refresh_token: refreshToken },
+  });
+
+  if (error) return null;
+  const accessToken: string | undefined = (data as any)?.access_token;
+  return accessToken || null;
+}
+
 export function useGoogleFitSleep(): Result {
   const [wakeHour, setWakeHour] = React.useState<number | null>(null);
   const [bedHour, setBedHour] = React.useState<number | null>(null);
@@ -40,17 +65,6 @@ export function useGoogleFitSleep(): Result {
     setLoading(true);
     setError(null);
 
-    const token = await getGoogleAccessToken();
-    setConnected(!!token);
-
-    if (!token) {
-      setWakeHour(null);
-      setBedHour(null);
-      setLoading(false);
-      setError("Autorisation Google Fit manquante. Reconnectez Google avec l’accès Sommeil.");
-      return;
-    }
-
     // Fenêtre: les 7 derniers jours
     const end = new Date();
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -58,9 +72,40 @@ export function useGoogleFitSleep(): Result {
       start.toISOString()
     )}&endTime=${encodeURIComponent(end.toISOString())}`;
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    let token = await getGoogleAccessToken();
+    if (!token) {
+      const refreshed = await refreshAccessTokenViaEdge();
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+      } else {
+        setWakeHour(null);
+        setBedHour(null);
+        setLoading(false);
+        setConnected(false);
+        setError("Autorisation Google Fit manquante/expirée. Reconnectez Google avec l’accès Sommeil.");
+        return;
+      }
+    } else {
+      setConnected(true);
+    }
+
+    const doFetch = async (tkn: string) => {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${tkn}` },
+      });
+      return res;
+    };
+
+    let res = await doFetch(token);
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      const refreshed = await refreshAccessTokenViaEdge();
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+        res = await doFetch(token);
+      }
+    }
 
     if (!res.ok) {
       setWakeHour(null);
@@ -77,7 +122,6 @@ export function useGoogleFitSleep(): Result {
     const json = await res.json();
     const sessions: any[] = Array.isArray(json?.session) ? json.session : [];
 
-    // Filtre sessions de sommeil (activityType 72)
     const sleepSessions = sessions
       .filter((s) => Number(s?.activityType) === 72 && s?.startTimeMillis && s?.endTimeMillis)
       .map((s) => ({
@@ -94,15 +138,10 @@ export function useGoogleFitSleep(): Result {
       return;
     }
 
-    // On prend la dernière session complétée (la plus récente)
     const last = sleepSessions[sleepSessions.length - 1];
     const lastStartHour = toLocalDecimalHourFromMillis(last.startMs);
     const lastEndHour = toLocalDecimalHourFromMillis(last.endMs);
 
-    // Heures locales décimales:
-    // - wakeHour = heure de fin de la dernière session (lever)
-    // - bedHour = heure de début de la dernière session, projetée pour ce soir (même heure)
-    //   (simple estimation: heure de coucher typique basée sur la veille)
     setWakeHour(Number(lastEndHour.toFixed(4)));
     setBedHour(Number(lastStartHour.toFixed(4)));
     setLoading(false);
