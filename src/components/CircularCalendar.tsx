@@ -273,9 +273,8 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs: quasi collés au bord du ring, avec un très fin liseret
   const arcStroke = Math.max(2, Math.round(3 * scale));
-  const arcGap = Math.max(1, Math.round(scale)); // liseret fin (1–2px selon la taille)
+  const arcGap = Math.max(1, Math.round(scale));
   const innerArcRadius = Math.max(arcStroke, INNER_RADIUS - arcGap - arcStroke / 2);
   const outsideArcRadius = RADIUS + arcGap + arcStroke / 2;
 
@@ -488,6 +487,16 @@ export const CircularCalendar: React.FC<Props> = ({
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}
         >
+          {/* Heure pointée par le curseur, visible et légère */}
+          <div
+            className="mb-1 text-xs text-gray-400"
+            style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
+            aria-label={`Heure actuelle ${formatHour(hourDecimal)}`}
+          >
+            {formatHour(hourDecimal)}
+          </div>
+
+          {/* Indication de jour, discrète */}
           {event && dayBadge && (
             <div
               className="mb-1 text-xs text-gray-400"
@@ -497,6 +506,7 @@ export const CircularCalendar: React.FC<Props> = ({
               {dayBadge}
             </div>
           )}
+
           <div
             className={
               event

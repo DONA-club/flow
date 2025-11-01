@@ -5,6 +5,7 @@ import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
+import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
@@ -45,7 +46,20 @@ type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
-  const { events: gEvents, loading: gLoading, error: gError, connected } = useGoogleCalendar();
+  const {
+    events: gEvents,
+    loading: gLoading,
+    error: gError,
+    connected: gConnected,
+    refresh: refreshGoogle,
+  } = useGoogleCalendar();
+  const {
+    events: oEvents,
+    loading: oLoading,
+    error: oError,
+    connected: oConnected,
+    refresh: refreshOutlook,
+  } = useOutlookCalendar();
   const { wakeHour, bedHour, loading: fitLoading, error: fitError, connected: fitConnected } = useGoogleFitSleep();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
@@ -79,13 +93,23 @@ const CircularCalendarDemo = () => {
 
   useEffect(() => {
     if (gLoading) {
-      setLogs([{ message: "Synchronisation du calendrier…", type: "info" }]);
+      setLogs([{ message: "Synchronisation du calendrier Google…", type: "info" }]);
     } else if (gError) {
       setLogs([{ message: gError, type: "error" }]);
-    } else if (connected && gEvents.length > 0) {
+    } else if (gConnected && gEvents.length > 0) {
       setLogs([{ message: "Calendrier Google synchronisé ✔️", type: "success" }]);
     }
-  }, [gLoading, gError, connected, gEvents.length]);
+  }, [gLoading, gError, gConnected, gEvents.length]);
+
+  useEffect(() => {
+    if (oLoading) {
+      setLogs([{ message: "Synchronisation du calendrier Outlook…", type: "info" }]);
+    } else if (oError) {
+      setLogs([{ message: oError, type: "error" }]);
+    } else if (oConnected && oEvents.length > 0) {
+      setLogs([{ message: "Calendrier Outlook synchronisé ✔️", type: "success" }]);
+    }
+  }, [oLoading, oError, oConnected, oEvents.length]);
 
   useEffect(() => {
     if (fitLoading) {
@@ -112,6 +136,24 @@ const CircularCalendarDemo = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
+  // Fusion Google + Outlook
+  const combinedEvents = (gEvents.length > 0 || oEvents.length > 0)
+    ? [...gEvents, ...oEvents].sort((a, b) => {
+        const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
+        const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
+        return new Date(aStart).getTime() - new Date(bStart).getTime();
+      })
+    : mockEvents;
+
+  // Rafraîchissement périodique pour garder les évènements en phase avec le curseur
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      refreshGoogle();
+      refreshOutlook();
+    }, 60_000); // toutes les 60s
+    return () => window.clearInterval(id);
+  }, [refreshGoogle, refreshOutlook]);
+
   return (
     <>
       <FontLoader />
@@ -123,7 +165,7 @@ const CircularCalendarDemo = () => {
           <CircularCalendar
             sunrise={displaySunrise}
             sunset={displaySunset}
-            events={gEvents.length > 0 ? gEvents : mockEvents}
+            events={combinedEvents}
             size={size}
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
