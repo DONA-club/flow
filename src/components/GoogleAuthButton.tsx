@@ -37,9 +37,17 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
 
     action.then(({ error }) => {
       if (error) {
-        toast.error("Connexion Google indisponible", {
-          description: "Le fournisseur Google n'est pas activé ou a rencontré une erreur.",
-        });
+        const msg = String((error as any)?.message || "");
+        if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
+          toast.error("Liaison de compte désactivée", {
+            description:
+              "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour connecter plusieurs fournisseurs au même compte.",
+          });
+        } else {
+          toast.error("Connexion Google indisponible", {
+            description: "Le fournisseur Google n'est pas activé ou a rencontré une erreur.",
+          });
+        }
         setLoading(false);
       } else {
         toast.success("Google connecté", {

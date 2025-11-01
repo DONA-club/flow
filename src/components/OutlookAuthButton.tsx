@@ -24,7 +24,11 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
-    const oauthOptions = { redirectTo: window.location.origin } as const;
+    const oauthOptions = {
+      redirectTo: window.location.origin,
+      scopes: "openid profile email offline_access Calendars.Read",
+      queryParams: { prompt: "consent" },
+    } as const;
 
     const action = user
       ? supabase.auth.linkIdentity({ provider: "azure", options: oauthOptions })
@@ -32,9 +36,17 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
 
     action.then(({ error }) => {
       if (error) {
-        toast.error("Connexion Outlook indisponible", {
-          description: "Le fournisseur Microsoft (Azure) n'est pas activé ou a rencontré une erreur.",
-        });
+        const msg = String((error as any)?.message || "");
+        if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
+          toast.error("Liaison de compte désactivée", {
+            description:
+              "Activez “Manual linking” dans Supabase (Authentication → Providers → Settings) pour connecter plusieurs fournisseurs au même compte.",
+          });
+        } else {
+          toast.error("Connexion Outlook indisponible", {
+            description: "Le fournisseur Microsoft (Azure) n'est pas activé ou a rencontré une erreur.",
+          });
+        }
         setLoading(false);
       } else {
         toast.success("Microsoft connecté", {
