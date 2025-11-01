@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 type SunTimes = {
-  sunrise: number | null; // heure décimale locale (ex: 6.5)
-  sunset: number | null;  // heure décimale locale (ex: 20.25)
+  sunrise: number | null;
+  sunset: number | null;
   loading: boolean;
   error: string | null;
+  retry: () => void;
 };
 
 function toLocalDecimalHour(utcIsoString: string): number {
-  // Convertit une date ISO UTC en heure locale décimale
   const utcDate = new Date(utcIsoString);
   const localDate = new Date(
     utcDate.getUTCFullYear(),
@@ -18,7 +18,6 @@ function toLocalDecimalHour(utcIsoString: string): number {
     utcDate.getUTCMinutes(),
     utcDate.getUTCSeconds()
   );
-  // Décalage entre UTC et local
   const tzOffsetMin = localDate.getTimezoneOffset();
   localDate.setMinutes(localDate.getMinutes() - tzOffsetMin);
   return (
@@ -34,9 +33,14 @@ export function useSunTimes(): SunTimes {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchSunTimes = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    setSunrise(null);
+    setSunset(null);
+
     if (!navigator.geolocation) {
-      setError("La géolocalisation n'est pas supportée.");
+      setError("La géolocalisation n'est pas supportée par ce navigateur.");
       setLoading(false);
       return;
     }
@@ -54,7 +58,6 @@ export function useSunTimes(): SunTimes {
               setLoading(false);
               return;
             }
-            // Conversion UTC → heure locale décimale
             const sunriseDec = toLocalDecimalHour(data.results.sunrise);
             const sunsetDec = toLocalDecimalHour(data.results.sunset);
             setSunrise(sunriseDec);
@@ -68,14 +71,23 @@ export function useSunTimes(): SunTimes {
       },
       (err) => {
         if (err.code === 1) {
-          setError("Autorisation de localisation refusée.");
+          setError("Autorisation de localisation refusée. Veuillez autoriser l'accès à la localisation dans votre navigateur.");
+        } else if (err.code === 2) {
+          setError("Position non disponible. Essayez de réessayer ou vérifiez votre connexion.");
+        } else if (err.code === 3) {
+          setError("Le délai de localisation a expiré. Essayez de réessayer.");
         } else {
-          setError("Impossible d'obtenir la localisation.");
+          setError("Erreur inconnue lors de la récupération de la localisation.");
         }
         setLoading(false);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
 
-  return { sunrise, sunset, loading, error };
+  useEffect(() => {
+    fetchSunTimes();
+  }, [fetchSunTimes]);
+
+  return { sunrise, sunset, loading, error, retry: fetchSunTimes };
 }
