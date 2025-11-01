@@ -192,7 +192,8 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   // Chiffres horaires centrés, police réduite
-  const hourFontSize = RING_THICKNESS * 0.7;
+  const scale = SIZE / (DEFAULT_SIZE || 1);
+  const hourFontSize = RING_THICKNESS * scale * 0.7;
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const r = (RADIUS + INNER_RADIUS) / 2;
