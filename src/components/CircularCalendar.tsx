@@ -154,10 +154,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const subFontSize = Math.max(10, Math.min(14 * scale, 14));   // équiv. text-sm max
   const metaFontSize = Math.max(9, Math.min(12 * scale, 12));   // équiv. text-xs max
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
-  // Ombre plus marquée et responsive à la taille de l'icône
-  const shadowBlur = Math.max(4, Math.round(metaIconSize * 0.7));
-  const shadowStrong = Math.max(2, Math.round(metaIconSize * 0.4));
-  const iconShadow = `drop-shadow(0 0 ${shadowBlur}px rgba(0,0,0,0.7)) drop-shadow(0 3px ${shadowStrong}px rgba(0,0,0,0.55))`;
 
   // 1440 blocs (1 par minute)
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
@@ -391,7 +387,6 @@ export const CircularCalendar: React.FC<Props> = ({
               <Sunrise
                 className="text-yellow-400"
                 size={metaIconSize}
-                style={{ filter: iconShadow }}
               />
             </div>
           </TooltipTrigger>
@@ -422,7 +417,6 @@ export const CircularCalendar: React.FC<Props> = ({
               <Sunset
                 className="text-orange-400"
                 size={metaIconSize}
-                style={{ filter: iconShadow }}
               />
             </div>
           </TooltipTrigger>
