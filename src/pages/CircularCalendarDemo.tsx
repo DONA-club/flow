@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSunTimes } from "@/hooks/use-sun-times";
 import { Button } from "@/components/ui/button";
+import { useSunTimes } from "@/hooks/use-sun-times";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -11,8 +11,22 @@ const mockEvents = [
   { title: "Gym", place: "Fitness Center", start: 18, end: 19 },
 ];
 
+// Valeurs par défaut (ex: Paris en été)
+const DEFAULT_SUNRISE = 6.0;
+const DEFAULT_SUNSET = 21.0;
+
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
+  const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
+  const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
+
+  // Met à jour l'affichage dès qu'on a la vraie localisation
+  useEffect(() => {
+    if (sunrise !== null && sunset !== null && !loading && !error) {
+      setDisplaySunrise(sunrise);
+      setDisplaySunset(sunset);
+    }
+  }, [sunrise, sunset, loading, error]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
@@ -22,10 +36,14 @@ const CircularCalendarDemo = () => {
         </CardHeader>
         <CardContent>
           <div className="relative" style={{ width: 320, height: 320 }}>
-            {loading ? (
-              <div className="flex items-center justify-center h-full text-gray-500">Chargement de la localisation…</div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center h-full text-red-500 gap-2">
+            <CircularCalendar sunrise={displaySunrise} sunset={displaySunset} events={mockEvents} />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 text-gray-500">
+                Chargement de la localisation…
+              </div>
+            )}
+            {error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
                 <span>{error}</span>
                 <Button variant="outline" size="sm" onClick={retry}>
                   Réessayer
@@ -34,12 +52,6 @@ const CircularCalendarDemo = () => {
                   Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
                 </span>
               </div>
-            ) : sunrise === null || sunset === null ? (
-              <div className="flex items-center justify-center h-full text-red-500">
-                Erreur lors de la récupération des horaires du soleil.
-              </div>
-            ) : (
-              <CircularCalendar sunrise={sunrise} sunset={sunset} events={mockEvents} />
             )}
           </div>
           <div className="mt-6 text-center text-gray-500 text-sm">

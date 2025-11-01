@@ -29,7 +29,7 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-const HOUR_SEPARATOR_COLOR = "#fff"; // blanc pour la séparation
+const HOUR_SEPARATOR_COLOR = "#f9fafb"; // même couleur que bg-gray-50
 
 // Découpage en 1440 segments (1 par minute)
 const SEGMENTS = 1440;
