@@ -10,7 +10,6 @@ import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
-import OutlookAuthButton from "@/components/OutlookAuthButton";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -157,13 +156,7 @@ const CircularCalendarDemo = () => {
     <>
       <FontLoader />
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
-        <div className="mb-4 flex items-center gap-3">
-          <OutlookAuthButton />
-          <Button variant="ghost" size="sm" onClick={() => refreshOutlook()} disabled={oLoading}>
-            Rafraîchir Outlook
-          </Button>
-        </div>
-
+        {/* En-tête supprimé (boutons Outlook et rafraîchir) */}
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
