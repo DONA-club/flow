@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import AuthProviderScroller from "@/components/AuthProviderScroller";
 import EventDrivenBurst from "@/components/EventDrivenBurst";
-import { Toaster } from "sonner";
 import { useAuthProviders } from "@/hooks/use-auth-providers";
 import { useEffect, useRef } from "react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
@@ -41,27 +40,24 @@ const Index = () => {
   }, [microsoftConnected]);
 
   return (
-    <>
-      <Toaster richColors closeButton />
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-transparent">
-        {/* Zone relative pour ancrer l'effet de particules au point blanc */}
-        <div className="relative">
-          <Link to="/calendar" className="group block relative">
-            <button
-              className="point-blanc"
-              aria-label="Ouvrir le calendrier circulaire"
-              tabIndex={0}
-            />
-            {/* écoute l'événement global pour déclencher une ondulation autour du point blanc */}
-            <EventDrivenBurst />
-          </Link>
-        </div>
-
-        {/* Scroller unique: choisir un provider, cliquer pour se connecter; 
-           les fournisseurs déjà connectés sont grisées et un toast confirme la connexion */}
-        <AuthProviderScroller />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-transparent">
+      {/* Zone relative pour ancrer l'effet de particules au point blanc */}
+      <div className="relative">
+        <Link to="/calendar" className="group block relative">
+          <button
+            className="point-blanc"
+            aria-label="Ouvrir le calendrier circulaire"
+            tabIndex={0}
+          />
+          {/* écoute l'événement global pour déclencher une ondulation autour du point blanc */}
+          <EventDrivenBurst />
+        </Link>
       </div>
-    </>
+
+      {/* Scroller unique: choisir un provider, cliquer pour se connecter; 
+         les fournisseurs déjà connectés sont grisées et un toast confirme la connexion */}
+      <AuthProviderScroller />
+    </div>
   );
 };
 
