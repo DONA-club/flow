@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
-import { siGoogle, siApple, siFacebook } from "simple-icons/icons";
-import siAmazon from "simple-icons/icons/amazon";
-import siMicrosoft from "simple-icons/icons/microsoft";
-import siMicrosoftoutlook from "simple-icons/icons/microsoftoutlook";
+import {
+  siGoogle,
+  siApple,
+  siFacebook,
+  siAmazon,
+  siMicrosoft,
+  siMicrosoftOutlook,
+} from "simple-icons/icons";
 
 type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft" | "outlook";
 
@@ -18,7 +22,7 @@ const ICON_MAP: Record<
   amazon: [siAmazon],
   microsoft: [siMicrosoft],
   // Outlook avec repli sur Microsoft si nécessaire
-  outlook: [siMicrosoftoutlook, siMicrosoft],
+  outlook: [siMicrosoftOutlook, siMicrosoft],
 };
 
 type Props = {
