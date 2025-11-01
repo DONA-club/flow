@@ -13,11 +13,37 @@ const mockEvents = [
 // Valeurs par défaut (ex: Paris en été)
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
+const GOLDEN_RATIO = 1.618;
+
+function useGoldenCircleSize() {
+  const [size, setSize] = useState(320);
+
+  useEffect(() => {
+    function updateSize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // On prend la plus petite dimension pour éviter de dépasser l'écran
+      const minDim = Math.min(w, h);
+      // On laisse une marge de 32px autour
+      const available = minDim - 32;
+      // Taille selon le nombre d'or
+      const golden = Math.floor(available / GOLDEN_RATIO);
+      // On limite à 600px max pour éviter les très grands écrans
+      setSize(Math.max(180, Math.min(golden, 600)));
+    }
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
+  return size;
+}
 
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
+  const size = useGoldenCircleSize();
 
   // Met à jour l'affichage dès qu'on a la vraie localisation
   useEffect(() => {
@@ -29,8 +55,13 @@ const CircularCalendarDemo = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
-      <div className="relative" style={{ width: 320, height: 320 }}>
-        <CircularCalendar sunrise={displaySunrise} sunset={displaySunset} events={mockEvents} />
+      <div className="relative" style={{ width: size, height: size }}>
+        <CircularCalendar
+          sunrise={displaySunrise}
+          sunset={displaySunset}
+          events={mockEvents}
+          size={size}
+        />
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 text-gray-500">
             Chargement de la localisation…

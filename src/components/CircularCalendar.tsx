@@ -14,12 +14,11 @@ type Props = {
   events: Event[];
   season?: "spring" | "summer" | "autumn" | "winter";
   onEventClick?: (event: Event) => void;
+  size?: number; // diamètre du cercle en px
 };
 
-const SIZE = 320; // SVG size in px
-const RADIUS = 140; // Outer radius
+const DEFAULT_SIZE = 320;
 const RING_THICKNESS = 32;
-const INNER_RADIUS = RADIUS - RING_THICKNESS;
 
 const SEASON_COLORS: Record<string, string> = {
   spring: "#4ade80", // green-400
@@ -98,6 +97,7 @@ export const CircularCalendar: React.FC<Props> = ({
   events,
   season,
   onEventClick,
+  size = DEFAULT_SIZE,
 }) => {
   const now = new Date();
   const hourDecimal =
@@ -106,6 +106,10 @@ export const CircularCalendar: React.FC<Props> = ({
   const currentSeason = season || getSeason(now);
 
   const event = getCurrentOrNextEvent(events, hour);
+
+  const SIZE = size;
+  const RADIUS = SIZE / 2 - 8; // 8px de marge intérieure
+  const INNER_RADIUS = RADIUS - RING_THICKNESS;
 
   const cx = SIZE / 2;
   const cy = SIZE / 2;
