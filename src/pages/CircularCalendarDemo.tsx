@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
@@ -11,7 +11,6 @@ import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
-import GoogleSyncControls from "@/components/GoogleSyncControls";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -164,17 +163,6 @@ const CircularCalendarDemo = () => {
     return () => window.clearInterval(id);
   }, [refreshGoogle, refreshOutlook, refreshFit]);
 
-  // Rafraîchissement manuel Google (Calendar + Fit) avec toasts
-  const handleManualRefresh = useCallback(async () => {
-    const p = Promise.all([refreshGoogle(), refreshFit()]);
-    toast.promise(p, {
-      loading: "Rafraîchissement Google…",
-      success: "Données Google mises à jour.",
-      error: "Échec du rafraîchissement Google.",
-    });
-    await p;
-  }, [refreshGoogle, refreshFit]);
-
   return (
     <>
       <FontLoader />
@@ -188,13 +176,6 @@ const CircularCalendarDemo = () => {
             description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
           });
         }}
-      />
-
-      {/* Contrôles de synchronisation Google (fixe en haut à droite) */}
-      <GoogleSyncControls
-        connected={!!gConnected}
-        refreshing={gLoading || fitLoading}
-        onRefresh={handleManualRefresh}
       />
 
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
