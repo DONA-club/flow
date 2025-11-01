@@ -103,7 +103,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const cy = SIZE / 2;
   const blockAngle = 360 / SEGMENTS;
 
-  // 24 blocs horaires
+  // 24 blocs horaires avec contour blanc
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
     const endAngle = startAngle + blockAngle;
@@ -127,12 +127,14 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Segments horaires */}
+        {/* Segments horaires avec contour blanc */}
         {wedges.map(w => (
           <path
             key={w.key}
             d={w.d}
             fill={w.fill}
+            stroke="#fff"
+            strokeWidth={1}
           />
         ))}
         {/* Nombres d'heures toutes les heures */}
