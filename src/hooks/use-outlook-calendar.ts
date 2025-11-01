@@ -51,6 +51,33 @@ async function resolveMicrosoftAccessToken(): Promise<string | null> {
   return fromIdentities || fromProviderToken || null;
 }
 
+async function resolveMicrosoftRefreshToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const session: any = data?.session ?? null;
+
+  const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
+  if (fromProviderRefresh) return fromProviderRefresh;
+
+  const msIdentity = resolveMicrosoftIdentity(session);
+  const fromIdentities: string | null =
+    msIdentity?.identity_data?.refresh_token ?? null;
+
+  return fromIdentities || null;
+}
+
+async function refreshAccessTokenViaEdge(): Promise<string | null> {
+  const refreshToken = await resolveMicrosoftRefreshToken();
+  if (!refreshToken) return null;
+
+  const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
+    body: { refresh_token: refreshToken },
+  });
+
+  if (error) return null;
+  const accessToken: string | undefined = (data as any)?.access_token;
+  return accessToken || null;
+}
+
 export function useOutlookCalendar(): Result {
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -61,37 +88,59 @@ export function useOutlookCalendar(): Result {
     setLoading(true);
     setError(null);
 
-    const token = await resolveMicrosoftAccessToken();
+    let token = await resolveMicrosoftAccessToken();
     if (!token) {
-      setConnected(false);
-      setEvents([]);
-      setLoading(false);
-      setError("Aucun jeton Microsoft disponible. Connectez votre compte Outlook.");
-      return;
+      const refreshed = await refreshAccessTokenViaEdge();
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+      } else {
+        setConnected(false);
+        setEvents([]);
+        setLoading(false);
+        setError("Aucun jeton Microsoft disponible. Connectez votre compte Outlook et autorisez Calendars.Read.");
+        return;
+      }
+    } else {
+      setConnected(true);
     }
 
-    setConnected(true);
-
-    // On récupère quelques événements et on filtre localement les prochains.
     // Microsoft Graph: /me/events avec tri
     const url =
       "https://graph.microsoft.com/v1.0/me/events?$orderby=start/dateTime&$top=10&$select=subject,organizer,start,end,location,webLink";
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const doFetch = async (tkn: string) => {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${tkn}` },
+      });
+      return res;
+    };
+
+    let res = await doFetch(token);
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      const refreshed = await refreshAccessTokenViaEdge();
+      if (refreshed) {
+        token = refreshed;
+        setConnected(true);
+        res = await doFetch(token);
+      }
+    }
 
     if (!res.ok) {
       setEvents([]);
       setLoading(false);
-      setError(`Erreur Outlook (${res.status})`);
+      setError(
+        res.status === 403
+          ? "Accès Outlook refusé. Autorisez l’accès Calendars.Read et réessayez."
+          : `Erreur Outlook (${res.status})`
+      );
       return;
     }
 
     const json = await res.json();
     const items: any[] = json?.value ?? [];
-
     const now = new Date();
+
     const mapped: CalendarEvent[] = items
       .map((item) => {
         const title = item.subject || "Événement";
