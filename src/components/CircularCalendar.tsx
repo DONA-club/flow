@@ -170,15 +170,14 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Chiffres horaires fusionnés avec l’anneau, taille augmentée pour toucher les bords
-  const hourFontSize = RING_THICKNESS * 0.81; // 26px pour 32px d’anneau, adaptatif
+  // Chiffres horaires parfaitement centrés et équilibrés
+  const hourFontSize = RING_THICKNESS * 0.92; // Plus grand, mais sans chevauchement
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
-    // Rayon : centre de l’anneau
-    const r = RADIUS - RING_THICKNESS / 2 + 2;
+    // Rayon : centre exact de l’anneau
+    const r = (RADIUS + INNER_RADIUS) / 2;
     const x = cx + r * Math.cos(angle);
-    // Décalage vertical : centré sur l’anneau
-    const y = cy + r * Math.sin(angle) + hourFontSize * 0.34;
+    const y = cy + r * Math.sin(angle);
 
     const isCurrent = i === hour;
     return (
