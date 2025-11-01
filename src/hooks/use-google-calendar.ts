@@ -41,11 +41,9 @@ async function resolveGoogleRefreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  // Quelques environnements exposent provider_refresh_token
   const fromProviderRefresh: string | null = session?.provider_refresh_token ?? null;
   if (fromProviderRefresh) return fromProviderRefresh;
 
-  // Ou via identities[].identity_data.refresh_token suivant la config
   const identities: any[] = session?.user?.identities ?? [];
   const googleIdentity = identities.find((i) => i?.provider === "google");
   const fromIdentities: string | null = googleIdentity?.identity_data?.refresh_token ?? null;
@@ -53,15 +51,22 @@ async function resolveGoogleRefreshToken(): Promise<string | null> {
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const session: any = data?.session ?? null;
   const refreshToken = await resolveGoogleRefreshToken();
-  if (!refreshToken) return null;
+  const supaAccess = session?.access_token;
 
-  const { data, error } = await supabase.functions.invoke("google-token-refresh", {
+  if (!refreshToken || !supaAccess) return null;
+
+  const { data: resp, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
+    headers: {
+      Authorization: `Bearer ${supaAccess}`,
+    },
   });
 
   if (error) return null;
-  const accessToken: string | undefined = (data as any)?.access_token;
+  const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
 }
 
@@ -94,7 +99,7 @@ export function useGoogleCalendar(): Result {
         setConnected(false);
         setEvents([]);
         setLoading(false);
-        setError("Jeton Google manquant/expiré. Veuillez réautoriser l’accès au calendrier.");
+        setError("Jeton Google manquant/expiré. Cliquez sur Google pour re-consentir (offline) et accorder Calendar.Readonly.");
         return;
       }
     } else {
@@ -115,6 +120,12 @@ export function useGoogleCalendar(): Result {
         token = refreshed;
         setConnected(true);
         res = await doFetch(token);
+      } else {
+        setConnected(false);
+        setEvents([]);
+        setLoading(false);
+        setError("Session Google expirée et refresh indisponible. Reconnectez Google pour récupérer les événements sur 3 jours.");
+        return;
       }
     }
 

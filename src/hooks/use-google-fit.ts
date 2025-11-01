@@ -42,15 +42,29 @@ async function getGoogleRefreshToken(): Promise<string | null> {
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const session: any = data?.session ?? null;
   const refreshToken = await getGoogleRefreshToken();
-  if (!refreshToken) return null;
+  const supaAccess = session?.access_token;
 
-  const { data, error } = await supabase.functions.invoke("google-token-refresh", {
+  if (!refreshToken) {
+    // Pas de refresh_token disponible côté client: on arrête proprement
+    return null;
+  }
+  if (!supaAccess) {
+    // Session Supabase absente: impossible d’appeler l’Edge Function
+    return null;
+  }
+
+  const { data: resp, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
+    headers: {
+      Authorization: `Bearer ${supaAccess}`,
+    },
   });
 
   if (error) return null;
-  const accessToken: string | undefined = (data as any)?.access_token;
+  const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
 }
 
@@ -104,6 +118,14 @@ export function useGoogleFitSleep(): Result {
         token = refreshed;
         setConnected(true);
         res = await doFetch(token);
+      } else {
+        // Évite les appels refresh 400 en boucle
+        setWakeHour(null);
+        setBedHour(null);
+        setLoading(false);
+        setConnected(false);
+        setError("Session Google expirée et refresh indisponible. Cliquez sur Google pour re-consentir (offline).");
+        return;
       }
     }
 
