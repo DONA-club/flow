@@ -68,11 +68,10 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           x.start.getTime() >= now.getTime() &&
           x.start.getTime() <= threeDaysLater.getTime()
       )
-      .sort((a, b) => a.start.getTime() - b.start.getTime())
-      .slice(0, maxItems);
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+    // Plus de slice: on affiche tous les événements dans les 3 prochains jours
   }, [events, maxItems]);
 
-  // Ne rien afficher s'il n'y a pas d'événements à venir
   if (upcoming.length === 0) return null;
 
   return (
