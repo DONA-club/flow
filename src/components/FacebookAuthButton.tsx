@@ -3,6 +3,7 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 
 type Props = {
   className?: string;
@@ -34,24 +35,20 @@ const FacebookAuthButton: React.FC<Props> = ({ className }) => {
   };
 
   return (
-    <button
-      type="button"
+    <SocialAuthIconButton
       onClick={handleFacebookLogin}
       disabled={loading}
-      aria-label="Se connecter avec Facebook"
+      ariaLabel="Se connecter avec Facebook"
       title="Se connecter avec Facebook"
-      className={[
-        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
-        loading ? "opacity-50 pointer-events-none" : "",
-        className || ""
-      ].join(" ").trim()}
+      className={className}
     >
       <svg
-        className="w-12 h-12 filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100"
+        className="w-full h-full"
         viewBox="0 0 256 256"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
         aria-hidden="true"
+        preserveAspectRatio="xMidYMid meet"
       >
         <circle cx="128" cy="128" r="110" fill="#1877F2" />
         <path
@@ -59,7 +56,7 @@ const FacebookAuthButton: React.FC<Props> = ({ className }) => {
           fill="#fff"
         />
       </svg>
-    </button>
+    </SocialAuthIconButton>
   );
 };
 

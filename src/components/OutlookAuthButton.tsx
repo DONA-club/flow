@@ -3,6 +3,7 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 
 type Props = {
   className?: string;
@@ -34,31 +35,27 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
   };
 
   return (
-    <button
-      type="button"
+    <SocialAuthIconButton
       onClick={handleOutlookLogin}
       disabled={loading}
-      aria-label="Se connecter avec Outlook"
-      title="Se connecter avec Outlook"
-      className={[
-        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
-        loading ? "opacity-50 pointer-events-none" : "",
-        className || ""
-      ].join(" ").trim()}
+      ariaLabel="Se connecter avec Microsoft"
+      title="Se connecter avec Microsoft"
+      className={className}
     >
       <svg
-        className="w-12 h-12 filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100"
+        className="w-full h-full"
         viewBox="0 0 256 256"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
         aria-hidden="true"
+        preserveAspectRatio="xMidYMid meet"
       >
         <rect x="20" y="20" width="100" height="100" fill="#F25022" rx="8" />
         <rect x="136" y="20" width="100" height="100" fill="#7FBA00" rx="8" />
         <rect x="20" y="136" width="100" height="100" fill="#00A4EF" rx="8" />
         <rect x="136" y="136" width="100" height="100" fill="#FFB900" rx="8" />
       </svg>
-    </button>
+    </SocialAuthIconButton>
   );
 };
 

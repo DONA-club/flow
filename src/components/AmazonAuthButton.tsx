@@ -3,6 +3,7 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 
 type Props = {
   className?: string;
@@ -34,29 +35,25 @@ const AmazonAuthButton: React.FC<Props> = ({ className }) => {
   };
 
   return (
-    <button
-      type="button"
+    <SocialAuthIconButton
       onClick={handleAmazonLogin}
       disabled={loading}
-      aria-label="Se connecter avec Amazon"
+      ariaLabel="Se connecter avec Amazon"
       title="Se connecter avec Amazon"
-      className={[
-        "appearance-none bg-transparent border-0 p-0 cursor-pointer select-none group",
-        loading ? "opacity-50 pointer-events-none" : "",
-        className || ""
-      ].join(" ").trim()}
+      className={className}
     >
       <svg
-        className="w-12 h-12 filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100"
+        className="w-full h-full"
         viewBox="0 0 256 256"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
         aria-hidden="true"
+        preserveAspectRatio="xMidYMid meet"
       >
         <path d="M40 170c40 30 136 30 176 0" fill="none" stroke="#FF9900" strokeWidth="16" strokeLinecap="round" />
         <path d="M200 170l24 6-18 18" fill="#FF9900" />
       </svg>
-    </button>
+    </SocialAuthIconButton>
   );
 };
 
