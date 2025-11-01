@@ -3,8 +3,44 @@ import AuthProviderScroller from "@/components/AuthProviderScroller";
 import ParticleBurst from "@/components/ParticleBurst";
 import EventDrivenBurst from "@/components/EventDrivenBurst";
 import { Toaster } from "sonner";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
+import OutlookAuthButton from "@/components/OutlookAuthButton";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
+import { useEffect, useRef } from "react";
+import { useGoogleCalendar } from "@/hooks/use-google-calendar";
+import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
+import { useGoogleFitSleep } from "@/hooks/use-google-fit";
+import { toast } from "sonner";
 
 const Index = () => {
+  // Précharge: Google Calendar, Outlook Calendar, Fit
+  const g = useGoogleCalendar();
+  const o = useOutlookCalendar();
+  const f = useGoogleFitSleep();
+
+  // Confirmation visible quand une connexion est détectée
+  const { googleConnected, microsoftConnected } = useAuthProviders();
+  const prevGoogle = useRef<boolean>(false);
+  const prevMicrosoft = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (googleConnected && !prevGoogle.current) {
+      toast.success("Google connecté", {
+        description: "Vos événements Google seront affichés dans le calendrier.",
+      });
+    }
+    prevGoogle.current = googleConnected;
+  }, [googleConnected]);
+
+  useEffect(() => {
+    if (microsoftConnected && !prevMicrosoft.current) {
+      toast.success("Microsoft connecté", {
+        description: "Vos événements Outlook seront affichés dans le calendrier.",
+      });
+    }
+    prevMicrosoft.current = microsoftConnected;
+  }, [microsoftConnected]);
+
   return (
     <>
       <Toaster richColors closeButton />
@@ -21,6 +57,14 @@ const Index = () => {
             <EventDrivenBurst />
           </Link>
         </div>
+
+        {/* Strip des deux fournisseurs pour cohabiter les connexions */}
+        <div className="flex items-center justify-center gap-3">
+          <GoogleAuthButton />
+          <OutlookAuthButton />
+        </div>
+
+        {/* Scroller existant pour parcourir les autres providers si besoin */}
         <AuthProviderScroller />
       </div>
     </>

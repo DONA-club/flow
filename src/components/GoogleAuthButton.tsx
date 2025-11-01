@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 import BrandIcon from "@/components/BrandIcon";
+import { useAuthProviders } from "@/hooks/use-auth-providers";
 
 type Props = {
   className?: string;
@@ -12,33 +13,40 @@ type Props = {
 
 const GoogleAuthButton: React.FC<Props> = ({ className }) => {
   const [loading, setLoading] = React.useState(false);
+  const { googleConnected } = useAuthProviders();
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
+    setLoading(true);
     toast("Redirection vers Google…", {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
-    setLoading(true);
-    supabase.auth
-      .signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-          scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
-          queryParams: { prompt: "consent", access_type: "offline" },
-        },
-      })
-      .then(({ error }) => {
-        if (error) {
-          toast.error("Connexion Google indisponible", {
-            description: "Le fournisseur Google n'est pas activé dans Supabase.",
-          });
-          setLoading(false);
-        } else {
-          toast.success("Connexion Google", {
-            description: "Autorisation du calendrier accordée, retour à l'app…",
-          });
-        }
-      });
+
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    const oauthOptions = {
+      redirectTo: window.location.origin,
+      scopes:
+        "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
+      queryParams: { prompt: "consent", access_type: "offline" },
+    } as const;
+
+    const action = user
+      ? supabase.auth.linkIdentity({ provider: "google", options: oauthOptions })
+      : supabase.auth.signInWithOAuth({ provider: "google", options: oauthOptions });
+
+    action.then(({ error }) => {
+      if (error) {
+        toast.error("Connexion Google indisponible", {
+          description: "Le fournisseur Google n'est pas activé ou a rencontré une erreur.",
+        });
+        setLoading(false);
+      } else {
+        toast.success("Google connecté", {
+          description: "Accès au calendrier et au sommeil accordé.",
+        });
+      }
+    });
   };
 
   return (
@@ -47,7 +55,10 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
       disabled={loading}
       ariaLabel="Se connecter avec Google"
       title="Se connecter avec Google"
-      className={className}
+      className={[
+        className || "",
+        googleConnected ? "grayscale opacity-70 hover:opacity-80" : "",
+      ].join(" ").trim()}
     >
       <BrandIcon name="google" />
     </SocialAuthIconButton>
