@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Apple } from "lucide-react";
+import BrandIcon from "@/components/BrandIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
@@ -43,7 +43,7 @@ const AppleAuthButton: React.FC<Props> = ({ className }) => {
       title="Se connecter avec Apple"
       className={className}
     >
-      <Apple className="w-full h-full text-black dark:text-white" />
+      <BrandIcon name="apple" />
     </SocialAuthIconButton>
   );
 };

@@ -4,6 +4,7 @@ import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
+import BrandIcon from "@/components/BrandIcon";
 
 type Props = {
   className?: string;
@@ -42,17 +43,7 @@ const AmazonAuthButton: React.FC<Props> = ({ className }) => {
       title="Se connecter avec Amazon"
       className={className}
     >
-      <svg
-        className="w-full h-full"
-        viewBox="0 0 256 256"
-        xmlns="http://www.w3.org/2000/svg"
-        role="img"
-        aria-hidden="true"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <path d="M40 170c40 30 136 30 176 0" fill="none" stroke="#FF9900" strokeWidth="16" strokeLinecap="round" />
-        <path d="M200 170l24 6-18 18" fill="#FF9900" />
-      </svg>
+      <BrandIcon name="amazon" />
     </SocialAuthIconButton>
   );
 };

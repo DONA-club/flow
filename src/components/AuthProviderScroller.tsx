@@ -89,16 +89,16 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     .join(" ")
     .trim();
 
-  const layerBase = "absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out";
+  const layerBase = "absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out filter";
 
   // Outgoing animation classes
   const outgoingClasses = [
     layerBase,
     phase === "end"
       ? direction === "down"
-        ? "-translate-y-3 opacity-0"
-        : "translate-y-3 opacity-0"
-      : "translate-y-0 opacity-100",
+        ? "-translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
+        : "translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
+      : "translate-y-0 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   // Incoming animation classes
@@ -106,9 +106,9 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     layerBase,
     phase === "start"
       ? direction === "down"
-        ? "translate-y-3 opacity-0"
-        : "-translate-y-3 opacity-0"
-      : "translate-y-0 opacity-100",
+        ? "translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
+        : "-translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
+      : "translate-y-0 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   return (
@@ -117,7 +117,7 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
       onWheel={handleWheel}
       onKeyDown={handleKeyDown}
       role="group"
-      aria-label="Sélecteur de fournisseur d’authentification"
+      aria-label="Sélecteur de fournisseur d'authentification"
       tabIndex={0}
     >
       {transitioning ? (
