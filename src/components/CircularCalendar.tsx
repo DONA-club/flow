@@ -142,6 +142,23 @@ export const CircularCalendar: React.FC<Props> = ({
   const cy = SIZE / 2;
   const blockAngle = 360 / SEGMENTS;
 
+  // Chiffres horaires centrés, police réduite (déplacé ici pour utiliser metaIconSize plus tôt)
+  const scale = SIZE / (DEFAULT_SIZE || 1);
+  // Taille proportionnelle au diamètre, bornée pour rester lisible
+  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
+  // Épaisseur du contour du texte qui suit l'échelle
+  const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
+  const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
+  // Tailles du texte central proportionnelles à la taille du cercle (caps pour lisibilité)
+  const titleFontSize = Math.max(12, Math.min(18 * scale, 18)); // équiv. text-lg max
+  const subFontSize = Math.max(10, Math.min(14 * scale, 14));   // équiv. text-sm max
+  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));   // équiv. text-xs max
+  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
+  // Ombre plus marquée et responsive à la taille de l'icône
+  const shadowBlur = Math.max(4, Math.round(metaIconSize * 0.7));
+  const shadowStrong = Math.max(2, Math.round(metaIconSize * 0.4));
+  const iconShadow = `drop-shadow(0 0 ${shadowBlur}px rgba(0,0,0,0.7)) drop-shadow(0 3px ${shadowStrong}px rgba(0,0,0,0.55))`;
+
   // 1440 blocs (1 par minute)
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
     const startAngle = -90 + i * blockAngle;
@@ -180,8 +197,11 @@ export const CircularCalendar: React.FC<Props> = ({
   };
   const sunriseAngle = angleFromHour(sunrise);
   const sunsetAngle = angleFromHour(sunset);
-  const sunrisePt = toPoint(sunriseAngle, rMid);
-  const sunsetPt = toPoint(sunsetAngle, rMid);
+  // Place l'icône au bord intérieur, puis décale légèrement vers le centre
+  const iconGap = Math.max(2, Math.round(metaIconSize * 0.12));
+  const iconRadius = Math.max(0, INNER_RADIUS - metaIconSize / 2 - iconGap);
+  const sunrisePt = toPoint(sunriseAngle, iconRadius);
+  const sunsetPt = toPoint(sunsetAngle, iconRadius);
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
@@ -220,22 +240,6 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   // Chiffres horaires centrés, police réduite
-  const scale = SIZE / (DEFAULT_SIZE || 1);
-  // Taille proportionnelle au diamètre, bornée pour rester lisible
-  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
-  // Épaisseur du contour du texte qui suit l'échelle
-  const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
-  const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
-  // Tailles du texte central proportionnelles à la taille du cercle (caps pour lisibilité)
-  const titleFontSize = Math.max(12, Math.min(18 * scale, 18)); // équiv. text-lg max
-  const subFontSize = Math.max(10, Math.min(14 * scale, 14));   // équiv. text-sm max
-  const metaFontSize = Math.max(9, Math.min(12 * scale, 12));   // équiv. text-xs max
-  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16))); // icônes sunrise/sunset
-  // Ombre plus marquée et responsive à la taille de l'icône
-  const shadowBlur = Math.max(4, Math.round(metaIconSize * 0.7));
-  const shadowStrong = Math.max(2, Math.round(metaIconSize * 0.4));
-  const iconShadow = `drop-shadow(0 0 ${shadowBlur}px rgba(0,0,0,0.7)) drop-shadow(0 3px ${shadowStrong}px rgba(0,0,0,0.55))`;
-
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2; // radians pour position
     const angleDeg = (i / 24) * 360 - 90; // degrés pour rotation
