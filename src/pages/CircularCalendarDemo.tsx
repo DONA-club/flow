@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
+import { EphemeralLog } from "@/components/EphemeralLog";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -45,6 +46,10 @@ const CircularCalendarDemo = () => {
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
+  // Pour le log éphémère
+  const [log, setLog] = useState<string | null>(null);
+  const [logType, setLogType] = useState<"info" | "error">("info");
+
   // Met à jour l'affichage dès qu'on a la vraie localisation
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
@@ -52,6 +57,22 @@ const CircularCalendarDemo = () => {
       setDisplaySunset(sunset);
     }
   }, [sunrise, sunset, loading, error]);
+
+  // Affiche les messages d'état dans le log éphémère
+  useEffect(() => {
+    if (loading) {
+      setLog("Chargement de la localisation…");
+      setLogType("info");
+    } else if (error) {
+      setLog(error);
+      setLogType("error");
+    } else if (sunrise !== null && sunset !== null) {
+      setLog("Localisation détectée !");
+      setLogType("info");
+    } else {
+      setLog(null);
+    }
+  }, [loading, error, sunrise, sunset]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-8">
@@ -62,12 +83,6 @@ const CircularCalendarDemo = () => {
           events={mockEvents}
           size={size}
         />
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 text-gray-500">
-            {/* Plus de fond blanc autour du cercle */}
-            Chargement de la localisation…
-          </div>
-        )}
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2">
             <span>{error}</span>
@@ -95,6 +110,7 @@ const CircularCalendarDemo = () => {
               .padStart(2, "0")}`
           : ""}
       </div>
+      <EphemeralLog message={log} type={logType} />
     </div>
   );
 };
