@@ -88,10 +88,55 @@ function getArcPath(
   return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}`;
 }
 
-function getCurrentOrNextEvent(events: Event[], now: number): Event | undefined {
-  const current = events.find((e) => now >= e.start && now < e.end);
-  if (current) return current;
-  return events.find((e) => e.start > now);
+// Utilise les dates réelles quand disponibles (Google Calendar) sinon se rabat sur l'heure du jour
+function getEventStartDate(e: any, nowRef: Date): Date | null {
+  const raw = (e as any)?.raw;
+  const iso = raw?.start?.dateTime || raw?.start?.date || null;
+  if (iso) return new Date(iso);
+  // fallback: aujourd'hui à l'heure décimale fournie
+  const base = new Date(nowRef);
+  const hours = Math.floor(e.start || 0);
+  const minutes = Math.round(((e.start || 0) % 1) * 60);
+  base.setHours(hours, minutes, 0, 0);
+  return base;
+}
+
+function getEventEndDate(e: any, startDate: Date): Date | null {
+  const raw = (e as any)?.raw;
+  const iso = raw?.end?.dateTime || raw?.end?.date || null;
+  if (iso) return new Date(iso);
+  // fallback: aujourd'hui à l'heure décimale fournie
+  const end = new Date(startDate);
+  const hours = Math.floor(e.end || 0);
+  const minutes = Math.round(((e.end || 0) % 1) * 60);
+  end.setHours(hours, minutes, 0, 0);
+  return end;
+}
+
+function getCurrentOrNextEvent(events: Event[], nowDate: Date): Event | undefined {
+  const nowMs = nowDate.getTime();
+  // Trie par date de début réelle
+  const withDates = events
+    .map((e) => {
+      const start = getEventStartDate(e, nowDate);
+      const end = start ? getEventEndDate(e, start) : null;
+      return { e, start, end };
+    })
+    .filter((x) => x.start) as { e: Event; start: Date; end: Date | null }[];
+
+  // Événement en cours
+  const current = withDates.find((x) => {
+    const s = x.start.getTime();
+    const e = x.end ? x.end.getTime() : s;
+    return nowMs >= s && nowMs < e;
+  });
+  if (current) return current.e;
+
+  // Prochain événement par date de début >= maintenant
+  const upcoming = withDates
+    .filter((x) => x.start.getTime() >= nowMs)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  return upcoming.length > 0 ? upcoming[0].e : undefined;
 }
 
 function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
@@ -152,7 +197,20 @@ export const CircularCalendar: React.FC<Props> = ({
   const hour = now.getHours();
   const currentSeason = season || getSeason(now);
 
-  const event = getCurrentOrNextEvent(events, hour);
+  const event = getCurrentOrNextEvent(events, now);
+  // Indicateur "Demain" / "Dans X jours" si l'événement n'est pas aujourd'hui
+  let dayBadge: string | null = null;
+  if (event) {
+    const startDate = getEventStartDate(event as any, now);
+    if (startDate) {
+      const startStartOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+      const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const diffDays = Math.round((startStartOfDay - nowStartOfDay) / (24 * 60 * 60 * 1000));
+      if (diffDays > 0) {
+        dayBadge = diffDays === 1 ? "Demain" : `Dans ${diffDays} jours`;
+      }
+    }
+  }
 
   const SIZE = size;
   const RADIUS = SIZE / 2 - 8;
@@ -430,8 +488,18 @@ export const CircularCalendar: React.FC<Props> = ({
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}
         >
+          {/* Indicateur de jour au-dessus du titre si l'événement n'est pas aujourd'hui */}
+          {event && dayBadge && (
+            <div
+              className="mb-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-gray-900 text-white/90 text-xs"
+              style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
+              aria-label={dayBadge}
+            >
+              {dayBadge}
+            </div>
+          )}
           <div
-            className={event ? "text-lg font-bold mb-1 underline text-blue-700 flex items-center justify-center" : "text-lg font-bold mb-1"}
+            className={event ? "text-lg font-semibold mb-1 text-blue-700 hover:text-blue-800 transition-colors flex items-center justify-center tracking-tight" : "text-lg font-semibold mb-1 tracking-tight"}
             style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
           >
             {event && eventIcon}
