@@ -258,7 +258,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const toPoint = (angleDeg: number, r: number) => {
     const rad = (Math.PI / 180) * angleDeg;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-    };
+  };
   const sunriseAngle = angleFromHour(sunrise);
   const sunsetAngle = angleFromHour(sunset);
   const iconGap = Math.max(2, Math.round(metaIconSize * 0.12));
@@ -268,19 +268,11 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs concentriques:
-  // - ARC PASSÉ (écoulé depuis le lever) À L’INTÉRIEUR du ring, au ras de la bordure intérieure (diamètre inférieur)
-  // - ARC FUTUR (restant jusqu’au coucher) À L’EXTÉRIEUR du ring
-  const arcStroke = Math.max(2, Math.round(3 * scale)); // épaisseur cohérente avec la taille
-  const innerGapTowardCenter = Math.max(4, Math.round(RING_THICKNESS * 0.22)); // distance vers le centre
-  // On place le rayon de l’arc intérieur à l’intérieur du trou central.
-  // On retire la moitié de l’épaisseur de trait pour éviter de toucher le bord du ring.
-  const innerArcRadius = Math.max(
-    arcStroke,
-    INNER_RADIUS - innerGapTowardCenter - arcStroke / 2
-  );
-  const outerOutset = Math.max(6, Math.round(RING_THICKNESS * 0.22));
-  const outsideArcRadius = RADIUS + outerOutset;
+  // Arcs concentriques avec écart identique du ring, en tenant compte du stroke/2
+  const arcStroke = Math.max(2, Math.round(3 * scale));
+  const arcGap = Math.max(6, Math.round(RING_THICKNESS * 0.22));
+  const innerArcRadius = Math.max(arcStroke, INNER_RADIUS - arcGap - arcStroke / 2);
+  const outsideArcRadius = RADIUS + arcGap + arcStroke / 2;
 
   const nowAngleDeg = angleFromHour(hourDecimal);
   let pastArc: { start: number; end: number } | null = null;
@@ -298,18 +290,14 @@ export const CircularCalendar: React.FC<Props> = ({
     const nAngle = angleFromHour(hourDecimal % 24);
 
     if (n <= w) {
-      // Avant le lever
       futureArc = { start: wAngle, end: bAngle };
     } else if (n >= b) {
-      // Après le coucher
       pastArc = { start: wAngle, end: bAngle };
     } else {
-      // Entre lever et coucher
       pastArc = { start: wAngle, end: nAngle };
       futureArc = { start: nAngle, end: bAngle };
     }
   } else {
-    // Fallback: arcs liés au jour (sunrise/sunset)
     if (sunrise < sunset) {
       if (hourDecimal <= sunrise) {
         futureArc = { start: sunriseAngle, end: sunsetAngle };
@@ -438,7 +426,6 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* Arc écoulé (intérieur, dans le trou central) */}
           {hoverRing && pastArc && (
             <path
               d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
@@ -451,7 +438,6 @@ export const CircularCalendar: React.FC<Props> = ({
             />
           )}
 
-          {/* Arc restant (extérieur au ring) */}
           {hoverRing && futureArc && (
             <path
               d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
@@ -507,7 +493,11 @@ export const CircularCalendar: React.FC<Props> = ({
             </div>
           )}
           <div
-            className={event ? "text-lg font-semibold mb-1 text-blue-700 hover:text-blue-800 transition-colors flex items-center justify-center tracking-tight" : "text-lg font-semibold mb-1 tracking-tight"}
+            className={
+              event
+                ? "text-lg font-semibold mb-1 text-blue-700 hover:text-blue-800 transition-colors flex items-center justify-center tracking-tight"
+                : "text-lg font-semibold mb-1 tracking-tight"
+            }
             style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
           >
             {event && eventIcon}
@@ -519,75 +509,69 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
 
         {!hoverRing && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className="absolute"
-              style={{
-                left: sunrisePt.x - metaIconSize / 2,
-                top: sunrisePt.y - metaIconSize / 2,
-                transform: `rotate(${sunriseRotation}deg)`,
-                transformOrigin: "center",
-              }}
-              aria-label={`Sunrise at ${formatHour(sunrise)}`}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute"
+                style={{
+                  left: sunrisePt.x - metaIconSize / 2,
+                  top: sunrisePt.y - metaIconSize / 2,
+                  transform: `rotate(${sunriseRotation}deg)`,
+                  transformOrigin: "center",
+                }}
+                aria-label={`Sunrise at ${formatHour(sunrise)}`}
+              >
+                <Sunrise className="text-yellow-400" size={metaIconSize} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent
+              side={(() => {
+                const dx = cx - sunrisePt.x;
+                const dy = cy - sunrisePt.y;
+                if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+                return dy > 0 ? "bottom" : "top";
+              })()}
+              sideOffset={6}
+              className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
             >
-              <Sunrise
-                className="text-yellow-400"
-                size={metaIconSize}
-              />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent
-            side={(() => {
-              const dx = cx - sunrisePt.x;
-              const dy = cy - sunrisePt.y;
-              if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
-              return dy > 0 ? "bottom" : "top";
-            })()}
-            sideOffset={6}
-            className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
-          >
-            <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
-              {formatHour(sunrise)}
-            </span>
-          </TooltipContent>
-        </Tooltip>
+              <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
+                {formatHour(sunrise)}
+              </span>
+            </TooltipContent>
+          </Tooltip>
         )}
 
         {!hoverRing && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className="absolute"
-              style={{
-                left: sunsetPt.x - metaIconSize / 2,
-                top: sunsetPt.y - metaIconSize / 2,
-                transform: `rotate(${sunsetRotation}deg)`,
-                transformOrigin: "center",
-              }}
-              aria-label={`Sunset at ${formatHour(sunset)}`}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute"
+                style={{
+                  left: sunsetPt.x - metaIconSize / 2,
+                  top: sunsetPt.y - metaIconSize / 2,
+                  transform: `rotate(${sunsetRotation}deg)`,
+                  transformOrigin: "center",
+                }}
+                aria-label={`Sunset at ${formatHour(sunset)}`}
+              >
+                <Sunset className="text-orange-400" size={metaIconSize} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent
+              side={(() => {
+                const dx = cx - sunsetPt.x;
+                const dy = cy - sunsetPt.y;
+                if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+                return dy > 0 ? "bottom" : "top";
+              })()}
+              sideOffset={6}
+              className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
             >
-              <Sunset
-                className="text-orange-400"
-                size={metaIconSize}
-              />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent
-            side={(() => {
-              const dx = cx - sunsetPt.x;
-              const dy = cy - sunsetPt.y;
-              if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
-              return dy > 0 ? "bottom" : "top";
-            })()}
-            sideOffset={6}
-            className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
-          >
-            <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
-              {formatHour(sunset)}
-            </span>
-          </TooltipContent>
-        </Tooltip>
+              <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
+                {formatHour(sunset)}
+              </span>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>
