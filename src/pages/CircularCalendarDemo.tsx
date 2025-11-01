@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
-import { EphemeralLog } from "@/components/EphemeralLog";
+import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -40,15 +40,16 @@ function useGoldenCircleSize() {
   return size;
 }
 
+type LogType = "info" | "success" | "error";
+
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
-  // Pour le log éphémère
-  const [log, setLog] = useState<string | null>(null);
-  const [logType, setLogType] = useState<"info" | "error">("info");
+  // Pile de logs à afficher
+  const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
 
   // Met à jour l'affichage dès qu'on a la vraie localisation
   useEffect(() => {
@@ -58,20 +59,25 @@ const CircularCalendarDemo = () => {
     }
   }, [sunrise, sunset, loading, error]);
 
-  // Affiche les messages d'état dans le log éphémère
+  // Ajoute les messages d'état à la pile de logs
   useEffect(() => {
     if (loading) {
-      setLog("Chargement de la localisation…");
-      setLogType("info");
+      setLogs((prev) => [
+        ...prev,
+        { message: "Chargement de la localisation…", type: "info" },
+      ]);
     } else if (error) {
-      setLog(error);
-      setLogType("error");
+      setLogs((prev) => [
+        ...prev,
+        { message: error, type: "error" },
+      ]);
     } else if (sunrise !== null && sunset !== null) {
-      setLog("Localisation détectée !");
-      setLogType("info");
-    } else {
-      setLog(null);
+      setLogs((prev) => [
+        ...prev,
+        { message: "Localisation détectée !", type: "success" },
+      ]);
     }
+    // eslint-disable-next-line
   }, [loading, error, sunrise, sunset]);
 
   return (
@@ -110,7 +116,7 @@ const CircularCalendarDemo = () => {
               .padStart(2, "0")}`
           : ""}
       </div>
-      <EphemeralLog message={log} type={logType} />
+      <StackedEphemeralLogs logs={logs} />
     </div>
   );
 };
