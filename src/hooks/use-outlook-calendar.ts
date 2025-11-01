@@ -41,7 +41,6 @@ async function resolveMicrosoftAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
 
-  // provider_token peut contenir le jeton du dernier provider connecté
   const fromProviderToken: string | null = session?.provider_token ?? null;
 
   const msIdentity = resolveMicrosoftIdentity(session);
@@ -66,15 +65,21 @@ async function resolveMicrosoftRefreshToken(): Promise<string | null> {
 }
 
 async function refreshAccessTokenViaEdge(): Promise<string | null> {
-  const refreshToken = await resolveMicrosoftRefreshToken();
-  if (!refreshToken) return null;
+  const { data } = await supabase.auth.getSession();
+  const session: any = data?.session ?? null;
 
-  const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
+  const refreshToken = await resolveMicrosoftRefreshToken();
+  if (!refreshToken || !session?.access_token) return null;
+
+  const { data: resp, error } = await supabase.functions.invoke("microsoft-token-refresh", {
     body: { refresh_token: refreshToken },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
   });
 
   if (error) return null;
-  const accessToken: string | undefined = (data as any)?.access_token;
+  const accessToken: string | undefined = (resp as any)?.access_token;
   return accessToken || null;
 }
 
@@ -105,7 +110,6 @@ export function useOutlookCalendar(): Result {
       setConnected(true);
     }
 
-    // Microsoft Graph: /me/events avec tri
     const url =
       "https://graph.microsoft.com/v1.0/me/events?$orderby=start/dateTime&$top=10&$select=subject,organizer,start,end,location,webLink";
 
@@ -166,7 +170,6 @@ export function useOutlookCalendar(): Result {
       })
       .filter(Boolean) as CalendarEvent[];
 
-    // Filtrer uniquement les événements à venir (optionnel)
     const upcoming = mapped.filter((e) => {
       const startDate =
         (e.raw?.start?.dateTime && new Date(e.raw.start.dateTime)) || null;

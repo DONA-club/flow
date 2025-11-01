@@ -10,6 +10,7 @@ import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
+import OutlookAuthButton from "@/components/OutlookAuthButton";
 
 const mockEvents = [
   { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
@@ -136,7 +137,6 @@ const CircularCalendarDemo = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
-  // Fusion Google + Outlook
   const combinedEvents = (gEvents.length > 0 || oEvents.length > 0)
     ? [...gEvents, ...oEvents].sort((a, b) => {
         const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
@@ -145,12 +145,11 @@ const CircularCalendarDemo = () => {
       })
     : mockEvents;
 
-  // Rafraîchissement périodique pour garder les évènements en phase avec le curseur
   useEffect(() => {
     const id = window.setInterval(() => {
       refreshGoogle();
       refreshOutlook();
-    }, 60_000); // toutes les 60s
+    }, 60_000);
     return () => window.clearInterval(id);
   }, [refreshGoogle, refreshOutlook]);
 
@@ -158,6 +157,18 @@ const CircularCalendarDemo = () => {
     <>
       <FontLoader />
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
+        <div className="mb-4 flex items-center gap-3">
+          <OutlookAuthButton />
+          <Button variant="ghost" size="sm" onClick={() => refreshOutlook()} disabled={oLoading}>
+            Rafraîchir Outlook
+          </Button>
+          {!oConnected && (
+            <span className="text-xs opacity-80">
+              Connectez votre compte Outlook pour afficher vos événements.
+            </span>
+          )}
+        </div>
+
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
@@ -197,7 +208,6 @@ const CircularCalendarDemo = () => {
             </div>
           )}
         </div>
-        {/* Notifications éphemères: texte simple, ~5s de durée totale */}
         <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
     </>
