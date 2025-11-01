@@ -1,18 +1,21 @@
 "use client";
 
 import React from "react";
-import * as SI from "simple-icons/icons";
+import { siGoogle, siApple, siFacebook, siAmazon, siMicrosoft, siMicrosoftoutlook } from "simple-icons";
 
 type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft" | "outlook";
 
-const KEY_MAP: Record<BrandName, string[]> = {
-  google: ["siGoogle"],
-  apple: ["siApple"],
-  facebook: ["siFacebook"],
-  amazon: ["siAmazon"],
-  microsoft: ["siMicrosoft"],
-  // Microsoft Outlook: on tente plusieurs variantes pour assurer la compatibilité
-  outlook: ["siMicrosoftoutlook", "siMicrosoftOutlook", "siOutlook"],
+const ICON_MAP: Record<
+  BrandName,
+  { path: string; hex: string; title: string }[]
+> = {
+  google: [siGoogle],
+  apple: [siApple],
+  facebook: [siFacebook],
+  amazon: [siAmazon],
+  microsoft: [siMicrosoft],
+  // Outlook avec repli sur Microsoft si nécessaire
+  outlook: [siMicrosoftoutlook, siMicrosoft],
 };
 
 type Props = {
@@ -22,10 +25,7 @@ type Props = {
 };
 
 const BrandIcon: React.FC<Props> = ({ name, color, className }) => {
-  const icon =
-    KEY_MAP[name]
-      .map((key) => (SI as any)[key])
-      .find(Boolean) as { path: string; hex: string; title: string } | undefined;
+  const icon = ICON_MAP[name]?.find(Boolean);
   if (!icon) {
     return (
       <span
