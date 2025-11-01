@@ -6,6 +6,7 @@ import AppleAuthButton from "@/components/AppleAuthButton";
 import FacebookAuthButton from "@/components/FacebookAuthButton";
 import AmazonAuthButton from "@/components/AmazonAuthButton";
 import OutlookAuthButton from "@/components/OutlookAuthButton";
+import ParticleBurst from "@/components/ParticleBurst";
 
 type Direction = "up" | "down";
 
@@ -13,7 +14,7 @@ type Props = {
   className?: string;
 };
 
-const TRANSITION_MS = 300;
+const TRANSITION_MS = 420;
 
 const AuthProviderScroller: React.FC<Props> = ({ className }) => {
   const providers = React.useMemo(
@@ -50,7 +51,10 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     setOutgoingIdx(index);
     setIncomingIdx(target);
     setPhase("start");
-
+    
+    // Déclenche un jet de particules autour du point blanc
+    window.dispatchEvent(new CustomEvent("brand-scroll", { detail: { direction: dir } }));
+    
     // Trigger the CSS transition on next frame
     requestAnimationFrame(() => {
       setPhase("end");
@@ -66,6 +70,8 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
 
   const handleWheel: React.WheelEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault();
+    // Seuil pour éviter les micro-déclenchements qui causent un sursaut
+    if (Math.abs(e.deltaY) < 6) return;
     const dir: Direction = e.deltaY > 0 ? "down" : "up";
     beginTransition(dir);
   };
@@ -89,16 +95,16 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     .join(" ")
     .trim();
 
-  const layerBase = "absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out filter";
+  const layerBase = "absolute inset-0 flex items-center justify-center transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] filter will-change-transform transform-gpu";
 
   // Outgoing animation classes
   const outgoingClasses = [
     layerBase,
     phase === "end"
       ? direction === "down"
-        ? "-translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
-        : "translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
-      : "translate-y-0 opacity-100 blur-0 saturate-100 contrast-100",
+        ? "-translate-y-4 scale-[0.96] opacity-0 blur-lg saturate-0 contrast-75"
+        : "translate-y-4 scale-[0.96] opacity-0 blur-lg saturate-0 contrast-75"
+      : "translate-y-0 scale-100 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   // Incoming animation classes
@@ -106,9 +112,9 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
     layerBase,
     phase === "start"
       ? direction === "down"
-        ? "translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
-        : "-translate-y-4 opacity-0 blur-lg saturate-0 contrast-75"
-      : "translate-y-0 opacity-100 blur-0 saturate-100 contrast-100",
+        ? "translate-y-4 scale-[1.04] opacity-0 blur-lg saturate-0 contrast-75"
+        : "-translate-y-4 scale-[1.04] opacity-0 blur-lg saturate-0 contrast-75"
+      : "translate-y-0 scale-100 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   return (
@@ -124,9 +130,11 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
         <>
           <div className={outgoingClasses}>{providers[outgoingIdx]}</div>
           <div className={incomingClasses}>{providers[incomingIdx]}</div>
+          {/* effet visuel stabilisateur */}
+          <ParticleBurst fireKey={outgoingIdx * 1000 + incomingIdx} size={88} />
         </>
       ) : (
-        <div className={layerBase + " translate-y-0 opacity-100"}>{providers[index]}</div>
+        <div className={layerBase + " translate-y-0 scale-100 opacity-100"}>{providers[index]}</div>
       )}
     </div>
   );
