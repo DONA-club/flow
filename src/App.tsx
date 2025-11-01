@@ -2,14 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import FinanceDashboard from "./pages/FinanceDashboard";
-import MonitoringApp from "./pages/MonitoringApp";
-import MonitoringDashboard from "./pages/MonitoringDashboard";
-import BuildingModel from "./pages/BuildingModel";
-import Meteo from "./pages/Meteo";
 import CircularCalendarDemo from "./pages/CircularCalendarDemo";
 
 const queryClient = new QueryClient();
@@ -24,13 +20,6 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<FinanceDashboard />} />
           <Route path="/calendar" element={<CircularCalendarDemo />} />
-          <Route path="/monitoring" element={<MonitoringApp />}>
-            <Route index element={<Navigate to="evap" replace />} />
-            <Route path="evap" element={<MonitoringDashboard />} />
-            <Route path="building" element={<BuildingModel />} />
-            <Route path="meteo" element={<Meteo />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
