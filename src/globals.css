@@ -9,7 +9,7 @@ body, html, #root, .font-sans, .font-sans * {
   font-family: 'Inter', 'Montserrat', Arial, Helvetica, sans-serif !important;
 }
 
-/* Fond par défaut (mode sombre) - dégradé radial, clair au centre → sombre aux angles */
+/* Fond par défaut (sombre) - dégradé radial, clair au centre → sombre aux angles */
 body, html, #root {
   min-height: 100vh;
   min-width: 100vw;
@@ -18,10 +18,13 @@ body, html, #root {
   transition: background 0.6s;
 }
 
-/* Mode clair automatique si l’utilisateur préfère la lumière - radial, clair au centre → noir aux bords */
+/* Dégradé uniquement pour la page calendar en mode clair */
+.calendar-light-bg {
+  background: transparent;
+}
 @media (prefers-color-scheme: light) {
-  body, html, #root {
-    background: radial-gradient(circle at 50% 50%, #ffffff 0%, #4b5563 60%, #000000 100%);
+  .calendar-light-bg {
+    background: radial-gradient(circle at 50% 50%, #ffffff 0%, #4b5563 60%, #000000 100%) !important;
     background-attachment: fixed;
   }
 }
@@ -76,11 +79,4 @@ body {
   line-height: 1.7;
   color: #e0e7ef; /* lisible en mode sombre */
   letter-spacing: 0.01em;
-}
-
-/* Couleur du texte en mode clair */
-@media (prefers-color-scheme: light) {
-  body {
-    color: #0f172a; /* slate-900 approximatif */
-  }
 }

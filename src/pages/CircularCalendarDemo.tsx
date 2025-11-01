@@ -157,7 +157,7 @@ const CircularCalendarDemo = () => {
   return (
     <>
       <FontLoader />
-      <div className="flex flex-col items-center justify-center min-h-screen py-8 bg-gray-50 dark:bg-transparent">
+      <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
