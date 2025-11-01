@@ -18,10 +18,11 @@ body, html, #root {
   transition: background 0.6s;
 }
 
-/* Mode clair automatique si l’utilisateur préfère la lumière - radial, clair au centre → plus sombre aux angles */
+/* Mode clair automatique si l’utilisateur préfère la lumière - radial, clair au centre → noir aux bords */
 @media (prefers-color-scheme: light) {
   body, html, #root {
-    background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #bfdbfe 55%, #e2e8f0 100%);
+    background: radial-gradient(circle at 50% 50%, #ffffff 0%, #4b5563 60%, #000000 100%);
+    background-attachment: fixed;
   }
 }
 
