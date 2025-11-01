@@ -18,7 +18,11 @@ type Props = {
 
 const SIZE = 320; // SVG size in px
 const RADIUS = 140; // Outer radius
-const INNER_RADIUS = 90; // Inner radius for donut effect
+
+// Calcul du rayon intérieur selon le nombre d'or
+const PHI = 1.618;
+const RING_THICKNESS = RADIUS / PHI; // épaisseur de l'anneau
+const INNER_RADIUS = RADIUS - RING_THICKNESS; // rayon intérieur
 
 const SEASON_COLORS: Record<string, string> = {
   spring: "#4ade80", // green-400
@@ -119,7 +123,7 @@ export const CircularCalendar: React.FC<Props> = ({
               d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle)}
               fill={isDay(i) ? SEASON_COLORS[currentSeason] : "#d1d5db"}
               stroke={isDay(i) ? "#fff" : "#9ca3af"}
-              strokeWidth={2}
+              strokeWidth={1.5}
               opacity={1}
             />
           );
@@ -152,7 +156,7 @@ export const CircularCalendar: React.FC<Props> = ({
           x2={cursorX2}
           y2={cursorY2}
           stroke="#2563eb"
-          strokeWidth={4}
+          strokeWidth={3}
           strokeLinecap="round"
           style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
         />
