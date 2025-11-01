@@ -170,6 +170,46 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
+  // Chiffres horaires fusionnés avec l’anneau
+  // On les place au centre de l’anneau (moitié sur la couleur, moitié sur le fond)
+  // On ajoute une ombre portée pour la lisibilité
+  const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
+    const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
+    // Position : au centre de l’anneau (moitié sur la couleur, moitié sur le fond)
+    const r = RADIUS - RING_THICKNESS / 2 + 2; // +2 pour bien chevaucher
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle) + 4;
+
+    // Couleur : blanc avec ombre foncée pour fusionner avec l’anneau
+    // Surligné si l’heure courante
+    const isCurrent = i === hour;
+    return (
+      <text
+        key={i}
+        x={x}
+        y={y}
+        textAnchor="middle"
+        fontSize="15"
+        fontWeight={isCurrent ? "bold" : "600"}
+        fill="#fff"
+        style={{
+          pointerEvents: "none",
+          userSelect: "none",
+          filter: isCurrent
+            ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)"
+            : "drop-shadow(0 1px 0 #0008)",
+          opacity: isCurrent ? 1 : 0.92,
+          fontFamily: "'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', monospace",
+          paintOrder: "stroke",
+          stroke: "#000",
+          strokeWidth: isCurrent ? 0.7 : 0.5,
+        }}
+      >
+        {i}
+      </text>
+    );
+  });
+
   return (
     <div className="flex flex-col items-center justify-center font-mono">
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
@@ -184,31 +224,8 @@ export const CircularCalendar: React.FC<Props> = ({
         ))}
         {/* Séparateurs horaires */}
         {hourDividers}
-        {/* Nombres d'heures toutes les heures */}
-        {Array.from({ length: 24 }).map((_, i) => {
-          const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
-          const r = (RADIUS + INNER_RADIUS) / 2;
-          const x = cx + r * Math.cos(angle);
-          const y = cy + r * Math.sin(angle) + 4;
-          return (
-            <text
-              key={i}
-              x={x}
-              y={y}
-              textAnchor="middle"
-              fontSize="13"
-              fontWeight={i === hour ? "bold" : "normal"}
-              fill={i === hour ? "#2563eb" : "#374151"}
-              style={{
-                pointerEvents: "none",
-                userSelect: "none",
-                fontFamily: "'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', monospace"
-              }}
-            >
-              {i}
-            </text>
-          );
-        })}
+        {/* Chiffres horaires fusionnés avec l’anneau */}
+        {hourNumbers}
         {/* Ligne de curseur */}
         <line
           x1={cursorX1}
