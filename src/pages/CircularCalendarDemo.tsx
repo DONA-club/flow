@@ -5,6 +5,7 @@ import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { Calendar } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
+import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ type LogType = "info" | "success" | "error";
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { events: gEvents, loading: gLoading, error: gError, connected } = useGoogleCalendar();
+  const { wakeHour, bedHour, loading: fitLoading, error: fitError, connected: fitConnected } = useGoogleFitSleep();
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
@@ -78,6 +80,16 @@ const CircularCalendarDemo = () => {
     }
   }, [gLoading, gError, connected, gEvents.length]);
 
+  useEffect(() => {
+    if (fitLoading) {
+      setLogs([{ message: "Récupération des heures de sommeil…", type: "info" }]);
+    } else if (fitError) {
+      setLogs([{ message: fitError, type: "error" }]);
+    } else if (fitConnected && wakeHour != null && bedHour != null) {
+      setLogs([{ message: "Heures lever/coucher récupérées ✔️", type: "success" }]);
+    }
+  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
+
   function formatHour(decimal: number) {
     const h = Math.floor(decimal)
       .toString()
@@ -101,6 +113,8 @@ const CircularCalendarDemo = () => {
           sunset={displaySunset}
           events={gEvents.length > 0 ? gEvents : mockEvents}
           size={size}
+          wakeHour={wakeHour ?? undefined}
+          bedHour={bedHour ?? undefined}
           eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
           onEventClick={(evt) => {
             setSelectedEvent(evt);

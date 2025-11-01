@@ -23,7 +23,7 @@ const GoogleAuthButton: React.FC<Props> = ({ className }) => {
         provider: "google",
         options: {
           redirectTo: window.location.origin,
-          scopes: "https://www.googleapis.com/auth/calendar.readonly",
+          scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
           queryParams: { prompt: "consent", access_type: "offline" },
         },
       })

@@ -20,6 +20,8 @@ type Props = {
   eventIcon?: React.ReactNode;
   latitude?: number;
   longitude?: number;
+  wakeHour?: number | null; // heure décimale locale
+  bedHour?: number | null;  // heure décimale locale
 };
 
 const DEFAULT_SIZE = 320;
@@ -190,6 +192,8 @@ export const CircularCalendar: React.FC<Props> = ({
   eventIcon,
   latitude,
   longitude,
+  wakeHour,
+  bedHour,
 }) => {
   const now = new Date();
   const hourDecimal =
@@ -282,25 +286,52 @@ export const CircularCalendar: React.FC<Props> = ({
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  // Arcs concentriques (jour passé / jour à venir)
+  // Arcs concentriques
   const innerArcRadius = Math.max(0, INNER_RADIUS - Math.max(4, RING_THICKNESS * 0.25));
   const outerArcRadius = RADIUS + Math.max(4, RING_THICKNESS * 0.25);
   const arcStroke = Math.max(2, Math.round(3 * scale));
-  // Calcul des arcs dynamiques: passé depuis lever (intérieur) et restant jusqu'au coucher (extérieur)
+  // Calcul des arcs dynamiques:
+  // - Si wakeHour/bedHour sont fournis (Google Fit), on les utilise:
+  //   intérieur = écoulé depuis le lever, extérieur = restant jusqu'au coucher
+  // - Sinon, fallback sur sunrise/sunset (jour solaire)
   const nowAngleDeg = angleFromHour(hourDecimal);
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
-  if (sunrise < sunset) {
-    if (hourDecimal <= sunrise) {
-      // Avant le lever: rien d'écoulé, tout le jour à venir
-      futureArc = { start: sunriseAngle, end: sunsetAngle };
-    } else if (hourDecimal >= sunset) {
-      // Après le coucher: tout le jour est écoulé
-      pastArc = { start: sunriseAngle, end: sunsetAngle };
+
+  if (typeof wakeHour === "number" && typeof bedHour === "number") {
+    // Normalisation pour gérer le passage de minuit
+    let w = wakeHour;
+    let b = bedHour;
+    let n = hourDecimal;
+    if (b <= w) b += 24;     // coucher "après minuit"
+    if (n < w) n += 24;      // si on est avant lever, projette sur même échelle
+
+    const wAngle = angleFromHour(wakeHour % 24);
+    const bAngle = angleFromHour(bedHour % 24);
+    const nAngle = angleFromHour(hourDecimal % 24);
+
+    if (n <= w) {
+      // Avant le lever: rien d'écoulé, tout à venir (lever -> coucher)
+      futureArc = { start: wAngle, end: bAngle };
+    } else if (n >= b) {
+      // Après le coucher: tout écoulé (lever -> coucher)
+      pastArc = { start: wAngle, end: bAngle };
     } else {
-      // Pendant la journée
-      pastArc = { start: sunriseAngle, end: nowAngleDeg };
-      futureArc = { start: nowAngleDeg, end: sunsetAngle };
+      // Entre lever et coucher
+      pastArc = { start: wAngle, end: nAngle };
+      futureArc = { start: nAngle, end: bAngle };
+    }
+  } else {
+    // Fallback: arcs basés sur le jour (sunrise/sunset) si pas de données Fit
+    if (sunrise < sunset) {
+      if (hourDecimal <= sunrise) {
+        futureArc = { start: sunriseAngle, end: sunsetAngle };
+      } else if (hourDecimal >= sunset) {
+        pastArc = { start: sunriseAngle, end: sunsetAngle };
+      } else {
+        pastArc = { start: sunriseAngle, end: nowAngleDeg };
+        futureArc = { start: nowAngleDeg, end: sunsetAngle };
+      }
     }
   }
 
