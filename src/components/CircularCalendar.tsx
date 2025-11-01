@@ -193,7 +193,11 @@ export const CircularCalendar: React.FC<Props> = ({
 
   // Chiffres horaires centrés, police réduite
   const scale = SIZE / (DEFAULT_SIZE || 1);
-  const hourFontSize = RING_THICKNESS * scale * 0.7;
+  // Taille proportionnelle au diamètre, bornée pour rester lisible
+  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.75, SIZE * 0.06));
+  // Épaisseur du contour du texte qui suit l'échelle
+  const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
+  const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const r = (RADIUS + INNER_RADIUS) / 2;
@@ -220,7 +224,7 @@ export const CircularCalendar: React.FC<Props> = ({
           fontFamily: "'Inter', 'Montserrat', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",
           stroke: "#000",
-          strokeWidth: isCurrent ? 0.7 : 0.5,
+          strokeWidth: isCurrent ? strokeWidthCurrent : strokeWidthNormal,
         }}
         alignmentBaseline="middle"
         dominantBaseline="middle"
