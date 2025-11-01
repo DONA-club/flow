@@ -43,7 +43,7 @@ const OutlookAuthButton: React.FC<Props> = ({ className }) => {
       title="Se connecter avec Microsoft"
       className={className}
     >
-      <BrandIcon name="microsoft" />
+      <BrandIcon name="outlook" />
     </SocialAuthIconButton>
   );
 };

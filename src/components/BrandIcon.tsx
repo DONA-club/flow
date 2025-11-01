@@ -3,14 +3,16 @@
 import React from "react";
 import * as SI from "simple-icons/icons";
 
-type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft";
+type BrandName = "google" | "apple" | "facebook" | "amazon" | "microsoft" | "outlook";
 
-const KEY_MAP: Record<BrandName, string> = {
-  google: "siGoogle",
-  apple: "siApple",
-  facebook: "siFacebook",
-  amazon: "siAmazon",
-  microsoft: "siMicrosoft",
+const KEY_MAP: Record<BrandName, string[]> = {
+  google: ["siGoogle"],
+  apple: ["siApple"],
+  facebook: ["siFacebook"],
+  amazon: ["siAmazon"],
+  microsoft: ["siMicrosoft"],
+  // Microsoft Outlook: on tente plusieurs variantes pour assurer la compatibilité
+  outlook: ["siMicrosoftoutlook", "siMicrosoftOutlook", "siOutlook"],
 };
 
 type Props = {
@@ -20,7 +22,10 @@ type Props = {
 };
 
 const BrandIcon: React.FC<Props> = ({ name, color, className }) => {
-  const icon = (SI as any)[KEY_MAP[name]] as { path: string; hex: string; title: string } | undefined;
+  const icon =
+    KEY_MAP[name]
+      .map((key) => (SI as any)[key])
+      .find(Boolean) as { path: string; hex: string; title: string } | undefined;
   if (!icon) {
     return (
       <span
