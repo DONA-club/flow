@@ -101,20 +101,16 @@ const AuthProviderScroller: React.FC<Props> = ({ className }) => {
   const outgoingClasses = [
     layerBase,
     phase === "end"
-      ? direction === "down"
-        ? "-translate-y-4 scale-[0.96] opacity-0 blur-lg saturate-0 contrast-75"
-        : "translate-y-4 scale-[0.96] opacity-0 blur-lg saturate-0 contrast-75"
-      : "translate-y-0 scale-100 opacity-100 blur-0 saturate-100 contrast-100",
+      ? "scale-[0.97] opacity-0 blur-sm saturate-0 contrast-75"
+      : "scale-100 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   // Incoming animation classes
   const incomingClasses = [
     layerBase,
     phase === "start"
-      ? direction === "down"
-        ? "translate-y-4 scale-[1.04] opacity-0 blur-lg saturate-0 contrast-75"
-        : "-translate-y-4 scale-[1.04] opacity-0 blur-lg saturate-0 contrast-75"
-      : "translate-y-0 scale-100 opacity-100 blur-0 saturate-100 contrast-100",
+      ? "scale-[1.03] opacity-0 blur-sm saturate-0 contrast-75"
+      : "scale-100 opacity-100 blur-0 saturate-100 contrast-100",
   ].join(" ");
 
   return (
