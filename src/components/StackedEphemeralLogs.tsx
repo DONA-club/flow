@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type LogType = "info" | "success" | "error";
 
@@ -16,108 +16,170 @@ type Props = {
 
 export const StackedEphemeralLogs: React.FC<Props> = ({
   logs,
-  fadeOutDuration = 5000, // durée totale par défaut ~5s
+  fadeOutDuration = 5000,
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
   const idRef = useRef(0);
 
-  // Remplace “...” par la confirmation/erreur; un seul “...” à la fois
+  // Map pour les timeouts par log
+  const timersRef = useRef<
+    Map<number, { fadeTimeout?: number; removeTimeout?: number }>
+  >(new Map());
+
+  // Refs pour FLIP (animation de repositionnement)
+  const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const prevPositions = useRef<Map<number, number>>(new Map());
+
+  // Gestion du flux: empiler, et remplacer un "..." par la confirmation/erreur
   useEffect(() => {
     if (logs.length === 0) return;
 
-    const lastLog = logs[logs.length - 1];
-    const isLoading = lastLog.message.includes("...");
+    const last = logs[logs.length - 1];
+    const incomingType: LogType = last.type || "info";
+    const isEllipsis = last.message.includes("...");
     const lastDisplayed = displayed[displayed.length - 1];
 
-    if (isLoading) {
-      // Si déjà affiché, ne rien faire
-      if (
-        lastDisplayed &&
-        lastDisplayed.message === lastLog.message &&
-        lastDisplayed.type === (lastLog.type || "info")
-      ) {
-        return;
+    setDisplayed((prev) => {
+      // Remplacement si le dernier affiché est "..." (loading)
+      if (lastDisplayed && lastDisplayed.message.includes("...") && !isEllipsis) {
+        // Remplacer en place (même id -> pas de saut visuel)
+        const replaced = prev.map((l, idx) =>
+          idx === prev.length - 1
+            ? { ...l, message: last.message, type: incomingType, fading: false }
+            : l
+        );
+        return replaced;
       }
-      // Affiche le message “...” (remplace tout)
-      setDisplayed([
-        {
-          id: ++idRef.current,
-          message: lastLog.message,
-          type: lastLog.type || "info",
-          fading: false,
-        },
-      ]);
-    } else {
-      // Si un “...” est affiché, le remplace par la confirmation/erreur
-      if (
-        lastDisplayed &&
-        lastDisplayed.message.includes("...") &&
-        !lastDisplayed.fading
-      ) {
-        setDisplayed([
-          {
-            id: lastDisplayed.id + 1,
-            message: lastLog.message,
-            type: lastLog.type || "success",
-            fading: false,
-          },
-        ]);
-      } else {
-        // Sinon, ajoute normalement
-        setDisplayed([
+
+      if (isEllipsis) {
+        // Un seul "..." à la fois: si le dernier est déjà le même "...", ignorer
+        if (
+          lastDisplayed &&
+          lastDisplayed.message === last.message &&
+          lastDisplayed.type === incomingType
+        ) {
+          return prev;
+        }
+        // Ajouter un nouveau "..." empilé (ne démarre pas de timer)
+        return [
+          ...prev,
           {
             id: ++idRef.current,
-            message: lastLog.message,
-            type: lastLog.type || "success",
+            message: last.message,
+            type: incomingType,
             fading: false,
           },
-        ]);
+        ];
       }
-    }
-    // eslint-disable-next-line
+
+      // Message normal: on empile
+      return [
+        ...prev,
+        {
+          id: ++idRef.current,
+          message: last.message,
+          type: incomingType || "success",
+          fading: false,
+        },
+      ];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs.map((l) => l.message + (l.type ?? "info")).join(",")]);
 
-  // Disparition douce pour confirmation/erreur (les “...” restent jusqu’à remplacement)
+  // Planifier fade/suppression pour chaque message non "..." qui n'a pas encore de timers
   useEffect(() => {
-    if (displayed.length === 0) return;
-    const last = displayed[displayed.length - 1];
-    if (!last) return;
+    const total = Math.max(1500, fadeOutDuration);
+    const fadeMs = Math.min(1500, Math.max(500, Math.floor(total * 0.3)));
+    const visibleMs = total - fadeMs;
 
-    const isEllipsis = last.message.includes("...");
-    if (!isEllipsis && !last.fading) {
-      // fractionne la durée totale: visible puis fade
-      const total = Math.max(1500, fadeOutDuration);
-      const fadeMs = Math.min(1500, Math.max(500, Math.floor(total * 0.3)));
-      const visibleMs = total - fadeMs;
+    displayed.forEach((log) => {
+      const isEllipsis = log.message.includes("...");
+      if (isEllipsis) return; // pas de timer pour "..."
 
-      const fadeTimeout = setTimeout(() => {
+      const already = timersRef.current.get(log.id);
+      if (already) return;
+
+      const fadeTimeout = window.setTimeout(() => {
         setDisplayed((prev) =>
-          prev.map((l) => (l.id === last.id ? { ...l, fading: true } : l))
+          prev.map((l) => (l.id === log.id ? { ...l, fading: true } : l))
         );
       }, visibleMs);
 
-      const removeTimeout = setTimeout(() => {
-        setDisplayed((prev) => prev.filter((l) => l.id !== last.id));
+      const removeTimeout = window.setTimeout(() => {
+        setDisplayed((prev) => prev.filter((l) => l.id !== log.id));
+        // Nettoyage de la map
+        timersRef.current.delete(log.id);
       }, total);
 
-      return () => {
-        clearTimeout(fadeTimeout);
-        clearTimeout(removeTimeout);
-      };
-    }
+      timersRef.current.set(log.id, { fadeTimeout, removeTimeout });
+    });
+
+    return () => {
+      // pas de cleanup global ici pour ne pas annuler des timers actifs lors de re-renders normaux
+    };
   }, [displayed, fadeOutDuration]);
+
+  // Cleanup complet des timers au démontage
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((t) => {
+        if (t.fadeTimeout) window.clearTimeout(t.fadeTimeout);
+        if (t.removeTimeout) window.clearTimeout(t.removeTimeout);
+      });
+      timersRef.current.clear();
+    };
+  }, []);
+
+  // Animation FLIP: quand la liste change (ajout/suppression), les éléments se "repositionnent" en glissant
+  useLayoutEffect(() => {
+    const newPositions = new Map<number, number>();
+    displayed.forEach((log) => {
+      const el = nodeRefs.current.get(log.id);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        newPositions.set(log.id, rect.top);
+      }
+    });
+
+    newPositions.forEach((top, id) => {
+      const prevTop = prevPositions.current.get(id);
+      const el = nodeRefs.current.get(id);
+      if (!el || prevTop == null) return;
+
+      const dy = prevTop - top;
+      if (dy !== 0) {
+        // Applique la translation inverse puis anime vers 0
+        el.style.transition = "none";
+        el.style.transform = `translateY(${dy}px)`;
+        // Force reflow
+        void el.getBoundingClientRect();
+        el.style.transition = "transform 220ms ease, opacity 300ms ease";
+        el.style.transform = "translateY(0)";
+      }
+    });
+
+    prevPositions.current = newPositions;
+  }, [displayed]);
+
+  const setNodeRef = (id: number) => (el: HTMLDivElement | null) => {
+    if (el) {
+      nodeRefs.current.set(id, el);
+    } else {
+      nodeRefs.current.delete(id);
+    }
+  };
 
   const baseTextClass =
     "text-sm leading-tight tracking-tight select-none transition-all";
-  const typeClass = (t: LogType) => {
-    // Palette sobre: gris lisible pour tous les types
-    // Vous pouvez nuancer si besoin: info => text-gray-300, success => text-gray-200, error => text-gray-200
-    // Nous restons homogène et légèrement gris pour coller à la demande.
+  const typeClass = (_t: LogType) => {
+    // Texte légèrement gris, lisible, homogène
     return "text-gray-300";
   };
 
-  // Durée de fade appliquée à la transition CSS (cohérente avec le calcul plus haut)
-  const computedFadeMs = Math.min(1500, Math.max(500, Math.floor(Math.max(1500, fadeOutDuration) * 0.3)));
+  const computedFadeMs = Math.min(
+    1500,
+    Math.max(500, Math.floor(Math.max(1500, fadeOutDuration) * 0.3))
+  );
 
   return (
     <div
@@ -128,11 +190,15 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
       {displayed.map((log) => (
         <div
           key={log.id}
+          ref={setNodeRef(log.id)}
           className={`${baseTextClass} ${typeClass(log.type)} ${
             log.fading ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
           }`}
           style={{
-            transition: `opacity ${log.fading ? computedFadeMs : 300}ms ease, transform ${log.fading ? computedFadeMs : 300}ms ease`,
+            transition: `opacity ${
+              log.fading ? computedFadeMs : 300
+            }ms ease, transform ${log.fading ? computedFadeMs : 220}ms ease`,
+            willChange: "transform, opacity",
           }}
         >
           {log.message}
