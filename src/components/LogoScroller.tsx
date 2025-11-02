@@ -31,7 +31,7 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     [currentIndex, onActiveIndexChange]
   );
 
-  // Interaction globale sur toute la page
+  // Interaction globale
   const handleWindowWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault();
@@ -109,7 +109,7 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
 
   return (
     <div
-      className="relative w-[2.25rem] h-[2.25rem] group pointer-events-auto select-none cursor-pointer"
+      className="relative w-[2.15rem] h-[2.15rem] group pointer-events-auto select-none cursor-pointer"
       role="button"
       aria-label={`Se connecter avec ${current}`}
       tabIndex={0}

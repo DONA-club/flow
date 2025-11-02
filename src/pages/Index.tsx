@@ -13,7 +13,7 @@ const Index = () => {
   const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
 
   const handleChange = () => {
-    // déclenche le jet à chaque changement de logo
+    // explosion de particules centrée sur le logo à chaque changement
     setBurstActive(true);
     setTimeout(() => setBurstActive(false), 650);
   };
@@ -23,7 +23,6 @@ const Index = () => {
       toast.info("Connectez un compte pour accéder au calendrier.", {
         description: "Faites défiler pour choisir un fournisseur ou cliquez sur le logo.",
       });
-      // effet de stabilisation court
       setBurstActive(true);
       setTimeout(() => setBurstActive(false), 500);
       return;
@@ -31,8 +30,8 @@ const Index = () => {
     navigate("/calendar");
   };
 
-  // distance centre point -> centre logo : 2.75rem (demi point 5.5rem) + 0.875rem (mt-3.5) + 1.125rem (demi logo 2.25rem) = 4.75rem
-  const sparkDistanceRem = 4.75;
+  // rayon des particules autour du logo (~légèrement au‑delà de son bord)
+  const sparkRadiusRem = 1.25;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -44,10 +43,13 @@ const Index = () => {
             className={`point-blanc cursor-pointer ${burstActive ? "point-pulse" : ""}`}
             aria-label="Ouvrir le calendrier circulaire"
           />
-          <SparkBurst active={burstActive} distanceRem={sparkDistanceRem} />
           {/* Logo sous le point blanc, centré, un peu plus bas pour l’ergonomie */}
           <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3.5">
-            <LogoScroller onActiveIndexChange={handleChange} />
+            <div className="relative">
+              <LogoScroller onActiveIndexChange={handleChange} />
+              {/* Particules centrées sur le logo */}
+              <SparkBurst active={burstActive} distanceRem={sparkRadiusRem} />
+            </div>
           </div>
         </div>
       </div>

@@ -135,22 +135,23 @@ body {
 }
 .point-pulse { animation: point-pulse-anim 650ms ease-out; }
 
-/* Étincelles du point vers le logo (cône dirigé vers le bas) */
+/* Étincelles centrées sur le logo (explosion subtile et aléatoire) */
 .spark {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 6px;
-  height: 6px;
+  width: var(--size, 6px);
+  height: var(--size, 6px);
   border-radius: 9999px;
   background: rgba(255,255,255,0.85);
   box-shadow: 0 0 8px rgba(255,255,255,0.7);
   transform: rotate(var(--angle)) translate(0rem) scale(0.7);
-  animation: spark-burst 650ms cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
+  animation: spark-explode var(--dur, 650ms) cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
+  animation-delay: var(--delay, 0ms);
 }
-@keyframes spark-burst {
+@keyframes spark-explode {
   0% { opacity: 0; transform: rotate(var(--angle)) translate(0rem) scale(0.6); }
   15% { opacity: 1; }
-  70% { opacity: 1; transform: rotate(var(--angle)) translate(calc(var(--dist, 3.4rem) * 0.65)) scale(0.9); }
-  100% { opacity: 0; transform: rotate(var(--angle)) translate(var(--dist, 3.4rem)) scale(0.3); }
+  60% { opacity: 1; transform: rotate(var(--angle)) translate(calc(var(--dist, 1.25rem) * 0.7)) scale(0.9); }
+  100% { opacity: 0; transform: rotate(var(--angle)) translate(var(--dist, 1.25rem)) scale(0.3); }
 }
