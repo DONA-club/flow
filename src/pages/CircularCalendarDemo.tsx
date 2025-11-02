@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
@@ -40,6 +40,7 @@ function useGoldenCircleSize() {
 type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
+  const navigate = useNavigate();
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { connectedProviders } = useMultiProviderAuth();
 
@@ -81,6 +82,14 @@ const CircularCalendarDemo = () => {
 
   const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
+
+  useEffect(() => {
+    // Rediriger vers l'accueil si aucun compte connecté
+    const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
+    if (!hasAnyConnection) {
+      navigate("/", { replace: true });
+    }
+  }, [connectedProviders, navigate]);
 
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
@@ -186,20 +195,6 @@ const CircularCalendarDemo = () => {
       )}
 
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
-        {!hasAnyConnection && (
-          <div className="mb-8 text-center glass p-6 rounded-2xl backdrop-blur-md max-w-md">
-            <p className="text-white/90 mb-4">
-              Aucun compte connecté. Retournez à la page d'accueil pour connecter vos comptes.
-            </p>
-            <Link 
-              to="/" 
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-white font-medium"
-            >
-              Connecter mes comptes
-            </Link>
-          </div>
-        )}
-
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
