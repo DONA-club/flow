@@ -2,6 +2,7 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function normalizeProvider(p?: string | null): "google" | "microsoft" | "apple" | "facebook" | "amazon" | null {
   if (!p) return null;
@@ -30,7 +31,10 @@ async function saveCurrentProviderTokens() {
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
   // Si aucun token, rien à sauvegarder
-  if (!accessToken && !refreshToken) return;
+  if (!accessToken && !refreshToken) {
+    console.warn(`⚠️ Aucun token disponible pour ${provider}`);
+    return;
+  }
 
   // Estimation d'expiration
   const expiresAtUnix: number | null = session?.expires_at ?? null;
@@ -50,9 +54,18 @@ async function saveCurrentProviderTokens() {
   );
 
   if (error) {
-    console.error(`Erreur sauvegarde tokens ${provider}:`, error);
+    console.error(`❌ Erreur sauvegarde tokens ${provider}:`, error);
   } else {
-    console.log(`✓ Tokens ${provider} sauvegardés pour user ${user.id}`);
+    console.log(`✅ Tokens ${provider} sauvegardés pour user ${user.id}`);
+    
+    // Vérifier si c'était une connexion en attente
+    const pendingProvider = localStorage.getItem("pending_provider_connection");
+    if (pendingProvider === provider) {
+      localStorage.removeItem("pending_provider_connection");
+      toast.success(`${provider} connecté avec succès !`, {
+        description: "Vos données seront maintenant synchronisées.",
+      });
+    }
   }
 }
 
@@ -62,6 +75,8 @@ const AuthTokensWatcher: React.FC = () => {
     saveCurrentProviderTokens();
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
+      console.log(`🔐 Auth event: ${event}`);
+      
       // Sur tout rafraîchissement de session, tentative de sauvegarde
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
         saveCurrentProviderTokens();

@@ -4,6 +4,7 @@ import React from "react";
 import BrandIcon from "@/components/BrandIcon";
 import SocialAuthIconButton from "@/components/SocialAuthIconButton";
 import { useMultiProviderAuth, Provider } from "@/hooks/use-multi-provider-auth";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 type Props = {
   provider: Provider;
@@ -29,24 +30,36 @@ const ProviderButton: React.FC<Props> = ({ provider, className }) => {
     if (loading) return;
     setLoading(true);
     await connectProvider(provider);
-    setLoading(false);
+    // Ne pas remettre loading à false car on va être redirigé
   };
 
   return (
-    <SocialAuthIconButton
-      onClick={handleClick}
-      disabled={loading}
-      ariaLabel={`Se connecter avec ${label}`}
-      title={isConnected ? `Reconnecter ${label}` : `Se connecter avec ${label}`}
-      className={[
-        className || "",
-        isConnected ? "ring-2 ring-green-400 ring-offset-2" : "",
-      ]
-        .join(" ")
-        .trim()}
-    >
-      <BrandIcon name={provider === "microsoft" ? "outlook" : provider} />
-    </SocialAuthIconButton>
+    <div className="relative">
+      <SocialAuthIconButton
+        onClick={handleClick}
+        disabled={loading}
+        ariaLabel={`Se connecter avec ${label}`}
+        title={isConnected ? `Reconnecter ${label}` : `Se connecter avec ${label}`}
+        className={[
+          className || "",
+          isConnected ? "ring-2 ring-green-400 ring-offset-2" : "",
+          loading ? "opacity-50" : "",
+        ]
+          .join(" ")
+          .trim()}
+      >
+        {loading ? (
+          <Loader2 className="w-8 h-8 animate-spin" />
+        ) : (
+          <BrandIcon name={provider === "microsoft" ? "outlook" : provider} />
+        )}
+      </SocialAuthIconButton>
+      {isConnected && !loading && (
+        <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-white" />
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -32,7 +32,10 @@ function toHourDecimal(iso: string): number {
 async function getGoogleTokens() {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
-  if (!userId) return null;
+  if (!userId) {
+    console.log("❌ Pas d'utilisateur connecté");
+    return null;
+  }
 
   const { data, error } = await supabase
     .from("oauth_tokens")
@@ -41,38 +44,64 @@ async function getGoogleTokens() {
     .eq("provider", "google")
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    console.error("❌ Erreur lecture tokens Google:", error);
+    return null;
+  }
+  
+  if (!data) {
+    console.log("⚠️ Aucun token Google trouvé dans oauth_tokens");
+    return null;
+  }
+
+  console.log("✅ Tokens Google trouvés:", { 
+    hasAccess: !!data.access_token, 
+    hasRefresh: !!data.refresh_token 
+  });
+  
   return data;
 }
 
 async function refreshGoogleToken(refreshToken: string) {
+  console.log("🔄 Tentative de refresh du token Google...");
+  
   const { data: sess } = await supabase.auth.getSession();
   const supaAccess = sess?.session?.access_token;
-  if (!supaAccess) return null;
+  if (!supaAccess) {
+    console.error("❌ Pas de token Supabase pour appeler la fonction edge");
+    return null;
+  }
 
   const { data, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
     headers: { Authorization: `Bearer ${supaAccess}` },
   });
 
-  if (error || !data) return null;
+  if (error) {
+    console.error("❌ Erreur refresh token Google:", error);
+    return null;
+  }
   
-  const newAccessToken = data.access_token;
-  if (!newAccessToken) return null;
+  if (!data?.access_token) {
+    console.error("❌ Pas de nouveau token dans la réponse");
+    return null;
+  }
 
+  console.log("✅ Token Google refreshé avec succès");
+  
   // Sauvegarder le nouveau token
   const userId = sess?.session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
       user_id: userId,
       provider: "google",
-      access_token: newAccessToken,
+      access_token: data.access_token,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
   );
 
-  return newAccessToken;
+  return data.access_token;
 }
 
 export function useGoogleCalendar(options?: Options): Result {
@@ -84,8 +113,12 @@ export function useGoogleCalendar(options?: Options): Result {
   const [connected, setConnected] = React.useState(false);
 
   const fetchEvents = React.useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) {
+      console.log("⏸️ Google Calendar désactivé");
+      return;
+    }
 
+    console.log("📅 Chargement Google Calendar...");
     setLoading(true);
     setError(null);
 
@@ -100,7 +133,8 @@ export function useGoogleCalendar(options?: Options): Result {
       setConnected(false);
       setEvents([]);
       setLoading(false);
-      setError("Google non connecté. Connectez Google depuis la page d'accueil.");
+      setError("Google non connecté. Cliquez sur le logo Google sur la page d'accueil.");
+      console.log("❌ Impossible de récupérer un access token Google");
       return;
     }
 
@@ -111,11 +145,13 @@ export function useGoogleCalendar(options?: Options): Result {
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
+    console.log("🌐 Appel API Google Calendar...");
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (res.status === 401 && tokens?.refresh_token) {
+      console.log("🔄 Token expiré, tentative de refresh...");
       const newToken = await refreshGoogleToken(tokens.refresh_token);
       if (newToken) {
         return fetchEvents();
@@ -125,13 +161,18 @@ export function useGoogleCalendar(options?: Options): Result {
     if (!res.ok) {
       setEvents([]);
       setLoading(false);
-      setError(`Erreur Google Calendar (${res.status})`);
+      setConnected(false);
+      const errorMsg = `Erreur Google Calendar (${res.status})`;
+      setError(errorMsg);
+      console.error("❌", errorMsg);
       return;
     }
 
     setConnected(true);
     const json = await res.json();
     const items: any[] = json?.items ?? [];
+
+    console.log(`✅ ${items.length} événements Google récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {

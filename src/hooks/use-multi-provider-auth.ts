@@ -73,16 +73,20 @@ export function useMultiProviderAuth() {
 
     setUser(currentUser);
 
-    const identities = currentUser.identities || [];
-    
+    // Vérifier quels providers ont des tokens dans oauth_tokens
+    const { data: tokens } = await supabase
+      .from("oauth_tokens")
+      .select("provider")
+      .eq("user_id", currentUser.id);
+
+    const tokenProviders = new Set(tokens?.map(t => t.provider) || []);
+
     const connected: ConnectedProviders = {
-      google: identities.some((i: any) => i.provider === "google"),
-      microsoft: identities.some((i: any) => 
-        ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider)
-      ),
-      apple: identities.some((i: any) => i.provider === "apple"),
-      facebook: identities.some((i: any) => i.provider === "facebook"),
-      amazon: identities.some((i: any) => i.provider === "amazon"),
+      google: tokenProviders.has("google"),
+      microsoft: tokenProviders.has("microsoft"),
+      apple: tokenProviders.has("apple"),
+      facebook: tokenProviders.has("facebook"),
+      amazon: tokenProviders.has("amazon"),
     };
 
     setConnectedProviders(connected);
@@ -102,6 +106,9 @@ export function useMultiProviderAuth() {
   const connectProvider = useCallback(async (provider: Provider) => {
     const config = PROVIDER_CONFIGS[provider];
     
+    // Stocker le provider demandé dans localStorage pour le récupérer après redirect
+    localStorage.setItem("pending_provider_connection", provider);
+    
     toast(`Redirection vers ${provider}…`, {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
     });
@@ -118,57 +125,34 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    // Si aucun utilisateur connecté, on fait un signInWithOAuth
-    // Sinon, on fait un linkIdentity pour lier au compte existant
-    const action = user
-      ? supabase.auth.linkIdentity({ 
-          provider: config.supabaseProvider as any, 
-          options 
-        })
-      : supabase.auth.signInWithOAuth({ 
-          provider: config.supabaseProvider as any, 
-          options 
-        });
-
-    const { error } = await action;
-
-    if (error) {
-      const msg = String(error?.message || "");
-      if (msg.includes("Manual linking is disabled") || (error as any)?.status === 404) {
-        toast.error("Liaison de compte désactivée", {
-          description:
-            'Activez "Manual linking" dans Supabase (Authentication → Providers → Settings) pour connecter plusieurs fournisseurs au même compte.',
-        });
-      } else {
-        toast.error(`Connexion ${provider} indisponible`, {
-          description: `Le fournisseur ${provider} n'est pas activé ou a rencontré une erreur.`,
-        });
-      }
-      return false;
-    }
-
-    return true;
-  }, [user]);
-
-  const disconnectProvider = useCallback(async (provider: Provider) => {
-    if (!user) return false;
-
-    const identities = user.identities || [];
-    const identity = identities.find((i: any) => {
-      if (provider === "microsoft") {
-        return ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider);
-      }
-      return i.provider === provider;
+    // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
+    // Si l'utilisateur existe déjà, Supabase va automatiquement lier l'identité
+    // si "Manual linking" est activé
+    const { error } = await supabase.auth.signInWithOAuth({ 
+      provider: config.supabaseProvider as any, 
+      options 
     });
 
-    if (!identity) {
-      toast.error("Provider non trouvé", {
-        description: `Aucune identité ${provider} trouvée pour ce compte.`,
+    if (error) {
+      localStorage.removeItem("pending_provider_connection");
+      toast.error(`Connexion ${provider} indisponible`, {
+        description: error.message,
       });
       return false;
     }
 
-    const { error } = await supabase.auth.unlinkIdentity(identity);
+    return true;
+  }, []);
+
+  const disconnectProvider = useCallback(async (provider: Provider) => {
+    if (!user) return false;
+
+    // Supprimer les tokens de la base
+    const { error } = await supabase
+      .from("oauth_tokens")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("provider", provider);
 
     if (error) {
       toast.error(`Erreur de déconnexion ${provider}`, {
@@ -177,12 +161,18 @@ export function useMultiProviderAuth() {
       return false;
     }
 
-    // Supprimer les tokens de la base
-    await supabase
-      .from("oauth_tokens")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("provider", provider === "microsoft" ? "microsoft" : provider);
+    // Essayer de délier l'identité (optionnel, peut échouer si c'est la dernière)
+    const identities = user.identities || [];
+    const identity = identities.find((i: any) => {
+      if (provider === "microsoft") {
+        return ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider);
+      }
+      return i.provider === provider;
+    });
+
+    if (identity) {
+      await supabase.auth.unlinkIdentity(identity);
+    }
 
     toast.success(`${provider} déconnecté`, {
       description: "Le fournisseur a été retiré de votre compte.",
