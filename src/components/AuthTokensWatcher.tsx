@@ -4,9 +4,21 @@ import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-function normalizeProvider(p?: string | null): "google" | "microsoft" | "apple" | "facebook" | "amazon" | null {
-  if (!p) return null;
-  const v = p.toLowerCase();
+function detectProviderFromToken(accessToken: string): "google" | "microsoft" | null {
+  // Google tokens commencent par "ya29."
+  if (accessToken.startsWith("ya29.")) {
+    return "google";
+  }
+  // Microsoft tokens sont des JWT (commencent par "eyJ")
+  if (accessToken.startsWith("eyJ")) {
+    return "microsoft";
+  }
+  return null;
+}
+
+function normalizeProviderFromIdentity(provider?: string | null): "google" | "microsoft" | "apple" | "facebook" | "amazon" | null {
+  if (!provider) return null;
+  const v = provider.toLowerCase();
   if (v === "google") return "google";
   if (v === "azure" || v === "azure-oidc" || v === "azuread" || v === "microsoft" || v === "outlook") {
     return "microsoft";
@@ -21,18 +33,39 @@ async function saveCurrentProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
-  if (!user) return;
+  if (!user) {
+    console.log("⚠️ Pas d'utilisateur connecté");
+    return;
+  }
 
-  const provider = normalizeProvider(user?.app_metadata?.provider ?? null);
-  if (!provider) return;
-
-  // Tokens fournis par Supabase pour le provider ACTIF uniquement
+  // Tokens fournis par Supabase
   const accessToken: string | null = session?.provider_token ?? null;
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
-  // Si aucun token, rien à sauvegarder
-  if (!accessToken && !refreshToken) {
-    console.warn(`⚠️ Aucun token disponible pour ${provider}`);
+  if (!accessToken) {
+    console.warn("⚠️ Aucun access_token dans la session");
+    return;
+  }
+
+  // Détecter le provider depuis le format du token
+  const detectedProvider = detectProviderFromToken(accessToken);
+  
+  if (!detectedProvider) {
+    console.warn("⚠️ Impossible de détecter le provider depuis le token");
+    return;
+  }
+
+  console.log(`✅ Provider détecté: ${detectedProvider}`);
+
+  // Vérifier que le provider détecté correspond à une identité de l'utilisateur
+  const identities = user.identities || [];
+  const hasIdentity = identities.some((i: any) => {
+    const normalized = normalizeProviderFromIdentity(i.provider);
+    return normalized === detectedProvider;
+  });
+
+  if (!hasIdentity) {
+    console.warn(`⚠️ Le provider ${detectedProvider} n'est pas dans les identités de l'utilisateur`);
     return;
   }
 
@@ -44,25 +77,25 @@ async function saveCurrentProviderTokens() {
   const { error } = await supabase.from("oauth_tokens").upsert(
     {
       user_id: user.id,
-      provider,
-      access_token: accessToken ?? undefined,
+      provider: detectedProvider,
+      access_token: accessToken,
       refresh_token: refreshToken ?? undefined,
-      expires_at: expiresAtIso ? expiresAtIso : null,
+      expires_at: expiresAtIso,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
   );
 
   if (error) {
-    console.error(`❌ Erreur sauvegarde tokens ${provider}:`, error);
+    console.error(`❌ Erreur sauvegarde tokens ${detectedProvider}:`, error);
   } else {
-    console.log(`✅ Tokens ${provider} sauvegardés pour user ${user.id}`);
+    console.log(`✅ Tokens ${detectedProvider} sauvegardés pour user ${user.id}`);
     
     // Vérifier si c'était une connexion en attente
     const pendingProvider = localStorage.getItem("pending_provider_connection");
-    if (pendingProvider === provider) {
+    if (pendingProvider === detectedProvider) {
       localStorage.removeItem("pending_provider_connection");
-      toast.success(`${provider} connecté avec succès !`, {
+      toast.success(`${detectedProvider} connecté avec succès !`, {
         description: "Vos données seront maintenant synchronisées.",
       });
     }
@@ -79,7 +112,10 @@ const AuthTokensWatcher: React.FC = () => {
       
       // Sur tout rafraîchissement de session, tentative de sauvegarde
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
-        saveCurrentProviderTokens();
+        // Petit délai pour laisser la session se stabiliser
+        setTimeout(() => {
+          saveCurrentProviderTokens();
+        }, 500);
       }
     });
 

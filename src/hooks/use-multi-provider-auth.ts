@@ -42,6 +42,20 @@ type ConnectedProviders = {
   [K in Provider]: boolean;
 };
 
+function isTokenValid(token: string | null, provider: Provider): boolean {
+  if (!token) return false;
+  
+  // Vérifier le format du token
+  if (provider === "google") {
+    return token.startsWith("ya29.");
+  }
+  if (provider === "microsoft") {
+    return token.startsWith("eyJ") && token.split(".").length === 3;
+  }
+  
+  return token.length > 20;
+}
+
 export function useMultiProviderAuth() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -73,21 +87,37 @@ export function useMultiProviderAuth() {
 
     setUser(currentUser);
 
-    // Vérifier quels providers ont des tokens dans oauth_tokens
+    // Vérifier quels providers ont des tokens VALIDES dans oauth_tokens
     const { data: tokens } = await supabase
       .from("oauth_tokens")
-      .select("provider")
+      .select("provider, access_token, refresh_token")
       .eq("user_id", currentUser.id);
 
-    const tokenProviders = new Set(tokens?.map(t => t.provider) || []);
-
     const connected: ConnectedProviders = {
-      google: tokenProviders.has("google"),
-      microsoft: tokenProviders.has("microsoft"),
-      apple: tokenProviders.has("apple"),
-      facebook: tokenProviders.has("facebook"),
-      amazon: tokenProviders.has("amazon"),
+      google: false,
+      microsoft: false,
+      apple: false,
+      facebook: false,
+      amazon: false,
     };
+
+    if (tokens) {
+      for (const token of tokens) {
+        const provider = token.provider as Provider;
+        // Vérifier que le token a le bon format
+        if (isTokenValid(token.access_token, provider) || token.refresh_token) {
+          connected[provider] = true;
+        } else {
+          console.warn(`⚠️ Token invalide pour ${provider}, suppression...`);
+          // Supprimer le token invalide
+          await supabase
+            .from("oauth_tokens")
+            .delete()
+            .eq("user_id", currentUser.id)
+            .eq("provider", provider);
+        }
+      }
+    }
 
     setConnectedProviders(connected);
     setLoading(false);
@@ -97,7 +127,10 @@ export function useMultiProviderAuth() {
     checkConnectedProviders();
 
     const { data } = supabase.auth.onAuthStateChange(() => {
-      checkConnectedProviders();
+      // Petit délai pour laisser les tokens se sauvegarder
+      setTimeout(() => {
+        checkConnectedProviders();
+      }, 1000);
     });
 
     return () => data.subscription.unsubscribe();
@@ -126,8 +159,6 @@ export function useMultiProviderAuth() {
     }
 
     // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
-    // Si l'utilisateur existe déjà, Supabase va automatiquement lier l'identité
-    // si "Manual linking" est activé
     const { error } = await supabase.auth.signInWithOAuth({ 
       provider: config.supabaseProvider as any, 
       options 

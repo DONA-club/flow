@@ -1,0 +1,1 @@
+DELETE FROM oauth_tokens WHERE user_id = 'f1f24a4a-b595-41bb-acb6-a310eac63ea4';
