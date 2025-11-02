@@ -13,7 +13,7 @@ const Index = () => {
   };
 
   return (
-    <div className="relative min-h-[200vh] overflow-x-hidden bg-black">
+    <div className="relative min-h-[200vh] overflow-x-hidden">
       {/* Point blanc central + effets */}
       <div className="fixed inset-0 flex items-center justify-center z-10">
         <div className="relative">
@@ -23,15 +23,12 @@ const Index = () => {
             aria-label="Ouvrir le calendrier circulaire"
           />
           <SparkBurst active={burstActive} />
+          {/* Logo juste sous le point blanc, centré, taille à ~3.4rem (phi * 5.5rem) */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3">
+            <LogoScroller onActiveIndexChange={handleChange} />
+          </div>
         </div>
       </div>
-
-      {/* Un seul logo à la fois, qui se fond et disparaît au scroll */}
-      <LogoScroller
-        onActiveIndexChange={() => {
-          handleChange();
-        }}
-      />
     </div>
   );
 };

@@ -26,12 +26,10 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
         setCurrentIndex(idx);
         setShowPrev(true);
         onActiveIndexChange?.(idx, providers[idx]);
-        // Masquer l'ancien après l'anim
         setTimeout(() => setShowPrev(false), 420);
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
-    // Initial call
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, [currentIndex, onActiveIndexChange]);
@@ -40,19 +38,14 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
   const prev = prevIndex != null ? providers[prevIndex] : null;
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-20 pointer-events-none"
-      aria-hidden="false"
-    >
-      <div className="relative pointer-events-auto w-28 h-28">
-        {showPrev && prev && (
-          <div className="absolute inset-0 logo-exit">
-            <BrandIcon name={prev} className="w-full h-full" />
-          </div>
-        )}
-        <div key={current} className="absolute inset-0 logo-enter">
-          <BrandIcon name={current} className="w-full h-full" />
+    <div className="relative w-[3.4rem] h-[3.4rem]" aria-hidden="false">
+      {showPrev && prev && (
+        <div className="absolute inset-0 logo-exit">
+          <BrandIcon name={prev} className="w-full h-full" />
         </div>
+      )}
+      <div key={current} className="absolute inset-0 logo-enter">
+        <BrandIcon name={current} className="w-full h-full" />
       </div>
     </div>
   );
