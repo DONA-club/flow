@@ -13,7 +13,7 @@ const Index = () => {
   };
 
   return (
-    <div className="relative min-h-[200vh] overflow-x-hidden">
+    <div className="relative min-h-screen overflow-hidden">
       {/* Point blanc central + effets */}
       <div className="fixed inset-0 flex items-center justify-center z-10">
         <div className="relative">
@@ -23,8 +23,8 @@ const Index = () => {
             aria-label="Ouvrir le calendrier circulaire"
           />
           <SparkBurst active={burstActive} />
-          {/* Logo juste sous le point blanc, centré, taille à ~3.4rem (phi * 5.5rem) */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3">
+          {/* Logo juste sous le point blanc, centré, taille ~1.7rem (2x plus petit que 3.4rem) */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2">
             <LogoScroller onActiveIndexChange={handleChange} />
           </div>
         </div>
