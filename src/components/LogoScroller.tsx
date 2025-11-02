@@ -1,19 +1,17 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ProviderBadge from "@/components/ProviderBadge";
-import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
-
-type ProviderName = "google" | "microsoft" | "apple" | "facebook" | "amazon";
+import { useMultiProviderAuth, type Provider } from "@/hooks/use-multi-provider-auth";
 
 type Props = {
-  onActiveIndexChange?: (index: number, provider: ProviderName) => void;
+  onActiveIndexChange?: (index: number, provider: Provider) => void;
 };
 
-const providers: ProviderName[] = ["google", "microsoft", "apple", "facebook", "amazon"];
+const providers: Provider[] = ["google", "microsoft", "apple", "facebook", "amazon"];
 
 const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
-  const { user, connectedProviders } = useMultiProviderAuth();
+  const { user, connectedProviders, connectProvider } = useMultiProviderAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState<number | null>(null);
   const [showPrev, setShowPrev] = useState(false);
@@ -28,14 +26,14 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
       setCurrentIndex(safeIdx);
       setShowPrev(true);
       onActiveIndexChange?.(safeIdx, providers[safeIdx]);
-      // cacher l'ancien après l’animation
       setTimeout(() => setShowPrev(false), 420);
     },
     [currentIndex, onActiveIndexChange]
   );
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
+  // Handlers pour interaction globale
+  const handleWindowWheel = useCallback(
+    (e: WheelEvent) => {
       e.preventDefault();
       if (lock) return;
       const dir = e.deltaY > 0 ? 1 : -1;
@@ -47,8 +45,8 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     [currentIndex, goToIndex, lock]
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleWindowKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (lock) return;
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
         setLock(true);
@@ -63,16 +61,16 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     [currentIndex, goToIndex, lock]
   );
 
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartY.current = e.touches[0].clientY;
+  const handleWindowTouchStart = useCallback((e: TouchEvent) => {
+    touchStartY.current = e.touches[0]?.clientY ?? null;
   }, []);
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleWindowTouchEnd = useCallback(
+    (e: TouchEvent) => {
       if (lock) return;
       const start = touchStartY.current;
-      const end = e.changedTouches[0].clientY;
-      if (start == null) return;
+      const end = e.changedTouches[0]?.clientY ?? null;
+      if (start == null || end == null) return;
       const delta = end - start;
       if (Math.abs(delta) < 20) return;
       setLock(true);
@@ -87,19 +85,36 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     [currentIndex, goToIndex, lock]
   );
 
+  useEffect(() => {
+    // Interaction globale sur toute la page
+    window.addEventListener("wheel", handleWindowWheel, { passive: false });
+    window.addEventListener("keydown", handleWindowKeyDown, { passive: true });
+    window.addEventListener("touchstart", handleWindowTouchStart, { passive: true });
+    window.addEventListener("touchend", handleWindowTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("wheel", handleWindowWheel as any);
+      window.removeEventListener("keydown", handleWindowKeyDown as any);
+      window.removeEventListener("touchstart", handleWindowTouchStart as any);
+      window.removeEventListener("touchend", handleWindowTouchEnd as any);
+    };
+  }, [handleWindowWheel, handleWindowKeyDown, handleWindowTouchStart, handleWindowTouchEnd]);
+
   const current = providers[currentIndex];
   const prev = prevIndex != null ? providers[prevIndex] : null;
 
+  const handleClick = () => {
+    if (lock) return;
+    connectProvider(current);
+  };
+
   return (
     <div
-      className="relative w-[1.7rem] h-[1.7rem] group pointer-events-auto select-none"
-      onWheel={handleWheel}
-      onKeyDown={handleKeyDown}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      className="relative w-[1.95rem] h-[1.95rem] group pointer-events-auto select-none cursor-pointer"
       role="button"
-      aria-label="Dérouler les logos de providers"
+      aria-label={`Se connecter avec ${current}`}
       tabIndex={0}
+      onClick={handleClick}
     >
       {showPrev && prev && (
         <div className="absolute inset-0 logo-exit">

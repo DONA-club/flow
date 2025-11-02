@@ -23,8 +23,8 @@ const Index = () => {
             aria-label="Ouvrir le calendrier circulaire"
           />
           <SparkBurst active={burstActive} />
-          {/* Logo juste sous le point blanc, centré, taille ~1.7rem (2x plus petit que 3.4rem) */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2">
+          {/* Logo sous le point blanc, centré, légèrement plus bas */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3">
             <LogoScroller onActiveIndexChange={handleChange} />
           </div>
         </div>
