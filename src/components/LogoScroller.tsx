@@ -20,7 +20,8 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
 
   const goToIndex = useCallback(
     (idx: number) => {
-      const safeIdx = Math.max(0, Math.min(idx, providers.length - 1));
+      const max = providers.length - 1;
+      const safeIdx = Math.max(0, Math.min(idx, max));
       if (safeIdx === currentIndex) return;
       setPrevIndex(currentIndex);
       setCurrentIndex(safeIdx);
@@ -37,6 +38,10 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
       if (lock) return;
       const dir = e.deltaY > 0 ? 1 : -1;
       const next = currentIndex + dir;
+      // Bloquer aux extrémités pour éviter la boucle
+      if ((dir < 0 && currentIndex <= 0) || (dir > 0 && currentIndex >= providers.length - 1)) {
+        return;
+      }
       setLock(true);
       goToIndex(next);
       setTimeout(() => setLock(false), 500);
@@ -48,10 +53,12 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     (e: KeyboardEvent) => {
       if (lock) return;
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        if (currentIndex >= providers.length - 1) return; // blocage à droite/bas
         setLock(true);
         goToIndex(currentIndex + 1);
         setTimeout(() => setLock(false), 500);
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        if (currentIndex <= 0) return; // blocage à gauche/haut
         setLock(true);
         goToIndex(currentIndex - 1);
         setTimeout(() => setLock(false), 500);
@@ -72,12 +79,14 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
       if (start == null || end == null) return;
       const delta = end - start;
       if (Math.abs(delta) < 20) return;
-      setLock(true);
-      if (delta < 0) {
-        goToIndex(currentIndex + 1);
-      } else {
-        goToIndex(currentIndex - 1);
+      const dir = delta < 0 ? 1 : -1;
+      // Bloquer aux extrémités
+      if ((dir < 0 && currentIndex <= 0) || (dir > 0 && currentIndex >= providers.length - 1)) {
+        touchStartY.current = null;
+        return;
       }
+      setLock(true);
+      goToIndex(currentIndex + dir);
       setTimeout(() => setLock(false), 500);
       touchStartY.current = null;
     },

@@ -10,7 +10,8 @@ const Index = () => {
   const [burstActive, setBurstActive] = useState(false);
   const { connectedProviders } = useMultiProviderAuth();
 
-  const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
+  // Autoriser l'entrée si au moins un provider est connecté
+  const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
   const handleChange = () => {
     setBurstActive(true);
