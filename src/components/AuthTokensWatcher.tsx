@@ -3,13 +3,16 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-function normalizeProvider(p?: string | null): "google" | "microsoft" | null {
+function normalizeProvider(p?: string | null): "google" | "microsoft" | "apple" | "facebook" | "amazon" | null {
   if (!p) return null;
   const v = p.toLowerCase();
   if (v === "google") return "google";
   if (v === "azure" || v === "azure-oidc" || v === "azuread" || v === "microsoft" || v === "outlook") {
     return "microsoft";
   }
+  if (v === "apple") return "apple";
+  if (v === "facebook") return "facebook";
+  if (v === "amazon") return "amazon";
   return null;
 }
 
@@ -29,24 +32,28 @@ async function saveCurrentProviderTokens() {
   // Si aucun token, rien à sauvegarder
   if (!accessToken && !refreshToken) return;
 
-  // Estimation d’expiration: on utilise session.expires_at si dispo
-  // (Unix seconds) pour calculer expires_at côté DB
+  // Estimation d'expiration
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
 
-  // Scope inconnu côté session → on le laisse tel quel si on met à jour, sinon null
-  // On upsert sur (user_id, provider)
-  await supabase.from("oauth_tokens").upsert(
+  // Upsert sur (user_id, provider)
+  const { error } = await supabase.from("oauth_tokens").upsert(
     {
       user_id: user.id,
       provider,
       access_token: accessToken ?? undefined,
       refresh_token: refreshToken ?? undefined,
-      scope: undefined,
       expires_at: expiresAtIso ? expiresAtIso : null,
+      updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
   );
+
+  if (error) {
+    console.error(`Erreur sauvegarde tokens ${provider}:`, error);
+  } else {
+    console.log(`✓ Tokens ${provider} sauvegardés pour user ${user.id}`);
+  }
 }
 
 const AuthTokensWatcher: React.FC = () => {
@@ -54,10 +61,11 @@ const AuthTokensWatcher: React.FC = () => {
     // Sauvegarde initiale si on arrive déjà authentifié
     saveCurrentProviderTokens();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, _session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, _session) => {
       // Sur tout rafraîchissement de session, tentative de sauvegarde
-      // SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED nous intéressent
-      saveCurrentProviderTokens();
+      if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+        saveCurrentProviderTokens();
+      }
     });
 
     return () => {

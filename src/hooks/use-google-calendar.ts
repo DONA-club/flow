@@ -6,8 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type CalendarEvent = {
   title: string;
   place: string;
-  start: number; // heure décimale (0-23)
-  end: number;   // heure décimale (0-23)
+  start: number;
+  end: number;
   url?: string;
   raw?: any;
 };
@@ -29,15 +29,9 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-type TokenRow = {
-  access_token: string | null;
-  refresh_token: string | null;
-  expires_at: string | null;
-};
-
-async function getSavedGoogleTokens(): Promise<TokenRow | null> {
+async function getGoogleTokens() {
   const { data: sess } = await supabase.auth.getSession();
-  const userId = (sess?.session as any)?.user?.id ?? null;
+  const userId = sess?.session?.user?.id;
   if (!userId) return null;
 
   const { data, error } = await supabase
@@ -47,20 +41,38 @@ async function getSavedGoogleTokens(): Promise<TokenRow | null> {
     .eq("provider", "google")
     .maybeSingle();
 
-  if (error) return null;
-  return (data as any) ?? null;
+  if (error || !data) return null;
+  return data;
 }
 
-async function refreshAccessTokenViaEdge(refreshToken: string, supaAccess: string): Promise<string | null> {
-  const { data: resp, error } = await supabase.functions.invoke("google-token-refresh", {
+async function refreshGoogleToken(refreshToken: string) {
+  const { data: sess } = await supabase.auth.getSession();
+  const supaAccess = sess?.session?.access_token;
+  if (!supaAccess) return null;
+
+  const { data, error } = await supabase.functions.invoke("google-token-refresh", {
     body: { refresh_token: refreshToken },
-    headers: {
-      Authorization: `Bearer ${supaAccess}`,
-    },
+    headers: { Authorization: `Bearer ${supaAccess}` },
   });
-  if (error) return null;
-  const accessToken: string | undefined = (resp as any)?.access_token;
-  return accessToken || null;
+
+  if (error || !data) return null;
+  
+  const newAccessToken = data.access_token;
+  if (!newAccessToken) return null;
+
+  // Sauvegarder le nouveau token
+  const userId = sess?.session?.user?.id;
+  await supabase.from("oauth_tokens").upsert(
+    {
+      user_id: userId,
+      provider: "google",
+      access_token: newAccessToken,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,provider" }
+  );
+
+  return newAccessToken;
 }
 
 export function useGoogleCalendar(options?: Options): Result {
@@ -77,37 +89,18 @@ export function useGoogleCalendar(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    const { data: s } = await supabase.auth.getSession();
-    const supaAccess = (s?.session as any)?.access_token ?? null;
+    const tokens = await getGoogleTokens();
+    let accessToken = tokens?.access_token;
 
-    // 1) Récupération des tokens persistés
-    let tokens = await getSavedGoogleTokens();
-    let token = tokens?.access_token ?? null;
-
-    // 2) Si pas d’access_token → tenter refresh
-    if (!token && tokens?.refresh_token && supaAccess) {
-      const refreshed = await refreshAccessTokenViaEdge(tokens.refresh_token, supaAccess);
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-        // Upsert l’access token rafraîchi
-        const userId = (s?.session as any)?.user?.id;
-        await supabase.from("oauth_tokens").upsert(
-          {
-            user_id: userId,
-            provider: "google",
-            access_token: refreshed,
-          },
-          { onConflict: "user_id,provider" }
-        );
-      }
+    if (!accessToken && tokens?.refresh_token) {
+      accessToken = await refreshGoogleToken(tokens.refresh_token);
     }
 
-    if (!token) {
+    if (!accessToken) {
       setConnected(false);
       setEvents([]);
       setLoading(false);
-      setError("Aucun jeton Google disponible. Clique Google et consent offline + calendar.readonly.");
+      setError("Google non connecté. Connectez Google depuis la page d'accueil.");
       return;
     }
 
@@ -119,15 +112,14 @@ export function useGoogleCalendar(options?: Options): Result {
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (res.status === 401 || res.status === 403) {
-      setConnected(false);
-      setEvents([]);
-      setLoading(false);
-      setError("Jeton Google invalide/expiré. Clique Google pour re-consentir.");
-      return;
+    if (res.status === 401 && tokens?.refresh_token) {
+      const newToken = await refreshGoogleToken(tokens.refresh_token);
+      if (newToken) {
+        return fetchEvents();
+      }
     }
 
     if (!res.ok) {
@@ -170,14 +162,6 @@ export function useGoogleCalendar(options?: Options): Result {
   React.useEffect(() => {
     if (!enabled) return;
     fetchEvents();
-  }, [enabled, fetchEvents]);
-
-  React.useEffect(() => {
-    if (!enabled) return;
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      fetchEvents();
-    });
-    return () => data.subscription.unsubscribe();
   }, [enabled, fetchEvents]);
 
   return {

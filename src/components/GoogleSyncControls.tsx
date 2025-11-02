@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import GoogleAuthButton from "@/components/GoogleAuthButton";
+import ProviderButton from "@/components/ProviderButton";
 import { CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 type Props = {
@@ -43,7 +43,7 @@ const GoogleSyncControls: React.FC<Props> = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <GoogleAuthButton />
+        <ProviderButton provider="google" />
         <Button
           type="button"
           variant="secondary"

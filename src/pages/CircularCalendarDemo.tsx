@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
-import { Button } from "@/components/ui/button";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
-import { Calendar } from "lucide-react";
+import { Calendar, ArrowLeft } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
@@ -11,14 +10,8 @@ import EventInfoBubble from "@/components/EventInfoBubble";
 import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
-import { useAuthProviders } from "@/hooks/use-auth-providers";
-
-const mockEvents = [
-  { title: "Morning Meeting", place: "Office", start: 9, end: 10 },
-  { title: "Lunch with Sarah", place: "Cafe", start: 12, end: 13 },
-  { title: "Project Review", place: "Zoom", start: 15, end: 16 },
-  { title: "Gym", place: "Fitness Center", start: 18, end: 19 },
-];
+import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
+import { Link } from "react-router-dom";
 
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
@@ -48,17 +41,16 @@ type LogType = "info" | "success" | "error";
 
 const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
+  const { connectedProviders } = useMultiProviderAuth();
 
-  // Active les hooks uniquement quand l’identité existe
-  const { googleConnected, microsoftConnected } = useAuthProviders();
-
+  // Charger les données uniquement si les providers sont connectés
   const {
     events: gEvents,
     loading: gLoading,
     error: gError,
     connected: gConnected,
     refresh: refreshGoogle,
-  } = useGoogleCalendar({ enabled: googleConnected });
+  } = useGoogleCalendar({ enabled: connectedProviders.google });
 
   const {
     events: oEvents,
@@ -66,7 +58,7 @@ const CircularCalendarDemo = () => {
     error: oError,
     connected: oConnected,
     refresh: refreshOutlook,
-  } = useOutlookCalendar({ enabled: microsoftConnected });
+  } = useOutlookCalendar({ enabled: connectedProviders.microsoft });
 
   const {
     wakeHour,
@@ -75,14 +67,14 @@ const CircularCalendarDemo = () => {
     error: fitError,
     connected: fitConnected,
     refresh: refreshFit,
-  } = useGoogleFitSleep({ enabled: googleConnected });
+  } = useGoogleFitSleep({ enabled: connectedProviders.google });
 
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<{ title: string; place?: string; start?: number; end?: number; raw?: any } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -113,7 +105,7 @@ const CircularCalendarDemo = () => {
     } else if (gError) {
       setLogs([{ message: gError, type: "error" }]);
     } else if (gConnected && gEvents.length > 0) {
-      setLogs([{ message: "Calendrier Google synchronisé ✔️", type: "success" }]);
+      setLogs([{ message: `${gEvents.length} événements Google synchronisés ✔️`, type: "success" }]);
     }
   }, [gLoading, gError, gConnected, gEvents.length]);
 
@@ -123,7 +115,7 @@ const CircularCalendarDemo = () => {
     } else if (oError) {
       setLogs([{ message: oError, type: "error" }]);
     } else if (oConnected && oEvents.length > 0) {
-      setLogs([{ message: "Calendrier Outlook synchronisé ✔️", type: "success" }]);
+      setLogs([{ message: `${oEvents.length} événements Outlook synchronisés ✔️`, type: "success" }]);
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
@@ -134,8 +126,6 @@ const CircularCalendarDemo = () => {
       setLogs([{ message: fitError, type: "error" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
       setLogs([{ message: "Heures lever/coucher récupérées ✔️ (Google Fit)", type: "success" }]);
-    } else {
-      setLogs([{ message: "Mode simulé: lever 07:47 / coucher 22:32", type: "info" }]);
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
@@ -152,57 +142,14 @@ const CircularCalendarDemo = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
-  const combinedEvents = (gEvents.length > 0 || oEvents.length > 0)
-    ? [...gEvents, ...oEvents].sort((a, b) => {
-        const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
-        const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
-        return new Date(aStart).getTime() - new Date(bStart).getTime();
-      })
-    : mockEvents;
+  // Fusionner tous les événements
+  const combinedEvents = [...gEvents, ...oEvents].sort((a, b) => {
+    const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
+    const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
+    return new Date(aStart).getTime() - new Date(bStart).getTime();
+  });
 
-  // Auto-choisir l'événement le plus proche à venir pour l'afficher au centre
-  useEffect(() => {
-    // Ne pas écraser une sélection manuelle récente
-    if (selectedEvent) return;
-
-    const now = Date.now();
-    let nearest: any = null;
-    let nearestDelta = Number.POSITIVE_INFINITY;
-
-    const toStartTs = (evt: any) => {
-      const rawIso = evt?.raw?.start?.dateTime || evt?.raw?.start || null;
-      if (rawIso) {
-        const ts = new Date(rawIso).getTime();
-        return ts;
-      }
-      // fallback: construire un timestamp aujourd'hui à l'heure décimale
-      if (typeof evt?.start === "number") {
-        const d = new Date();
-        const h = Math.floor(evt.start);
-        const m = Math.round((evt.start % 1) * 60);
-        d.setHours(h, m, 0, 0);
-        return d.getTime();
-      }
-      return null;
-    };
-
-    combinedEvents.forEach((evt) => {
-      const ts = toStartTs(evt);
-      if (ts && ts >= now) {
-        const delta = ts - now;
-        if (delta < nearestDelta) {
-          nearestDelta = delta;
-          nearest = evt;
-        }
-      }
-    });
-
-    if (nearest) {
-      setSelectedEvent(nearest);
-    }
-  }, [combinedEvents, selectedEvent]);
-
-  // Auto-refresh: inclure Google Fit si Google est connecté
+  // Auto-refresh toutes les minutes
   useEffect(() => {
     const id = window.setInterval(() => {
       refreshGoogle();
@@ -212,22 +159,47 @@ const CircularCalendarDemo = () => {
     return () => window.clearInterval(id);
   }, [refreshGoogle, refreshOutlook, refreshFit]);
 
+  const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
+
   return (
     <>
       <FontLoader />
 
-      {/* Liste des événements à venir (fusionnée) */}
-      <UpcomingEventsList
-        events={combinedEvents}
-        onSelect={(evt) => {
-          setSelectedEvent(evt);
-          toast.info("Détails de l'événement", {
-            description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
-          });
-        }}
-      />
+      <Link 
+        to="/" 
+        className="fixed top-4 left-4 z-30 flex items-center gap-2 px-4 py-2 glass backdrop-blur-md rounded-xl hover:bg-white/20 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4 text-white" />
+        <span className="text-white text-sm font-medium">Retour</span>
+      </Link>
+
+      {hasAnyConnection && (
+        <UpcomingEventsList
+          events={combinedEvents}
+          onSelect={(evt) => {
+            setSelectedEvent(evt);
+            toast.info("Détails de l'événement", {
+              description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
+            });
+          }}
+        />
+      )}
 
       <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
+        {!hasAnyConnection && (
+          <div className="mb-8 text-center glass p-6 rounded-2xl backdrop-blur-md max-w-md">
+            <p className="text-white/90 mb-4">
+              Aucun compte connecté. Retournez à la page d'accueil pour connecter vos comptes.
+            </p>
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-white font-medium"
+            >
+              Connecter mes comptes
+            </Link>
+          </div>
+        )}
+
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
@@ -256,14 +228,8 @@ const CircularCalendarDemo = () => {
             />
           )}
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg.white/80 z-10 text-red-500 gap-2">
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={retry}>
-                Réessayer
-              </Button>
-              <span className="text-xs text-gray-400 mt-2">
-                Si le problème persiste, vérifiez que la localisation est activée sur votre appareil et que votre navigateur a l'autorisation.
-              </span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">
+              <span className="text-sm text-center px-4">{error}</span>
             </div>
           )}
         </div>

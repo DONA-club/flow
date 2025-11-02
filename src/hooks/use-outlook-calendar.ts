@@ -29,15 +29,9 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-type TokenRow = {
-  access_token: string | null;
-  refresh_token: string | null;
-  expires_at: string | null;
-};
-
-async function getSavedMicrosoftTokens(): Promise<TokenRow | null> {
+async function getMicrosoftTokens() {
   const { data: sess } = await supabase.auth.getSession();
-  const userId = (sess?.session as any)?.user?.id ?? null;
+  const userId = sess?.session?.user?.id;
   if (!userId) return null;
 
   const { data, error } = await supabase
@@ -47,24 +41,41 @@ async function getSavedMicrosoftTokens(): Promise<TokenRow | null> {
     .eq("provider", "microsoft")
     .maybeSingle();
 
-  if (error) return null;
-  return (data as any) ?? null;
+  if (error || !data) return null;
+  return data;
 }
 
-async function refreshAccessTokenViaEdge(refreshToken: string, supaAccess: string): Promise<string | null> {
-  const scopes = "Calendars.Read offline_access openid profile email";
-  const { data: resp, error } = await supabase.functions.invoke(
-    "microsoft-token-refresh",
+async function refreshMicrosoftToken(refreshToken: string) {
+  const { data: sess } = await supabase.auth.getSession();
+  const supaAccess = sess?.session?.access_token;
+  if (!supaAccess) return null;
+
+  const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
+    body: { 
+      refresh_token: refreshToken,
+      scope: "Calendars.Read offline_access openid profile email"
+    },
+    headers: { Authorization: `Bearer ${supaAccess}` },
+  });
+
+  if (error || !data) return null;
+  
+  const newAccessToken = data.access_token;
+  if (!newAccessToken) return null;
+
+  // Sauvegarder le nouveau token
+  const userId = sess?.session?.user?.id;
+  await supabase.from("oauth_tokens").upsert(
     {
-      body: { refresh_token: refreshToken, scope: scopes },
-      headers: {
-        Authorization: `Bearer ${supaAccess}`,
-      },
-    }
+      user_id: userId,
+      provider: "microsoft",
+      access_token: newAccessToken,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,provider" }
   );
-  if (error) return null;
-  const accessToken: string | undefined = (resp as any)?.access_token;
-  return accessToken || null;
+
+  return newAccessToken;
 }
 
 export function useOutlookCalendar(options?: Options): Result {
@@ -81,41 +92,21 @@ export function useOutlookCalendar(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    const { data: s } = await supabase.auth.getSession();
-    const supaAccess = (s?.session as any)?.access_token ?? null;
+    const tokens = await getMicrosoftTokens();
+    let accessToken = tokens?.access_token;
 
-    // 1) Récupère tokens persistés
-    let tokens = await getSavedMicrosoftTokens();
-    let token = tokens?.access_token ?? null;
-
-    // 2) Pas d’access_token → tenter refresh si possible
-    if (!token && tokens?.refresh_token && supaAccess) {
-      const refreshed = await refreshAccessTokenViaEdge(tokens.refresh_token, supaAccess);
-      if (refreshed) {
-        token = refreshed;
-        setConnected(true);
-        // Upsert l’access token rafraîchi
-        const userId = (s?.session as any)?.user?.id;
-        await supabase.from("oauth_tokens").upsert(
-          {
-            user_id: userId,
-            provider: "microsoft",
-            access_token: refreshed,
-          },
-          { onConflict: "user_id,provider" }
-        );
-      }
+    if (!accessToken && tokens?.refresh_token) {
+      accessToken = await refreshMicrosoftToken(tokens.refresh_token);
     }
 
-    if (!token) {
+    if (!accessToken) {
       setConnected(false);
       setEvents([]);
       setLoading(false);
-      setError("Aucun jeton Microsoft disponible. Cliques sur Microsoft (seul) pour consenter, puis reviens ici.");
+      setError("Microsoft non connecté. Connectez Microsoft depuis la page d'accueil.");
       return;
     }
 
-    // Fenêtre de 3 jours via calendarView
     const now = new Date();
     const end = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const startISO = now.toISOString();
@@ -129,17 +120,16 @@ export function useOutlookCalendar(options?: Options): Result {
 
     const res = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${accessToken}`,
         Accept: "application/json",
       },
     });
 
-    if (res.status === 401 || res.status === 403) {
-      setConnected(false);
-      setEvents([]);
-      setLoading(false);
-      setError("Jeton Microsoft invalide/expiré. Clique Microsoft pour re-consentir.");
-      return;
+    if (res.status === 401 && tokens?.refresh_token) {
+      const newToken = await refreshMicrosoftToken(tokens.refresh_token);
+      if (newToken) {
+        return fetchEvents();
+      }
     }
 
     if (!res.ok) {
@@ -192,14 +182,6 @@ export function useOutlookCalendar(options?: Options): Result {
   React.useEffect(() => {
     if (!enabled) return;
     fetchEvents();
-  }, [enabled, fetchEvents]);
-
-  React.useEffect(() => {
-    if (!enabled) return;
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      fetchEvents();
-    });
-    return () => data.subscription.unsubscribe();
   }, [enabled, fetchEvents]);
 
   return {
