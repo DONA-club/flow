@@ -42,18 +42,17 @@ type ConnectedProviders = {
   [K in Provider]: boolean;
 };
 
-function isTokenValid(token: string | null, provider: Provider): boolean {
+function isTokenValid(token: string | null, _provider: Provider): boolean {
   if (!token) return false;
-  
-  // Vérifier le format du token
-  if (provider === "google") {
-    return token.startsWith("ya29.");
+  // Heuristique permissive: tout token non trivial est considéré comme présent
+  return token.length > 10;
+}
+
+function identityMatchesProvider(identityProvider: string, target: Provider): boolean {
+  if (target === "microsoft") {
+    return ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(identityProvider);
   }
-  if (provider === "microsoft") {
-    return token.startsWith("eyJ") && token.split(".").length === 3;
-  }
-  
-  return token.length > 20;
+  return identityProvider === target;
 }
 
 export function useMultiProviderAuth() {
@@ -87,35 +86,31 @@ export function useMultiProviderAuth() {
 
     setUser(currentUser);
 
-    // Vérifier quels providers ont des tokens VALIDES dans oauth_tokens
+    // 1) Partir des identities (compte réellement lié)
+    const identities = currentUser.identities || [];
+    const connectedFromIdentities: ConnectedProviders = {
+      google: identities.some((i: any) => identityMatchesProvider(i.provider, "google")),
+      microsoft: identities.some((i: any) => identityMatchesProvider(i.provider, "microsoft")),
+      apple: identities.some((i: any) => identityMatchesProvider(i.provider, "apple")),
+      facebook: identities.some((i: any) => identityMatchesProvider(i.provider, "facebook")),
+      amazon: identities.some((i: any) => identityMatchesProvider(i.provider, "amazon")),
+    };
+
+    // 2) Vérifier les tokens dans oauth_tokens (si présents)
     const { data: tokens } = await supabase
       .from("oauth_tokens")
       .select("provider, access_token, refresh_token")
       .eq("user_id", currentUser.id);
 
-    const connected: ConnectedProviders = {
-      google: false,
-      microsoft: false,
-      apple: false,
-      facebook: false,
-      amazon: false,
-    };
+    const connected: ConnectedProviders = { ...connectedFromIdentities };
 
     if (tokens) {
       for (const token of tokens) {
         const provider = token.provider as Provider;
-        // Vérifier que le token a le bon format
         if (isTokenValid(token.access_token, provider) || token.refresh_token) {
           connected[provider] = true;
-        } else {
-          console.warn(`⚠️ Token invalide pour ${provider}, suppression...`);
-          // Supprimer le token invalide
-          await supabase
-            .from("oauth_tokens")
-            .delete()
-            .eq("user_id", currentUser.id)
-            .eq("provider", provider);
         }
+        // Ne plus supprimer agressivement: certains providers changent le format du token
       }
     }
 
@@ -127,7 +122,6 @@ export function useMultiProviderAuth() {
     checkConnectedProviders();
 
     const { data } = supabase.auth.onAuthStateChange(() => {
-      // Petit délai pour laisser les tokens se sauvegarder
       setTimeout(() => {
         checkConnectedProviders();
       }, 1000);
@@ -139,7 +133,6 @@ export function useMultiProviderAuth() {
   const connectProvider = useCallback(async (provider: Provider) => {
     const config = PROVIDER_CONFIGS[provider];
     
-    // Stocker le provider demandé dans localStorage pour le récupérer après redirect
     localStorage.setItem("pending_provider_connection", provider);
     
     toast(`Redirection vers ${provider}…`, {
@@ -158,7 +151,6 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
     const { error } = await supabase.auth.signInWithOAuth({ 
       provider: config.supabaseProvider as any, 
       options 
@@ -178,7 +170,6 @@ export function useMultiProviderAuth() {
   const disconnectProvider = useCallback(async (provider: Provider) => {
     if (!user) return false;
 
-    // Supprimer les tokens de la base
     const { error } = await supabase
       .from("oauth_tokens")
       .delete()
@@ -192,7 +183,6 @@ export function useMultiProviderAuth() {
       return false;
     }
 
-    // Essayer de délier l'identité (optionnel, peut échouer si c'est la dernière)
     const identities = user.identities || [];
     const identity = identities.find((i: any) => {
       if (provider === "microsoft") {

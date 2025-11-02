@@ -20,13 +20,27 @@ function getAvatarUrl(user: any, provider: Provider): string | null {
       : [provider];
   const identity = identities.find((i: any) => matches.includes(i.provider));
   const data = identity?.identity_data || {};
-  return (
+
+  // 1) Avatar depuis l’identité
+  const fromIdentity =
     data.avatar_url ||
     data.picture ||
     data.photo ||
     data.image ||
-    null
-  );
+    null;
+
+  if (fromIdentity) return fromIdentity;
+
+  // 2) Fallback: avatar depuis user_metadata (souvent alimenté par le provider)
+  const meta = user.user_metadata || {};
+  const fromMeta =
+    meta.avatar_url ||
+    meta.picture ||
+    meta.photo ||
+    meta.image ||
+    null;
+
+  return fromMeta;
 }
 
 const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, className }) => {
@@ -41,6 +55,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       <img
         src={avatarUrl}
         alt={`${provider} avatar`}
+        referrerPolicy="no-referrer"
         className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
           .join(" ")
           .trim()}
