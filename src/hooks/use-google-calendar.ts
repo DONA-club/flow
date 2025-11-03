@@ -29,14 +29,20 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+function looksLikeGoogleToken(token: string | null): boolean {
+  return !!token && token.startsWith("ya29.");
+}
+
 async function getGoogleTokens() {
   const { data: sess } = await supabase.auth.getSession();
-  const userId = sess?.session?.user?.id;
+  const session = sess?.session;
+  const userId = session?.user?.id;
   if (!userId) {
     console.log("❌ Pas d'utilisateur connecté");
     return null;
   }
 
+  // 1) Essayer la table oauth_tokens
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -44,29 +50,64 @@ async function getGoogleTokens() {
     .eq("provider", "google")
     .maybeSingle();
 
-  if (error) {
-    console.error("❌ Erreur lecture tokens Google:", error);
-    return null;
+  if (!error && data) {
+    console.log("✅ Tokens Google trouvés:", { hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
+    return data;
   }
-  
-  if (!data) {
-    console.log("⚠️ Aucun token Google trouvé dans oauth_tokens");
+
+  // 2) Fallback: si pas encore enregistré, tenter d'utiliser le provider_token de la session
+  const accessFromSession = session?.provider_token ?? null;
+  const refreshFromSession = session?.provider_refresh_token ?? null;
+
+  // Vérifier que l'utilisateur a bien une identité Google liée
+  const identities = session?.user?.identities || [];
+  const hasGoogleIdentity = identities.some((i: any) => i.provider === "google");
+
+  if (!hasGoogleIdentity) {
+    console.log("⚠️ Aucune identité Google liée au compte.");
     return null;
   }
 
-  console.log("✅ Tokens Google trouvés:", { 
-    hasAccess: !!data.access_token, 
-    hasRefresh: !!data.refresh_token 
-  });
-  
-  return data;
+  // Si le token de session ressemble à Google, l'enregistrer pour activer le flux
+  if (looksLikeGoogleToken(accessFromSession)) {
+    const expiresAtUnix = session?.expires_at ?? null;
+    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
+
+    const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
+      {
+        user_id: userId,
+        provider: "google",
+        access_token: accessFromSession!,
+        refresh_token: refreshFromSession ?? undefined,
+        expires_at: expiresAtIso,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,provider" }
+    );
+
+    if (upsertErr) {
+      console.error("❌ Erreur enregistrement token Google depuis la session:", upsertErr);
+      return null;
+    }
+
+    console.log("✅ Token Google enregistré depuis la session");
+    return {
+      access_token: accessFromSession!,
+      refresh_token: refreshFromSession ?? null,
+      expires_at: expiresAtIso,
+    } as any;
+  }
+
+  console.log("⚠️ Aucun token Google dans oauth_tokens et le provider_token de session ne ressemble pas à Google.");
+  return null;
 }
 
 async function refreshGoogleToken(refreshToken: string) {
   console.log("🔄 Tentative de refresh du token Google...");
   
   const { data: sess } = await supabase.auth.getSession();
-  const supaAccess = sess?.session?.access_token;
+  const session = sess?.session;
+  const supaAccess = session?.access_token;
   if (!supaAccess) {
     console.error("❌ Pas de token Supabase pour appeler la fonction edge");
     return null;
@@ -90,12 +131,14 @@ async function refreshGoogleToken(refreshToken: string) {
   console.log("✅ Token Google refreshé avec succès");
   
   // Sauvegarder le nouveau token
-  const userId = sess?.session?.user?.id;
+  const userId = session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
       user_id: userId,
       provider: "google",
       access_token: data.access_token,
+      // conserver un éventuel nouveau refresh_token
+      refresh_token: data.refresh_token ?? undefined,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }

@@ -21,11 +21,17 @@ function toLocalDecimalHourFromMillis(ms: number): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+function looksLikeGoogleToken(token: string | null): boolean {
+  return !!token && token.startsWith("ya29.");
+}
+
 async function getGoogleTokens() {
   const { data: sess } = await supabase.auth.getSession();
-  const userId = sess?.session?.user?.id;
+  const session = sess?.session;
+  const userId = session?.user?.id;
   if (!userId) return null;
 
+  // 1) Essayer la table oauth_tokens
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -33,13 +39,49 @@ async function getGoogleTokens() {
     .eq("provider", "google")
     .maybeSingle();
 
-  if (error || !data) return null;
-  return data;
+  if (!error && data) {
+    return data;
+  }
+
+  // 2) Fallback via session
+  const accessFromSession = session?.provider_token ?? null;
+  const refreshFromSession = session?.provider_refresh_token ?? null;
+
+  // Vérifier identité Google
+  const identities = session?.user?.identities || [];
+  const hasGoogleIdentity = identities.some((i: any) => i.provider === "google");
+  if (!hasGoogleIdentity) return null;
+
+  if (looksLikeGoogleToken(accessFromSession)) {
+    const expiresAtUnix = session?.expires_at ?? null;
+    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
+
+    await supabase.from("oauth_tokens").upsert(
+      {
+        user_id: userId,
+        provider: "google",
+        access_token: accessFromSession!,
+        refresh_token: refreshFromSession ?? undefined,
+        expires_at: expiresAtIso,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,provider" }
+    );
+
+    return {
+      access_token: accessFromSession!,
+      refresh_token: refreshFromSession ?? null,
+      expires_at: expiresAtIso,
+    } as any;
+  }
+
+  return null;
 }
 
 async function refreshGoogleToken(refreshToken: string) {
   const { data: sess } = await supabase.auth.getSession();
-  const supaAccess = sess?.session?.access_token;
+  const session = sess?.session;
+  const supaAccess = session?.access_token;
   if (!supaAccess) return null;
 
   const { data, error } = await supabase.functions.invoke("google-token-refresh", {
@@ -52,12 +94,13 @@ async function refreshGoogleToken(refreshToken: string) {
   const newAccessToken = data.access_token;
   if (!newAccessToken) return null;
 
-  const userId = sess?.session?.user?.id;
+  const userId = session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
       user_id: userId,
       provider: "google",
       access_token: newAccessToken,
+      refresh_token: data.refresh_token ?? undefined,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
