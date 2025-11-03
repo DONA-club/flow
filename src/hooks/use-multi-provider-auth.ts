@@ -15,7 +15,6 @@ type ProviderConfig = {
 const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
   google: {
     supabaseProvider: "google",
-    // Ajout des scopes de profil pour récupérer l’avatar et les claims
     scopes:
       "openid profile email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
     queryParams: {
@@ -46,7 +45,6 @@ type ConnectedProviders = {
 
 function isTokenValid(token: string | null, _provider: Provider): boolean {
   if (!token) return false;
-  // Heuristique permissive: tout token non trivial est considéré comme présent
   return token.length > 10;
 }
 
@@ -122,13 +120,21 @@ export function useMultiProviderAuth() {
   useEffect(() => {
     checkConnectedProviders();
 
+    // Vérification périodique toutes les 10 secondes pour maintenir l'état à jour
+    const intervalId = setInterval(() => {
+      checkConnectedProviders();
+    }, 10000);
+
     const { data } = supabase.auth.onAuthStateChange(() => {
       setTimeout(() => {
         checkConnectedProviders();
       }, 800);
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      clearInterval(intervalId);
+      data.subscription.unsubscribe();
+    };
   }, [checkConnectedProviders]);
 
   const connectProvider = useCallback(async (provider: Provider) => {
@@ -152,7 +158,6 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    // Si un utilisateur est déjà connecté, on LIE l'identité au compte existant
     const { data: sess } = await supabase.auth.getSession();
     const hasUser = !!sess?.session?.user;
 

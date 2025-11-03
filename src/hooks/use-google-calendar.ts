@@ -137,7 +137,6 @@ async function refreshGoogleToken(refreshToken: string) {
       user_id: userId,
       provider: "google",
       access_token: data.access_token,
-      // conserver un éventuel nouveau refresh_token
       refresh_token: data.refresh_token ?? undefined,
       updated_at: new Date().toISOString(),
     },

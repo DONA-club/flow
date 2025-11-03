@@ -44,19 +44,11 @@ const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
-  // Activation persistante des providers pour éviter les désactivations temporaires
-  const [googleEnabled, setGoogleEnabled] = useState(false);
-  const [msEnabled, setMsEnabled] = useState(false);
+  // Utiliser directement connectedProviders sans état intermédiaire
+  const googleEnabled = connectedProviders?.google ?? false;
+  const msEnabled = connectedProviders?.microsoft ?? false;
 
-  useEffect(() => {
-    if (connectedProviders?.google) setGoogleEnabled(true);
-  }, [connectedProviders?.google]);
-
-  useEffect(() => {
-    if (connectedProviders?.microsoft) setMsEnabled(true);
-  }, [connectedProviders?.microsoft]);
-
-  // Charger les données (désormais découplé du flicker d'état global)
+  // Charger les données en continu si les providers sont connectés
   const {
     events: gEvents,
     loading: gLoading,
@@ -96,7 +88,6 @@ const CircularCalendarDemo = () => {
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
   useEffect(() => {
-    // Ne rediriger qu'une fois l'état d'auth chargé
     if (authLoading) return;
     const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
     if (!hasAnyConnection) {
@@ -164,22 +155,26 @@ const CircularCalendarDemo = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
-  // Fusionner tous les événements
+  // Fusionner tous les événements Google + Microsoft
   const combinedEvents = [...gEvents, ...oEvents].sort((a, b) => {
     const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
     const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
     return new Date(aStart).getTime() - new Date(bStart).getTime();
   });
 
-  // Auto-refresh toutes les minutes
+  // Auto-refresh toutes les minutes pour maintenir la synchronisation continue
   useEffect(() => {
     const id = window.setInterval(() => {
-      refreshGoogle();
-      refreshOutlook();
-      refreshFit();
+      if (googleEnabled) {
+        refreshGoogle();
+        refreshFit();
+      }
+      if (msEnabled) {
+        refreshOutlook();
+      }
     }, 60_000);
     return () => window.clearInterval(id);
-  }, [refreshGoogle, refreshOutlook, refreshFit]);
+  }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
