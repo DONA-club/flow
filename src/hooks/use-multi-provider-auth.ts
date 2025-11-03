@@ -86,29 +86,26 @@ export function useMultiProviderAuth() {
 
     setUser(currentUser);
 
-    // 1) Partir des identities (compte réellement lié)
-    const identities = currentUser.identities || [];
-    const connectedFromIdentities: ConnectedProviders = {
-      google: identities.some((i: any) => identityMatchesProvider(i.provider, "google")),
-      microsoft: identities.some((i: any) => identityMatchesProvider(i.provider, "microsoft")),
-      apple: identities.some((i: any) => identityMatchesProvider(i.provider, "apple")),
-      facebook: identities.some((i: any) => identityMatchesProvider(i.provider, "facebook")),
-      amazon: identities.some((i: any) => identityMatchesProvider(i.provider, "amazon")),
-    };
-
-    // 2) Vérifier les tokens dans oauth_tokens (si présents)
+    // Vérifier les tokens dans oauth_tokens (source de vérité principale)
     const { data: tokens } = await supabase
       .from("oauth_tokens")
       .select("provider, access_token, refresh_token")
       .eq("user_id", currentUser.id);
 
-    const connected: ConnectedProviders = { ...connectedFromIdentities };
+    const connected: ConnectedProviders = {
+      google: false,
+      microsoft: false,
+      apple: false,
+      facebook: false,
+      amazon: false,
+    };
 
     if (tokens) {
       for (const token of tokens) {
         const provider = token.provider as keyof ConnectedProviders;
         if (isTokenValid(token.access_token, provider) || token.refresh_token) {
           connected[provider] = true;
+          console.log(`✅ Provider ${provider} détecté avec token valide`);
         }
       }
     }
@@ -120,15 +117,15 @@ export function useMultiProviderAuth() {
   useEffect(() => {
     checkConnectedProviders();
 
-    // Vérification périodique toutes les 10 secondes pour maintenir l'état à jour
+    // Vérification périodique toutes les 5 secondes
     const intervalId = setInterval(() => {
       checkConnectedProviders();
-    }, 10000);
+    }, 5000);
 
     const { data } = supabase.auth.onAuthStateChange(() => {
       setTimeout(() => {
         checkConnectedProviders();
-      }, 800);
+      }, 1000);
     });
 
     return () => {

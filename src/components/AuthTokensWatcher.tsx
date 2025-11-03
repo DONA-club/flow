@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSessionGroup } from "@/hooks/use-session-group";
 
-type Provider = "google" | "microsoft";
+type Provider = "google" | "microsoft" | "apple" | "facebook" | "amazon";
 
 function base64UrlDecode(input: string) {
   const s = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -46,12 +46,17 @@ function detectProviderFromToken(accessToken: string): Provider | null {
     if (iss.includes("accounts.google.com")) {
       return "google";
     }
+
+    // Apple
+    if (iss.includes("appleid.apple.com")) {
+      return "apple";
+    }
   }
 
   return null;
 }
 
-function normalizeProviderFromIdentity(provider?: string | null): "google" | "microsoft" | "apple" | "facebook" | "amazon" | null {
+function normalizeProviderFromIdentity(provider?: string | null): Provider | null {
   if (!provider) return null;
   const v = provider.toLowerCase();
   if (v === "google") return "google";
@@ -69,11 +74,13 @@ function hasIdentity(user: any, provider: Provider) {
   return identities.some((i: any) => normalizeProviderFromIdentity(i.provider) === provider);
 }
 
-async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>, isGroupReady: boolean) {
-  // Attendre que le groupe soit prêt
-  if (!isGroupReady) {
-    console.log("⏳ Groupe de sessions pas encore prêt, attente...");
-    // Attendre un peu et réessayer
+async function saveCurrentProviderTokens(
+  saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>,
+  isReady: boolean
+) {
+  // Attendre que le système soit prêt
+  if (!isReady) {
+    console.log("⏳ Système pas encore prêt, attente...");
     await new Promise(resolve => setTimeout(resolve, 500));
     return;
   }
@@ -128,7 +135,7 @@ async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessT
   );
 
   if (success) {
-    console.log(`✅ Tokens ${providerToSave} sauvegardés dans le groupe`);
+    console.log(`✅ Tokens ${providerToSave} sauvegardés`);
     const pending = localStorage.getItem("pending_provider_connection");
     if (pending === providerToSave) {
       localStorage.removeItem("pending_provider_connection");
@@ -142,28 +149,29 @@ async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessT
 }
 
 const AuthTokensWatcher: React.FC = () => {
-  const { saveToken, initializeGroup, loading: groupLoading } = useSessionGroup();
+  const { saveToken, loading } = useSessionGroup();
 
   React.useEffect(() => {
-    // Sauvegarde initiale si on arrive déjà authentifié
+    // Sauvegarde initiale
     const saveTokens = async () => {
-      await saveCurrentProviderTokens(saveToken, !groupLoading);
+      await saveCurrentProviderTokens(saveToken, !loading);
     };
     saveTokens();
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
       console.log(`🔐 Auth event: ${event}`);
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+        // Délai pour laisser le temps à la session de se mettre à jour
         setTimeout(() => {
-          saveCurrentProviderTokens(saveToken, !groupLoading);
-        }, 500);
+          saveCurrentProviderTokens(saveToken, !loading);
+        }, 800);
       }
     });
 
     return () => {
       data.subscription.unsubscribe();
     };
-  }, [saveToken, groupLoading]);
+  }, [saveToken, loading]);
 
   return null;
 };
