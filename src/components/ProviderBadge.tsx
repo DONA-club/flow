@@ -161,7 +161,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   if (isConnected && !finalAvatarUrl) {
     return (
       <div className="flex flex-col items-center gap-1">
-        <div className={["w-full h-full rounded-full bg-green-500 flex items-center justify-center shadow-md", baseFilters].join(" ")}>
+        <div className={["w-full aspect-square rounded-full bg-green-500 flex items-center justify-center shadow-md", baseFilters].join(" ")}>
           <Check className="w-1/2 h-1/2 text-white" strokeWidth={3} />
         </div>
         {/* Badge provider directement sous le point vert */}
@@ -183,7 +183,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
           src={finalAvatarUrl}
           alt={`${provider} avatar`}
           referrerPolicy="no-referrer"
-          className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
+          className={["w-full aspect-square rounded-full object-cover", baseFilters, className || ""]
             .join(" ")
             .trim()}
         />
