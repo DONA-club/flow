@@ -54,11 +54,14 @@ export function useMultiProviderAuth() {
   });
 
   const checkConnectedProviders = useCallback(async () => {
+    console.log("🔍 useMultiProviderAuth: Vérification des providers connectés...");
+    
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
     const currentUser = session?.user;
 
     if (!currentUser) {
+      console.log("⚠️ useMultiProviderAuth: Aucun utilisateur connecté");
       setUser(null);
       setConnectedProviders({
         google: false,
@@ -71,13 +74,22 @@ export function useMultiProviderAuth() {
       return;
     }
 
+    console.log("✅ useMultiProviderAuth: Utilisateur connecté:", currentUser.id);
     setUser(currentUser);
 
     // Vérifier quels providers ont des tokens dans oauth_tokens
-    const { data: tokens } = await supabase
+    const { data: tokens, error } = await supabase
       .from("oauth_tokens")
-      .select("provider")
+      .select("provider, access_token, refresh_token")
       .eq("user_id", currentUser.id);
+
+    if (error) {
+      console.error("❌ useMultiProviderAuth: Erreur lecture oauth_tokens:", error);
+    }
+
+    console.log("📊 useMultiProviderAuth: Tokens trouvés dans oauth_tokens:", 
+      tokens?.map(t => `${t.provider} (access: ${!!t.access_token}, refresh: ${!!t.refresh_token})`).join(", ") || "aucun"
+    );
 
     const tokenProviders = new Set(tokens?.map(t => t.provider) || []);
 
@@ -89,25 +101,45 @@ export function useMultiProviderAuth() {
       amazon: tokenProviders.has("amazon"),
     };
 
+    console.log("🎯 useMultiProviderAuth: État des connexions:", connected);
+
     setConnectedProviders(connected);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    console.log("🚀 useMultiProviderAuth: Initialisation");
     checkConnectedProviders();
 
-    const { data } = supabase.auth.onAuthStateChange(() => {
+    // Vérification périodique toutes les 3 secondes
+    const intervalId = setInterval(() => {
+      console.log("⏰ useMultiProviderAuth: Vérification périodique");
       checkConnectedProviders();
+    }, 3000);
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      console.log(`🔐 useMultiProviderAuth: Auth event: ${event}`);
+      // Délai pour laisser AuthTokensWatcher sauvegarder d'abord
+      setTimeout(() => {
+        checkConnectedProviders();
+      }, 1500);
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      console.log("🛑 useMultiProviderAuth: Nettoyage");
+      clearInterval(intervalId);
+      data.subscription.unsubscribe();
+    };
   }, [checkConnectedProviders]);
 
   const connectProvider = useCallback(async (provider: Provider) => {
+    console.log(`🔗 useMultiProviderAuth: Tentative de connexion à ${provider}`);
+    
     const config = PROVIDER_CONFIGS[provider];
     
     // Stocker le provider demandé dans localStorage pour le récupérer après redirect
     localStorage.setItem("pending_provider_connection", provider);
+    console.log(`💾 useMultiProviderAuth: Provider ${provider} marqué comme pending`);
     
     toast(`Redirection vers ${provider}…`, {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
@@ -126,14 +158,13 @@ export function useMultiProviderAuth() {
     }
 
     // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
-    // Si l'utilisateur existe déjà, Supabase va automatiquement lier l'identité
-    // si "Manual linking" est activé
     const { error } = await supabase.auth.signInWithOAuth({ 
       provider: config.supabaseProvider as any, 
       options 
     });
 
     if (error) {
+      console.error(`❌ useMultiProviderAuth: Erreur connexion ${provider}:`, error);
       localStorage.removeItem("pending_provider_connection");
       toast.error(`Connexion ${provider} indisponible`, {
         description: error.message,
@@ -141,10 +172,13 @@ export function useMultiProviderAuth() {
       return false;
     }
 
+    console.log(`✅ useMultiProviderAuth: Redirection OAuth ${provider} initiée`);
     return true;
   }, []);
 
   const disconnectProvider = useCallback(async (provider: Provider) => {
+    console.log(`🔌 useMultiProviderAuth: Déconnexion de ${provider}`);
+    
     if (!user) return false;
 
     // Supprimer les tokens de la base
@@ -155,11 +189,14 @@ export function useMultiProviderAuth() {
       .eq("provider", provider);
 
     if (error) {
+      console.error(`❌ useMultiProviderAuth: Erreur déconnexion ${provider}:`, error);
       toast.error(`Erreur de déconnexion ${provider}`, {
         description: error.message,
       });
       return false;
     }
+
+    console.log(`✅ useMultiProviderAuth: Tokens ${provider} supprimés`);
 
     // Essayer de délier l'identité (optionnel, peut échouer si c'est la dernière)
     const identities = user.identities || [];
@@ -171,6 +208,7 @@ export function useMultiProviderAuth() {
     });
 
     if (identity) {
+      console.log(`🔗 useMultiProviderAuth: Tentative de délier l'identité ${provider}`);
       await supabase.auth.unlinkIdentity(identity);
     }
 

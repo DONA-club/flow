@@ -28,7 +28,7 @@ function detectProviderFromToken(accessToken: string): Provider | null {
   // Access token Google typique
   if (accessToken.startsWith("ya29.")) return "google";
 
-  // JWT: décoder et inspecter l'issuer
+  // JWT: décoder et inspecer l'issuer
   if (accessToken.startsWith("eyJ")) {
     const claims = getJwtClaims(accessToken);
     const iss = (claims?.iss || "").toLowerCase();
@@ -61,7 +61,7 @@ async function saveProviderTokens() {
   const user = session?.user ?? null;
   
   if (!user) {
-    console.log("⚠️ Pas d'utilisateur connecté");
+    console.log("⚠️ AuthTokensWatcher: Pas d'utilisateur connecté");
     return;
   }
 
@@ -69,9 +69,15 @@ async function saveProviderTokens() {
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
   if (!accessToken) {
-    console.warn("⚠️ Aucun provider_token dans la session");
+    console.warn("⚠️ AuthTokensWatcher: Aucun provider_token dans la session");
     return;
   }
+
+  console.log("🔍 AuthTokensWatcher: Tokens détectés dans la session", {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    accessTokenPrefix: accessToken.substring(0, 10) + "...",
+  });
 
   // 1) Priorité au provider en attente (défini au clic sur le bouton)
   const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
@@ -79,7 +85,7 @@ async function saveProviderTokens() {
 
   if (pendingProvider) {
     providerToSave = pendingProvider;
-    console.log(`🎯 Provider prioritaire (pending): ${providerToSave}`);
+    console.log(`🎯 AuthTokensWatcher: Provider prioritaire (pending): ${providerToSave}`);
   }
 
   // 2) Détection via token si pas de pending
@@ -87,17 +93,19 @@ async function saveProviderTokens() {
     const detected = detectProviderFromToken(accessToken);
     if (detected) {
       providerToSave = detected;
-      console.log(`🔎 Provider détecté par token: ${providerToSave}`);
+      console.log(`🔎 AuthTokensWatcher: Provider détecté par token: ${providerToSave}`);
     }
   }
 
   if (!providerToSave) {
-    console.warn("⚠️ Impossible de déterminer le provider");
+    console.warn("⚠️ AuthTokensWatcher: Impossible de déterminer le provider");
     return;
   }
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
+
+  console.log(`💾 AuthTokensWatcher: Tentative de sauvegarde tokens ${providerToSave}...`);
 
   const { error } = await supabase
     .from("oauth_tokens")
@@ -113,11 +121,11 @@ async function saveProviderTokens() {
     });
 
   if (error) {
-    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}:`, error);
+    console.error(`❌ AuthTokensWatcher: Erreur sauvegarde tokens ${providerToSave}:`, error);
     return;
   }
 
-  console.log(`✅ Tokens ${providerToSave} sauvegardés`);
+  console.log(`✅ AuthTokensWatcher: Tokens ${providerToSave} sauvegardés avec succès`);
   
   if (pendingProvider === providerToSave) {
     localStorage.removeItem("pending_provider_connection");
@@ -125,23 +133,45 @@ async function saveProviderTokens() {
       description: "Vos données seront maintenant synchronisées.",
     });
   }
+
+  // Vérifier tous les tokens sauvegardés
+  const { data: allTokens } = await supabase
+    .from("oauth_tokens")
+    .select("provider")
+    .eq("user_id", user.id);
+
+  console.log("📊 AuthTokensWatcher: Providers actuellement sauvegardés:", 
+    allTokens?.map(t => t.provider).join(", ") || "aucun"
+  );
 }
 
 const AuthTokensWatcher: React.FC = () => {
+  const hasRunInitialSave = React.useRef(false);
+
   React.useEffect(() => {
-    // Sauvegarde initiale
-    saveProviderTokens();
+    console.log("🚀 AuthTokensWatcher: Initialisation");
+
+    // Sauvegarde initiale (une seule fois au montage)
+    if (!hasRunInitialSave.current) {
+      hasRunInitialSave.current = true;
+      console.log("🔄 AuthTokensWatcher: Sauvegarde initiale...");
+      saveProviderTokens();
+    }
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-      console.log(`🔐 Auth event: ${event}`);
+      console.log(`🔐 AuthTokensWatcher: Auth event: ${event}`);
+      
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+        // Délai pour laisser le temps à la session de se mettre à jour
+        console.log(`⏱️ AuthTokensWatcher: Attente 800ms avant sauvegarde (event: ${event})`);
         setTimeout(() => {
           saveProviderTokens();
-        }, 500);
+        }, 800);
       }
     });
 
     return () => {
+      console.log("🛑 AuthTokensWatcher: Nettoyage");
       data.subscription.unsubscribe();
     };
   }, []);
