@@ -26,6 +26,7 @@ async function getGoogleTokens() {
   const userId = sess?.session?.user?.id;
   if (!userId) return null;
 
+  // IMPORTANT: Lire UNIQUEMENT depuis oauth_tokens, jamais depuis la session
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token")

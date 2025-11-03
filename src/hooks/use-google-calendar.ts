@@ -32,17 +32,18 @@ function toHourDecimal(iso: string): number {
 type GoogleTokens = {
   access_token: string | null;
   refresh_token: string | null;
-  expires_at: string | null; // ISO
+  expires_at: string | null;
 };
 
 async function getGoogleTokens(): Promise<GoogleTokens | null> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
   if (!userId) {
-    console.log("❌ Pas d'utilisateur connecté");
+    console.log("❌ Google Calendar: Pas d'utilisateur connecté");
     return null;
   }
 
+  // IMPORTANT: Lire UNIQUEMENT depuis oauth_tokens, jamais depuis la session
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -51,16 +52,16 @@ async function getGoogleTokens(): Promise<GoogleTokens | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("❌ Erreur lecture tokens Google:", error);
+    console.error("❌ Google Calendar: Erreur lecture tokens:", error);
     return null;
   }
   
   if (!data) {
-    console.log("⚠️ Aucun token Google trouvé dans oauth_tokens");
+    console.log("⚠️ Google Calendar: Aucun token trouvé dans oauth_tokens");
     return null;
   }
 
-  console.log("✅ Tokens Google trouvés:", { 
+  console.log("✅ Google Calendar: Tokens trouvés dans oauth_tokens:", { 
     hasAccess: !!data.access_token, 
     hasRefresh: !!data.refresh_token,
     expires_at: data.expires_at
@@ -88,12 +89,12 @@ function isExpiredOrNear(expIso: string | null, skewMs = 60_000) {
 }
 
 async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse | null> {
-  console.log("🔄 Tentative de refresh du token Google...");
+  console.log("🔄 Google Calendar: Tentative de refresh du token...");
   
   const { data: sess } = await supabase.auth.getSession();
   const supaAccess = sess?.session?.access_token;
   if (!supaAccess) {
-    console.error("❌ Pas de token Supabase pour appeler la fonction edge");
+    console.error("❌ Google Calendar: Pas de token Supabase pour appeler la fonction edge");
     return null;
   }
 
@@ -103,30 +104,27 @@ async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse
   });
 
   if (error || !data) {
-    console.error("❌ Erreur refresh token Google:", error, data);
+    console.error("❌ Google Calendar: Erreur refresh token:", error, data);
     return null;
   }
   
   const payload = data as RefreshResponse;
 
   if (!payload?.access_token) {
-    console.error("❌ Pas de nouveau token dans la réponse");
+    console.error("❌ Google Calendar: Pas de nouveau token dans la réponse");
     return null;
   }
 
-  // Calculer et persister la nouvelle expiration
   const newExpiresAtIso = new Date(Date.now() + (payload.expires_in ?? 3600) * 1000).toISOString();
 
-  console.log("✅ Token Google refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
+  console.log("✅ Google Calendar: Token refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
   
-  // Sauvegarder le nouveau token et expires_at (Google ne renvoie généralement pas de refresh_token au refresh)
   const userId = sess?.session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
       user_id: userId!,
       provider: "google",
       access_token: payload.access_token,
-      // On conserve le refresh_token existant, pas de rotation fournie par l'API de refresh
       expires_at: newExpiresAtIso,
       updated_at: new Date().toISOString(),
     },
@@ -146,11 +144,11 @@ export function useGoogleCalendar(options?: Options): Result {
 
   const fetchEvents = React.useCallback(async () => {
     if (!enabled) {
-      console.log("⏸️ Google Calendar désactivé");
+      console.log("⏸️ Google Calendar: Désactivé");
       return;
     }
 
-    console.log("📅 Chargement Google Calendar...");
+    console.log("📅 Google Calendar: Chargement...");
     setLoading(true);
     setError(null);
 
@@ -171,7 +169,7 @@ export function useGoogleCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Google non connecté. Cliquez sur le logo Google sur la page d'accueil.");
-      console.log("❌ Impossible de récupérer un access token Google");
+      console.log("❌ Google Calendar: Impossible de récupérer un access token");
       return;
     }
 
@@ -183,13 +181,13 @@ export function useGoogleCalendar(options?: Options): Result {
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
     async function runGoogleCall(tryRefreshOn401: boolean) {
-      console.log("🌐 Appel API Google Calendar...");
+      console.log("🌐 Google Calendar: Appel API...");
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (res.status === 401 && tryRefreshOn401 && refreshToken) {
-        console.log("🔄 401 Google: tentative de refresh et retry...");
+        console.log("🔄 Google Calendar: 401 détecté, tentative de refresh et retry...");
         const refreshed = await refreshGoogleToken(refreshToken);
         if (refreshed?.access_token) {
           accessToken = refreshed.access_token;
@@ -211,7 +209,7 @@ export function useGoogleCalendar(options?: Options): Result {
       setConnected(false);
       const errorMsg = `Erreur Google Calendar (${res.status})`;
       setError(errorMsg);
-      console.error("❌", errorMsg);
+      console.error("❌ Google Calendar:", errorMsg);
       return;
     }
 
@@ -219,7 +217,7 @@ export function useGoogleCalendar(options?: Options): Result {
     const json = await res.json();
     const items: any[] = json?.items ?? [];
 
-    console.log(`✅ ${items.length} événements Google récupérés`);
+    console.log(`✅ Google Calendar: ${items.length} événements récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {

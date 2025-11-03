@@ -32,17 +32,18 @@ function toHourDecimal(iso: string): number {
 type MicrosoftTokens = {
   access_token: string | null;
   refresh_token: string | null;
-  expires_at: string | null; // ISO string
+  expires_at: string | null;
 };
 
 async function getMicrosoftTokens(): Promise<MicrosoftTokens | null> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
   if (!userId) {
-    console.log("❌ Pas d'utilisateur connecté");
+    console.log("❌ Outlook Calendar: Pas d'utilisateur connecté");
     return null;
   }
 
+  // IMPORTANT: Lire UNIQUEMENT depuis oauth_tokens, jamais depuis la session
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -51,16 +52,16 @@ async function getMicrosoftTokens(): Promise<MicrosoftTokens | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("❌ Erreur lecture tokens Microsoft:", error);
+    console.error("❌ Outlook Calendar: Erreur lecture tokens:", error);
     return null;
   }
   
   if (!data) {
-    console.log("⚠️ Aucun token Microsoft trouvé dans oauth_tokens");
+    console.log("⚠️ Outlook Calendar: Aucun token trouvé dans oauth_tokens");
     return null;
   }
 
-  console.log("✅ Tokens Microsoft trouvés:", { 
+  console.log("✅ Outlook Calendar: Tokens trouvés dans oauth_tokens:", { 
     hasAccess: !!data.access_token, 
     hasRefresh: !!data.refresh_token,
     expires_at: data.expires_at
@@ -82,12 +83,12 @@ type RefreshResponse = {
 };
 
 async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshResponse | null> {
-  console.log("🔄 Tentative de refresh du token Microsoft...");
+  console.log("🔄 Outlook Calendar: Tentative de refresh du token...");
   
   const { data: sess } = await supabase.auth.getSession();
   const supaAccess = sess?.session?.access_token;
   if (!supaAccess) {
-    console.error("❌ Pas de token Supabase pour appeler la fonction edge");
+    console.error("❌ Outlook Calendar: Pas de token Supabase pour appeler la fonction edge");
     return null;
   }
 
@@ -100,30 +101,28 @@ async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshRespo
   });
 
   if (error || !data) {
-    console.error("❌ Erreur refresh token Microsoft:", error, data);
+    console.error("❌ Outlook Calendar: Erreur refresh token:", error, data);
     return null;
   }
 
   const payload = data as RefreshResponse;
 
   if (!payload.access_token) {
-    console.error("❌ Pas de nouveau access_token dans la réponse de refresh");
+    console.error("❌ Outlook Calendar: Pas de nouveau access_token dans la réponse de refresh");
     return null;
   }
 
-  // Calculer le nouvel expires_at basé sur expires_in
   const newExpiresAtIso = new Date(Date.now() + (payload.expires_in ?? 3600) * 1000).toISOString();
 
-  console.log("✅ Token Microsoft refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
+  console.log("✅ Outlook Calendar: Token refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
   
-  // Sauvegarder le nouveau token + potentiellement le refresh_token rotaté
   const userId = sess?.session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
       user_id: userId!,
       provider: "microsoft",
       access_token: payload.access_token,
-      refresh_token: payload.refresh_token ?? refreshToken, // conserver le nouveau si fourni, sinon l'ancien
+      refresh_token: payload.refresh_token ?? refreshToken,
       expires_at: newExpiresAtIso,
       updated_at: new Date().toISOString(),
     },
@@ -150,11 +149,11 @@ export function useOutlookCalendar(options?: Options): Result {
 
   const fetchEvents = React.useCallback(async () => {
     if (!enabled) {
-      console.log("⏸️ Microsoft Calendar désactivé");
+      console.log("⏸️ Outlook Calendar: Désactivé");
       return;
     }
 
-    console.log("📅 Chargement Microsoft Calendar...");
+    console.log("📅 Outlook Calendar: Chargement...");
     setLoading(true);
     setError(null);
 
@@ -176,7 +175,7 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Microsoft non connecté. Connectez Microsoft depuis la page d'accueil.");
-      console.log("❌ Impossible de récupérer un access token Microsoft");
+      console.log("❌ Outlook Calendar: Impossible de récupérer un access token");
       return;
     }
 
@@ -192,7 +191,7 @@ export function useOutlookCalendar(options?: Options): Result {
       "&$select=subject,organizer,start,end,location,webLink";
 
     async function runGraphCall(tryRefreshOn401: boolean) {
-      console.log("🌐 Appel API Microsoft Graph...");
+      console.log("🌐 Outlook Calendar: Appel API...");
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -201,7 +200,7 @@ export function useOutlookCalendar(options?: Options): Result {
       });
 
       if (res.status === 401 && tryRefreshOn401 && refreshToken) {
-        console.log("🔄 401 Graph: tentative de refresh et retry...");
+        console.log("🔄 Outlook Calendar: 401 détecté, tentative de refresh et retry...");
         const refreshed = await refreshMicrosoftToken(refreshToken);
         if (refreshed?.access_token) {
           accessToken = refreshed.access_token;
@@ -235,7 +234,7 @@ export function useOutlookCalendar(options?: Options): Result {
         // ignore parse error
       }
       setError(errMsg);
-      console.error("❌", errMsg);
+      console.error("❌ Outlook Calendar:", errMsg);
       return;
     }
 
@@ -243,7 +242,7 @@ export function useOutlookCalendar(options?: Options): Result {
     const json = await res.json();
     const items: any[] = json?.value ?? [];
 
-    console.log(`✅ ${items.length} événements Microsoft récupérés`);
+    console.log(`✅ Outlook Calendar: ${items.length} événements récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {
