@@ -29,7 +29,13 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-async function getGoogleTokens() {
+type GoogleTokens = {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null; // ISO
+};
+
+async function getGoogleTokens(): Promise<GoogleTokens | null> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
   if (!userId) {
@@ -56,13 +62,32 @@ async function getGoogleTokens() {
 
   console.log("✅ Tokens Google trouvés:", { 
     hasAccess: !!data.access_token, 
-    hasRefresh: !!data.refresh_token 
+    hasRefresh: !!data.refresh_token,
+    expires_at: data.expires_at
   });
   
-  return data;
+  return {
+    access_token: data.access_token ?? null,
+    refresh_token: data.refresh_token ?? null,
+    expires_at: data.expires_at ?? null,
+  };
 }
 
-async function refreshGoogleToken(refreshToken: string) {
+type RefreshResponse = {
+  access_token: string;
+  expires_in: number;
+  scope?: string;
+  token_type?: string;
+};
+
+function isExpiredOrNear(expIso: string | null, skewMs = 60_000) {
+  if (!expIso) return false;
+  const exp = Date.parse(expIso);
+  if (Number.isNaN(exp)) return false;
+  return Date.now() + skewMs >= exp;
+}
+
+async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse | null> {
   console.log("🔄 Tentative de refresh du token Google...");
   
   const { data: sess } = await supabase.auth.getSession();
@@ -77,31 +102,38 @@ async function refreshGoogleToken(refreshToken: string) {
     headers: { Authorization: `Bearer ${supaAccess}` },
   });
 
-  if (error) {
-    console.error("❌ Erreur refresh token Google:", error);
+  if (error || !data) {
+    console.error("❌ Erreur refresh token Google:", error, data);
     return null;
   }
   
-  if (!data?.access_token) {
+  const payload = data as RefreshResponse;
+
+  if (!payload?.access_token) {
     console.error("❌ Pas de nouveau token dans la réponse");
     return null;
   }
 
-  console.log("✅ Token Google refreshé avec succès");
+  // Calculer et persister la nouvelle expiration
+  const newExpiresAtIso = new Date(Date.now() + (payload.expires_in ?? 3600) * 1000).toISOString();
+
+  console.log("✅ Token Google refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
   
-  // Sauvegarder le nouveau token
+  // Sauvegarder le nouveau token et expires_at (Google ne renvoie généralement pas de refresh_token au refresh)
   const userId = sess?.session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
-      user_id: userId,
+      user_id: userId!,
       provider: "google",
-      access_token: data.access_token,
+      access_token: payload.access_token,
+      // On conserve le refresh_token existant, pas de rotation fournie par l'API de refresh
+      expires_at: newExpiresAtIso,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
   );
 
-  return data.access_token;
+  return payload;
 }
 
 export function useGoogleCalendar(options?: Options): Result {
@@ -123,10 +155,15 @@ export function useGoogleCalendar(options?: Options): Result {
     setError(null);
 
     const tokens = await getGoogleTokens();
-    let accessToken = tokens?.access_token;
+    let accessToken = tokens?.access_token ?? null;
+    let refreshToken = tokens?.refresh_token ?? null;
 
-    if (!accessToken && tokens?.refresh_token) {
-      accessToken = await refreshGoogleToken(tokens.refresh_token);
+    // Refresh proactif si token expiré ou proche de l'expiration
+    if (refreshToken && (!accessToken || isExpiredOrNear(tokens?.expires_at ?? null))) {
+      const refreshed = await refreshGoogleToken(refreshToken);
+      if (refreshed?.access_token) {
+        accessToken = refreshed.access_token;
+      }
     }
 
     if (!accessToken) {
@@ -145,18 +182,28 @@ export function useGoogleCalendar(options?: Options): Result {
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
-    console.log("🌐 Appel API Google Calendar...");
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    async function runGoogleCall(tryRefreshOn401: boolean) {
+      console.log("🌐 Appel API Google Calendar...");
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
 
-    if (res.status === 401 && tokens?.refresh_token) {
-      console.log("🔄 Token expiré, tentative de refresh...");
-      const newToken = await refreshGoogleToken(tokens.refresh_token);
-      if (newToken) {
-        return fetchEvents();
+      if (res.status === 401 && tryRefreshOn401 && refreshToken) {
+        console.log("🔄 401 Google: tentative de refresh et retry...");
+        const refreshed = await refreshGoogleToken(refreshToken);
+        if (refreshed?.access_token) {
+          accessToken = refreshed.access_token;
+          const retryRes = await fetch(url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          return retryRes;
+        }
       }
+
+      return res;
     }
+
+    const res = await runGoogleCall(true);
 
     if (!res.ok) {
       setEvents([]);
