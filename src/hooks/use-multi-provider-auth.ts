@@ -24,7 +24,6 @@ const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
   },
   microsoft: {
     supabaseProvider: "azure",
-    // Utiliser un scope qualifié pour Graph
     scopes: "https://graph.microsoft.com/Calendars.Read offline_access openid profile email",
     queryParams: { prompt: "consent" },
   },
@@ -76,6 +75,7 @@ export function useMultiProviderAuth() {
     }
 
     console.log("✅ useMultiProviderAuth: Utilisateur connecté:", currentUser.id);
+    console.log("📋 useMultiProviderAuth: Identités liées:", currentUser.identities?.map((i: any) => i.provider).join(", ") || "aucune");
     setUser(currentUser);
 
     // Vérifier quels providers ont des tokens dans oauth_tokens
@@ -120,7 +120,6 @@ export function useMultiProviderAuth() {
 
     const { data } = supabase.auth.onAuthStateChange((event) => {
       console.log(`🔐 useMultiProviderAuth: Auth event: ${event}`);
-      // Délai pour laisser AuthTokensWatcher sauvegarder d'abord
       setTimeout(() => {
         checkConnectedProviders();
       }, 1500);
@@ -138,7 +137,6 @@ export function useMultiProviderAuth() {
     
     const config = PROVIDER_CONFIGS[provider];
     
-    // Stocker le provider demandé dans localStorage pour le récupérer après redirect
     localStorage.setItem("pending_provider_connection", provider);
     console.log(`💾 useMultiProviderAuth: Provider ${provider} marqué comme pending`);
     
@@ -165,15 +163,19 @@ export function useMultiProviderAuth() {
     let error: any = null;
 
     if (hasExistingUser) {
-      // Si un utilisateur existe déjà, utiliser linkIdentity pour ajouter le provider
-      console.log(`🔗 useMultiProviderAuth: Utilisation de linkIdentity pour ${provider} (utilisateur existant)`);
+      console.log(`🔗 useMultiProviderAuth: Utilisation de linkIdentity pour ${provider} (utilisateur existant: ${sessionData.session.user.id})`);
       const result = await supabase.auth.linkIdentity({
         provider: config.supabaseProvider as any,
         options
       } as any);
       error = result.error;
+      
+      if (error) {
+        console.error(`❌ useMultiProviderAuth: Erreur linkIdentity pour ${provider}:`, error);
+      } else {
+        console.log(`✅ useMultiProviderAuth: linkIdentity réussi pour ${provider}`);
+      }
     } else {
-      // Sinon, utiliser signInWithOAuth pour la première connexion
       console.log(`🆕 useMultiProviderAuth: Utilisation de signInWithOAuth pour ${provider} (première connexion)`);
       const result = await supabase.auth.signInWithOAuth({ 
         provider: config.supabaseProvider as any, 
@@ -217,7 +219,7 @@ export function useMultiProviderAuth() {
 
     console.log(`✅ useMultiProviderAuth: Tokens ${provider} supprimés`);
 
-    // Essayer de délier l'identité (optionnel, peut échouer si c'est la dernière)
+    // Essayer de délier l'identité
     const identities = user.identities || [];
     const identity = identities.find((i: any) => {
       if (provider === "microsoft") {
