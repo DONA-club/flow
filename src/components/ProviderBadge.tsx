@@ -22,7 +22,7 @@ function getAvatarUrl(user: any, provider: Provider): string | null {
   const identity = identities.find((i: any) => matches.includes(i.provider));
   const data = identity?.identity_data || {};
 
-  // Avatar strictement issu de l’identité du provider courant
+  // Avatar strictement issu de l'identité du provider courant
   const fromIdentity =
     data.avatar_url ||
     data.picture ||
@@ -51,6 +51,8 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         return;
       }
 
+      console.log("🔍 ProviderBadge: Tentative de récupération de la photo Microsoft via Graph API");
+
       const { data, error } = await supabase
         .from("oauth_tokens")
         .select("access_token")
@@ -60,6 +62,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
       const token = data?.access_token || null;
       if (!token || error) {
+        console.log("⚠️ ProviderBadge: Pas de token Microsoft disponible");
         setMsPhotoUrl(null);
         return;
       }
@@ -70,6 +73,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       ];
 
       for (const url of tryUrls) {
+        console.log(`🌐 ProviderBadge: Tentative de récupération depuis ${url}`);
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -77,10 +81,14 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
           const blob = await res.blob();
           revokeUrl = URL.createObjectURL(blob);
           setMsPhotoUrl(revokeUrl);
+          console.log("✅ ProviderBadge: Photo Microsoft récupérée avec succès");
           return;
+        } else {
+          console.log(`❌ ProviderBadge: Échec ${res.status} pour ${url}`);
         }
       }
 
+      console.log("⚠️ ProviderBadge: Aucune photo Microsoft trouvée");
       setMsPhotoUrl(null);
     }
 
@@ -98,6 +106,8 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         return;
       }
 
+      console.log("🔍 ProviderBadge: Tentative de récupération de la photo Google via userinfo");
+
       const { data, error } = await supabase
         .from("oauth_tokens")
         .select("access_token")
@@ -107,6 +117,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
       const token = data?.access_token || null;
       if (!token || error) {
+        console.log("⚠️ ProviderBadge: Pas de token Google disponible");
         setGgPhotoUrl(null);
         return;
       }
@@ -117,6 +128,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       });
 
       if (!res.ok) {
+        console.log(`❌ ProviderBadge: Échec récupération photo Google (${res.status})`);
         setGgPhotoUrl(null);
         return;
       }
@@ -124,6 +136,12 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       const json = await res.json();
       const pic = json?.picture || null;
       setGgPhotoUrl(pic || null);
+      
+      if (pic) {
+        console.log("✅ ProviderBadge: Photo Google récupérée avec succès");
+      } else {
+        console.log("⚠️ ProviderBadge: Aucune photo Google trouvée");
+      }
     }
 
     fetchGooglePhoto();
@@ -134,16 +152,36 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   const baseFilters =
     "filter grayscale blur-[1px] opacity-90 transition-all duration-200 ease-out group-hover:grayscale-0 group-hover:blur-0 group-hover:opacity-100";
 
+  // Badge du provider en bas de la photo
+  const badgeSize = "w-4 h-4";
+  const badgeBg = "bg-white";
+
   if (finalAvatarUrl) {
     return (
-      <img
-        src={finalAvatarUrl}
-        alt={`${provider} avatar`}
-        referrerPolicy="no-referrer"
-        className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
-          .join(" ")
-          .trim()}
-      />
+      <div className="relative w-full h-full">
+        <img
+          src={finalAvatarUrl}
+          alt={`${provider} avatar`}
+          referrerPolicy="no-referrer"
+          className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
+            .join(" ")
+            .trim()}
+        />
+        {/* Badge provider en bas au centre */}
+        <div
+          className={[
+            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/4",
+            badgeBg,
+            "rounded-full p-0.5 shadow-md",
+            badgeSize,
+          ].join(" ")}
+        >
+          <BrandIcon
+            name={provider}
+            className="w-full h-full"
+          />
+        </div>
+      </div>
     );
   }
 
