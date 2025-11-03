@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
-import { Calendar } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
@@ -44,14 +43,12 @@ const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
-  // Log l'état des providers connectés
   useEffect(() => {
     if (!authLoading) {
       console.log("🎯 CircularCalendarDemo: État des providers:", connectedProviders);
     }
   }, [connectedProviders, authLoading]);
 
-  // Utiliser directement connectedProviders sans état intermédiaire
   const googleEnabled = connectedProviders?.google ?? false;
   const msEnabled = connectedProviders?.microsoft ?? false;
 
@@ -61,7 +58,6 @@ const CircularCalendarDemo = () => {
     authLoading
   });
 
-  // Charger les données en continu si les providers sont connectés
   const {
     events: gEvents,
     loading: gLoading,
@@ -87,7 +83,6 @@ const CircularCalendarDemo = () => {
     refresh: refreshFit,
   } = useGoogleFitSleep({ enabled: googleEnabled });
 
-  // Log l'état des hooks
   useEffect(() => {
     console.log("📊 CircularCalendarDemo: État des hooks:", {
       google: { enabled: googleEnabled, connected: gConnected, events: gEvents.length, loading: gLoading, error: gError },
@@ -178,7 +173,6 @@ const CircularCalendarDemo = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
-  // Fusionner tous les événements Google + Microsoft
   const combinedEvents = [...gEvents, ...oEvents].sort((a, b) => {
     const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
     const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
@@ -191,7 +185,6 @@ const CircularCalendarDemo = () => {
     total: combinedEvents.length
   });
 
-  // Auto-refresh toutes les minutes pour maintenir la synchronisation continue
   useEffect(() => {
     const id = window.setInterval(() => {
       console.log("🔄 CircularCalendarDemo: Auto-refresh des données");
@@ -236,7 +229,6 @@ const CircularCalendarDemo = () => {
             size={size}
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
-            eventIcon={<Calendar className="inline-block mr-1 w-5 h-5 text-blue-700 align-text-bottom" />}
             onEventClick={(evt) => {
               setSelectedEvent(evt);
               toast.info("Détails de l'événement", {

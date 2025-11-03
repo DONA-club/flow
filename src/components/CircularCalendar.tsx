@@ -5,23 +5,22 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 type Event = {
   title: string;
   place: string;
-  start: number; // hour (0-23)
-  end: number;   // hour (0-23)
+  start: number;
+  end: number;
   url?: string;
 };
 
 type Props = {
-  sunrise: number; // heure décimale (ex: 6.5 pour 6h30)
-  sunset: number;  // heure décimale (ex: 20.25 pour 20h15)
+  sunrise: number;
+  sunset: number;
   events: Event[];
   season?: "spring" | "summer" | "autumn" | "winter";
   onEventClick?: (event: Event) => void;
-  size?: number; // diamètre du cercle en px
-  eventIcon?: React.ReactNode;
+  size?: number;
   latitude?: number;
   longitude?: number;
-  wakeHour?: number | null; // heure décimale locale
-  bedHour?: number | null;  // heure décimale locale
+  wakeHour?: number | null;
+  bedHour?: number | null;
 };
 
 const DEFAULT_SIZE = 320;
@@ -35,7 +34,6 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-const BACKGROUND_COLOR = "#f9fafb";
 const SEGMENTS = 1440;
 
 function getWedgePath(
@@ -161,20 +159,6 @@ function formatHour(decimal: number) {
   return `${h}:${m}`;
 }
 
-function formatCoord(coord?: number, type: "lat" | "lon" = "lat") {
-  if (typeof coord !== "number") return "";
-  const abs = Math.abs(coord).toFixed(5);
-  const dir =
-    type === "lat"
-      ? coord >= 0
-        ? "N"
-        : "S"
-      : coord >= 0
-      ? "E"
-      : "W";
-  return `${abs}°${dir}`;
-}
-
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -182,16 +166,31 @@ export const CircularCalendar: React.FC<Props> = ({
   season,
   onEventClick,
   size = DEFAULT_SIZE,
-  eventIcon,
   latitude,
   longitude,
   wakeHour,
   bedHour,
 }) => {
   const [now, setNow] = React.useState<Date>(() => new Date());
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+
   React.useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(id);
+  }, []);
+
+  React.useEffect(() => {
+    const checkTheme = () => {
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(isDark);
+    };
+    checkTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => checkTheme();
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
   }, []);
 
   const hourDecimal =
@@ -250,6 +249,8 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   });
 
+  // Couleur du curseur adaptée au thème
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   const cursorX1 = cx + INNER_RADIUS * Math.cos(cursorRad);
@@ -314,7 +315,6 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }
 
-  // Fentes nettes plus fines (moitié d'épaisseur)
   const dividerWidth = Math.max(1, Math.round(2 * scale));
   const hourSlits = Array.from({ length: 24 }).map((_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
@@ -370,6 +370,61 @@ export const CircularCalendar: React.FC<Props> = ({
       >
         {i}
       </text>
+    );
+  });
+
+  // Arcs pour les événements
+  const nowMs = now.getTime();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+  const eventsWithDates = events
+    .map((e) => {
+      const start = getEventStartDate(e, now);
+      const end = start ? getEventEndDate(e, start) : null;
+      return { e, start, end };
+    })
+    .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
+
+  // Filtrer les événements d'aujourd'hui et à venir
+  const upcomingEvents = eventsWithDates
+    .filter((x) => x.end.getTime() >= nowMs)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  // Couleur du titre (pour les événements en cours)
+  const titleColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
+  const futureEventColor = isDarkMode ? "#60a5fa" : "#3b82f6";
+
+  const eventArcs = upcomingEvents.map((item, idx) => {
+    const { e, start, end } = item;
+    const startHour = start.getHours() + start.getMinutes() / 60;
+    const endHour = end.getHours() + end.getMinutes() / 60;
+    
+    const startAngle = angleFromHour(startHour);
+    const endAngle = angleFromHour(endHour);
+
+    // Événement en cours ou à venir ?
+    const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
+    
+    // Position radiale : les plus proches au bord intérieur, les suivants vers l'extérieur
+    const totalEvents = upcomingEvents.length;
+    const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
+    const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
+
+    const color = isCurrent ? titleColor : futureEventColor;
+    const opacity = isCurrent ? 1 : (isDarkMode ? 0.6 : 0.7);
+
+    return (
+      <path
+        key={`event-${idx}`}
+        d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
+        fill="none"
+        stroke={color}
+        strokeOpacity={opacity}
+        strokeWidth={Math.max(2, radiusStep * 0.8)}
+        strokeLinecap="round"
+        style={{ pointerEvents: "none" }}
+      />
     );
   });
 
@@ -440,7 +495,7 @@ export const CircularCalendar: React.FC<Props> = ({
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.95}
-              strokeWidth={Math.max(2, Math.round(3 * scale))}
+              strokeWidth={arcStroke}
               strokeLinecap="round"
               style={{ pointerEvents: "none" }}
             />
@@ -448,15 +503,18 @@ export const CircularCalendar: React.FC<Props> = ({
 
           {hoverRing && futureArc && (
             <path
-              d={getArcPath(cx, cy, RADIUS + Math.max(1, Math.round(scale)) + Math.max(2, Math.round(3 * scale)) / 2, futureArc.start, futureArc.end)}
+              d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
               fill="none"
               stroke={SEASON_COLORS[currentSeason]}
               strokeOpacity={0.6}
-              strokeWidth={Math.max(2, Math.round(3 * scale))}
+              strokeWidth={arcStroke}
               strokeLinecap="round"
               style={{ pointerEvents: "none" }}
             />
           )}
+
+          {/* Arcs des événements */}
+          {eventArcs}
 
           {hourNumbers}
 
@@ -465,10 +523,10 @@ export const CircularCalendar: React.FC<Props> = ({
             y1={cursorY1}
             x2={cursorX2}
             y2={cursorY2}
-            stroke="#2563eb"
+            stroke={cursorColor}
             strokeWidth={3}
             strokeLinecap="round"
-            style={{ filter: "drop-shadow(0 0 4px #2563eb88)" }}
+            style={{ filter: `drop-shadow(0 0 4px ${cursorColor}88)` }}
           />
         </svg>
 
@@ -513,7 +571,6 @@ export const CircularCalendar: React.FC<Props> = ({
             className="calendar-center-title font-semibold mb-1 flex items-center justify-center tracking-tight transition-colors"
             style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
           >
-            {event && eventIcon}
             {event ? event.title : "No events"}
           </div>
 
