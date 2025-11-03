@@ -3,6 +3,7 @@
 import React from "react";
 import BrandIcon from "@/components/BrandIcon";
 import type { Provider } from "@/hooks/use-multi-provider-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   provider: Provider;
@@ -36,13 +37,69 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   const isConnected = connectedProviders?.[provider] ?? false;
   const avatarUrl = isConnected ? getAvatarUrl(user, provider) : null;
 
+  // Fallback Microsoft: récupérer la photo via Graph si non fournie
+  const [msPhotoUrl, setMsPhotoUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let revokeUrl: string | null = null;
+
+    async function fetchMicrosoftPhoto() {
+      // Ne tenter que pour Microsoft, connecté, sans avatar déjà dispo
+      if (provider !== "microsoft" || !isConnected || !!avatarUrl || !user?.id) {
+        if (msPhotoUrl) setMsPhotoUrl(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("oauth_tokens")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .eq("provider", "microsoft")
+        .maybeSingle();
+
+      const token = data?.access_token || null;
+      if (!token || error) {
+        setMsPhotoUrl(null);
+        return;
+      }
+
+      // Essayer une petite photo optimisée, sinon fallback à la photo par défaut
+      const tryUrls = [
+        "https://graph.microsoft.com/v1.0/me/photos/96x96/$value",
+        "https://graph.microsoft.com/v1.0/me/photo/$value",
+      ];
+
+      for (const url of tryUrls) {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          revokeUrl = URL.createObjectURL(blob);
+          setMsPhotoUrl(revokeUrl);
+          return;
+        }
+      }
+
+      setMsPhotoUrl(null);
+    }
+
+    fetchMicrosoftPhoto();
+
+    return () => {
+      if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+    };
+  }, [provider, isConnected, avatarUrl, user?.id]);
+
+  const finalAvatarUrl = avatarUrl || msPhotoUrl;
+
   const baseFilters =
     "filter grayscale blur-[1px] opacity-90 transition-all duration-200 ease-out group-hover:grayscale-0 group-hover:blur-0 group-hover:opacity-100";
 
-  if (avatarUrl) {
+  if (finalAvatarUrl) {
     return (
       <img
-        src={avatarUrl}
+        src={finalAvatarUrl}
         alt={`${provider} avatar`}
         referrerPolicy="no-referrer"
         className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]

@@ -122,9 +122,10 @@ export function useMultiProviderAuth() {
     checkConnectedProviders();
 
     const { data } = supabase.auth.onAuthStateChange(() => {
+      // Laisser le temps au session/user de se stabiliser
       setTimeout(() => {
         checkConnectedProviders();
-      }, 1000);
+      }, 800);
     });
 
     return () => data.subscription.unsubscribe();
@@ -151,15 +152,29 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({ 
-      provider: config.supabaseProvider as any, 
-      options 
-    });
+    // Si un utilisateur est déjà connecté, on LIE l'identité au compte existant
+    const { data: sess } = await supabase.auth.getSession();
+    const hasUser = !!sess?.session?.user;
 
-    if (error) {
+    let err: any = null;
+
+    if (hasUser) {
+      const { error } = await supabase.auth.linkIdentity(
+        { provider: config.supabaseProvider as any, options } as any
+      );
+      err = error;
+    } else {
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider: config.supabaseProvider as any, 
+        options 
+      });
+      err = error;
+    }
+
+    if (err) {
       localStorage.removeItem("pending_provider_connection");
       toast.error(`Connexion ${provider} indisponible`, {
-        description: error.message,
+        description: err.message,
       });
       return false;
     }
