@@ -2,6 +2,7 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSessionGroup } from "@/hooks/use-session-group";
 
 export type CalendarEvent = {
   title: string;
@@ -27,35 +28,6 @@ type Options = {
 function toHourDecimal(iso: string): number {
   const d = new Date(iso);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
-}
-
-async function getGoogleTokens() {
-  const { data: sess } = await supabase.auth.getSession();
-  const session = sess?.session;
-  const userId = session?.user?.id;
-  if (!userId) {
-    console.log("❌ [Google] Pas d'utilisateur connecté");
-    return null;
-  }
-
-  // TOUJOURS vérifier oauth_tokens en priorité
-  const { data, error } = await supabase
-    .from("oauth_tokens")
-    .select("access_token, refresh_token, expires_at")
-    .eq("user_id", userId)
-    .eq("provider", "google")
-    .maybeSingle();
-
-  if (!error && data) {
-    console.log("✅ [Google] Tokens trouvés dans oauth_tokens:", { 
-      hasAccess: !!data.access_token, 
-      hasRefresh: !!data.refresh_token 
-    });
-    return data;
-  }
-
-  console.log("⚠️ [Google] Aucun token dans oauth_tokens");
-  return null;
 }
 
 async function refreshGoogleToken(refreshToken: string) {
@@ -85,25 +57,12 @@ async function refreshGoogleToken(refreshToken: string) {
   }
 
   console.log("✅ [Google] Token refreshé avec succès");
-  
-  // Sauvegarder le nouveau token
-  const userId = session?.user?.id;
-  await supabase.from("oauth_tokens").upsert(
-    {
-      user_id: userId,
-      provider: "google",
-      access_token: data.access_token,
-      refresh_token: data.refresh_token ?? undefined,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,provider" }
-  );
-
   return data.access_token;
 }
 
 export function useGoogleCalendar(options?: Options): Result {
   const enabled = options?.enabled ?? true;
+  const { getToken, saveToken } = useSessionGroup();
 
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -120,11 +79,22 @@ export function useGoogleCalendar(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    const tokens = await getGoogleTokens();
-    let accessToken = tokens?.access_token;
+    // Récupérer le token depuis le groupe de sessions
+    const tokenData = await getToken("google");
+    let accessToken = tokenData?.access_token;
 
-    if (!accessToken && tokens?.refresh_token) {
-      accessToken = await refreshGoogleToken(tokens.refresh_token);
+    if (!accessToken && tokenData?.refresh_token) {
+      const newToken = await refreshGoogleToken(tokenData.refresh_token);
+      if (newToken) {
+        // Sauvegarder le nouveau token
+        await saveToken(
+          "google",
+          newToken,
+          tokenData.refresh_token,
+          new Date(Date.now() + 3600000).toISOString() // +1h
+        );
+        accessToken = newToken;
+      }
     }
 
     if (!accessToken) {
@@ -148,10 +118,17 @@ export function useGoogleCalendar(options?: Options): Result {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (res.status === 401 && tokens?.refresh_token) {
+    if (res.status === 401 && tokenData?.refresh_token) {
       console.log("🔄 [Google] Token expiré, tentative de refresh...");
-      const newToken = await refreshGoogleToken(tokens.refresh_token);
+      const newToken = await refreshGoogleToken(tokenData.refresh_token);
       if (newToken) {
+        // Sauvegarder le nouveau token
+        await saveToken(
+          "google",
+          newToken,
+          tokenData.refresh_token,
+          new Date(Date.now() + 3600000).toISOString() // +1h
+        );
         return fetchEvents();
       }
     }
@@ -196,7 +173,7 @@ export function useGoogleCalendar(options?: Options): Result {
 
     setEvents(mapped);
     setLoading(false);
-  }, [enabled]);
+  }, [enabled, getToken, saveToken]);
 
   React.useEffect(() => {
     if (!enabled) return;

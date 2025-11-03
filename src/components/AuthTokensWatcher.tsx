@@ -3,6 +3,7 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSessionGroup } from "@/hooks/use-session-group";
 
 type Provider = "google" | "microsoft";
 
@@ -68,7 +69,7 @@ function hasIdentity(user: any, provider: Provider) {
   return identities.some((i: any) => normalizeProviderFromIdentity(i.provider) === provider);
 }
 
-async function saveCurrentProviderTokens() {
+async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>) {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
@@ -108,42 +109,18 @@ async function saveCurrentProviderTokens() {
     return;
   }
 
-  // Vérifier si ce provider a déjà un token enregistré
-  const { data: existing } = await supabase
-    .from("oauth_tokens")
-    .select("access_token")
-    .eq("user_id", user.id)
-    .eq("provider", providerToSave)
-    .maybeSingle();
-
-  // Si le token existe déjà et est identique, ne rien faire
-  if (existing && existing.access_token === accessToken) {
-    console.log(`✅ Token ${providerToSave} déjà à jour`);
-    if (pendingProvider === providerToSave) {
-      localStorage.removeItem("pending_provider_connection");
-    }
-    return;
-  }
-
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
 
-  const { error } = await supabase.from("oauth_tokens").upsert(
-    {
-      user_id: user.id,
-      provider: providerToSave,
-      access_token: accessToken,
-      refresh_token: refreshToken ?? undefined,
-      expires_at: expiresAtIso,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,provider" }
+  const success = await saveTokenFn(
+    providerToSave,
+    accessToken,
+    refreshToken ?? undefined,
+    expiresAtIso
   );
 
-  if (error) {
-    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}:`, error);
-  } else {
-    console.log(`✅ Tokens ${providerToSave} sauvegardés pour user ${user.id}`);
+  if (success) {
+    console.log(`✅ Tokens ${providerToSave} sauvegardés dans le groupe`);
     const pending = localStorage.getItem("pending_provider_connection");
     if (pending === providerToSave) {
       localStorage.removeItem("pending_provider_connection");
@@ -151,19 +128,26 @@ async function saveCurrentProviderTokens() {
         description: "Vos données seront maintenant synchronisées.",
       });
     }
+  } else {
+    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}`);
   }
 }
 
 const AuthTokensWatcher: React.FC = () => {
+  const { saveToken, initializeGroup } = useSessionGroup();
+
   React.useEffect(() => {
     // Sauvegarde initiale si on arrive déjà authentifié
-    saveCurrentProviderTokens();
+    const saveTokens = async () => {
+      await saveCurrentProviderTokens(saveToken);
+    };
+    saveTokens();
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
       console.log(`🔐 Auth event: ${event}`);
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
         setTimeout(() => {
-          saveCurrentProviderTokens();
+          saveCurrentProviderTokens(saveToken);
         }, 500);
       }
     });
@@ -171,7 +155,7 @@ const AuthTokensWatcher: React.FC = () => {
     return () => {
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [saveToken]);
 
   return null;
 };

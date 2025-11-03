@@ -2,6 +2,7 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSessionGroup } from "@/hooks/use-session-group";
 
 type Result = {
   wakeHour: number | null;
@@ -21,63 +22,6 @@ function toLocalDecimalHourFromMillis(ms: number): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-function looksLikeGoogleToken(token: string | null): boolean {
-  return !!token && token.startsWith("ya29.");
-}
-
-async function getGoogleTokens() {
-  const { data: sess } = await supabase.auth.getSession();
-  const session = sess?.session;
-  const userId = session?.user?.id;
-  if (!userId) return null;
-
-  // 1) Essayer la table oauth_tokens
-  const { data, error } = await supabase
-    .from("oauth_tokens")
-    .select("access_token, refresh_token, expires_at")
-    .eq("user_id", userId)
-    .eq("provider", "google")
-    .maybeSingle();
-
-  if (!error && data) {
-    return data;
-  }
-
-  // 2) Fallback via session
-  const accessFromSession = session?.provider_token ?? null;
-  const refreshFromSession = session?.provider_refresh_token ?? null;
-
-  // Vérifier identité Google
-  const identities = session?.user?.identities || [];
-  const hasGoogleIdentity = identities.some((i: any) => i.provider === "google");
-  if (!hasGoogleIdentity) return null;
-
-  if (looksLikeGoogleToken(accessFromSession)) {
-    const expiresAtUnix = session?.expires_at ?? null;
-    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
-
-    await supabase.from("oauth_tokens").upsert(
-      {
-        user_id: userId,
-        provider: "google",
-        access_token: accessFromSession!,
-        refresh_token: refreshFromSession ?? undefined,
-        expires_at: expiresAtIso,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,provider" }
-    );
-
-    return {
-      access_token: accessFromSession!,
-      refresh_token: refreshFromSession ?? null,
-      expires_at: expiresAtIso,
-    } as any;
-  }
-
-  return null;
-}
-
 async function refreshGoogleToken(refreshToken: string) {
   const { data: sess } = await supabase.auth.getSession();
   const session = sess?.session;
@@ -94,23 +38,12 @@ async function refreshGoogleToken(refreshToken: string) {
   const newAccessToken = data.access_token;
   if (!newAccessToken) return null;
 
-  const userId = session?.user?.id;
-  await supabase.from("oauth_tokens").upsert(
-    {
-      user_id: userId,
-      provider: "google",
-      access_token: newAccessToken,
-      refresh_token: data.refresh_token ?? undefined,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,provider" }
-  );
-
   return newAccessToken;
 }
 
 export function useGoogleFitSleep(options?: Options): Result {
   const enabled = options?.enabled ?? true;
+  const { getToken, saveToken } = useSessionGroup();
 
   const [wakeHour, setWakeHour] = React.useState<number | null>(null);
   const [bedHour, setBedHour] = React.useState<number | null>(null);
@@ -124,11 +57,22 @@ export function useGoogleFitSleep(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    const tokens = await getGoogleTokens();
-    let accessToken = tokens?.access_token;
+    // Récupérer le token depuis le groupe de sessions
+    const tokenData = await getToken("google");
+    let accessToken = tokenData?.access_token;
 
-    if (!accessToken && tokens?.refresh_token) {
-      accessToken = await refreshGoogleToken(tokens.refresh_token);
+    if (!accessToken && tokenData?.refresh_token) {
+      const newToken = await refreshGoogleToken(tokenData.refresh_token);
+      if (newToken) {
+        // Sauvegarder le nouveau token
+        await saveToken(
+          "google",
+          newToken,
+          tokenData.refresh_token,
+          new Date(Date.now() + 3600000).toISOString() // +1h
+        );
+        accessToken = newToken;
+      }
     }
 
     if (!accessToken) {
@@ -150,9 +94,16 @@ export function useGoogleFitSleep(options?: Options): Result {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (res.status === 401 && tokens?.refresh_token) {
-      const newToken = await refreshGoogleToken(tokens.refresh_token);
+    if (res.status === 401 && tokenData?.refresh_token) {
+      const newToken = await refreshGoogleToken(tokenData.refresh_token);
       if (newToken) {
+        // Sauvegarder le nouveau token
+        await saveToken(
+          "google",
+          newToken,
+          tokenData.refresh_token,
+          new Date(Date.now() + 3600000).toISOString() // +1h
+        );
         return fetchSleep();
       }
     }
@@ -197,7 +148,7 @@ export function useGoogleFitSleep(options?: Options): Result {
     setWakeHour(Number(lastEndHour.toFixed(4)));
     setBedHour(Number(lastStartHour.toFixed(4)));
     setLoading(false);
-  }, [enabled]);
+  }, [enabled, getToken, saveToken]);
 
   React.useEffect(() => {
     if (!enabled) return;
