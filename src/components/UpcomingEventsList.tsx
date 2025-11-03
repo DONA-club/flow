@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { Calendar, Clock, X } from "lucide-react";
+import { X } from "lucide-react";
 
 type EventLike = {
   title: string;
   place?: string;
-  start?: number; // heure décimale locale (0-23)
-  end?: number;   // heure décimale locale (0-23)
+  start?: number;
+  end?: number;
   url?: string;
   raw?: any;
 };
@@ -100,8 +100,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         ].join(" ").trim()}
         aria-label="Afficher les événements à venir"
       >
-        <Calendar className="w-4 h-4 text-blue-200" />
-        <span className="text-sm font-semibold tracking-tight">À venir</span>
+        <span className="text-sm font-semibold tracking-tight">[+] A venir</span>
       </button>
     );
   }
@@ -119,8 +118,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-200">
-          <Calendar className="w-4 h-4 text-blue-200" />
-          <span className="text-sm font-semibold tracking-tight">À venir</span>
+          <span className="text-sm font-semibold tracking-tight">A venir</span>
         </div>
         <button
           type="button"
@@ -153,7 +151,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
               : end
               ? end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
               : "";
-          const range = startHour && endHour ? `${startHour} — ${endHour}` : startHour;
+          const range = startHour && endHour ? `${startHour} - ${endHour}` : startHour;
 
           const dayLabel = start ? getDayLabel(start, nowRef) : "";
 
@@ -166,13 +164,13 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
                 aria-label={`Ouvrir l'événement: ${title}`}
               >
                 <div className="shrink-0 mt-0.5">
-                  <Clock className="w-4 h-4 text-blue-300" />
+                  <span className="text-blue-300 text-xs">[*]</span>
                 </div>
                 <div className="min-w-0">
                   <div className="text-slate-100 text-sm font-medium truncate">{title}</div>
                   <div className="text-slate-300 text-xs truncate">{place}</div>
                   <div className="text-slate-400 text-xs mt-0.5">
-                    {dayLabel}{range ? ` • ${range}` : ""}
+                    {dayLabel}{range ? ` - ${range}` : ""}
                   </div>
                 </div>
               </button>

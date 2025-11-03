@@ -159,6 +159,12 @@ function formatHour(decimal: number) {
   return `${h}:${m}`;
 }
 
+function getDaysDifference(date1: Date, date2: Date): number {
+  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+  return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -373,10 +379,9 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Arcs pour les événements
+  // Arcs pour les événements avec couleurs par jour
   const nowMs = now.getTime();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const todayEnd = todayStart + 24 * 60 * 60 * 1000;
 
   const eventsWithDates = events
     .map((e) => {
@@ -391,9 +396,12 @@ export const CircularCalendar: React.FC<Props> = ({
     .filter((x) => x.end.getTime() >= nowMs)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  // Couleur du titre (pour les événements en cours)
-  const titleColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
-  const futureEventColor = isDarkMode ? "#60a5fa" : "#3b82f6";
+  // Couleurs par jour
+  const dayColors = [
+    isDarkMode ? "#bfdbfe" : "#1d4ed8", // Aujourd'hui
+    isDarkMode ? "#93c5fd" : "#3b82f6", // Demain
+    isDarkMode ? "#60a5fa" : "#2563eb", // Après-demain
+  ];
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
@@ -406,13 +414,17 @@ export const CircularCalendar: React.FC<Props> = ({
     // Événement en cours ou à venir ?
     const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
     
+    // Calculer le jour de l'événement
+    const dayDiff = getDaysDifference(start, now);
+    const colorIndex = Math.min(dayDiff, dayColors.length - 1);
+    const color = dayColors[colorIndex];
+    
     // Position radiale : les plus proches au bord intérieur, les suivants vers l'extérieur
     const totalEvents = upcomingEvents.length;
     const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
     const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
 
-    const color = isCurrent ? titleColor : futureEventColor;
-    const opacity = isCurrent ? 1 : (isDarkMode ? 0.6 : 0.7);
+    const opacity = isCurrent ? 1 : 0.7;
 
     return (
       <path
@@ -427,6 +439,37 @@ export const CircularCalendar: React.FC<Props> = ({
       />
     );
   });
+
+  // Style nocturne pour les périodes de sommeil
+  const sleepOverlays: JSX.Element[] = [];
+  
+  if (typeof wakeHour === "number" && typeof bedHour === "number") {
+    // Période de sommeil principale (coucher -> lever)
+    const bedAngle = angleFromHour(bedHour);
+    const wakeAngle = angleFromHour(wakeHour);
+    
+    sleepOverlays.push(
+      <path
+        key="sleep-main"
+        d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, bedAngle, wakeAngle)}
+        fill="rgba(0, 0, 0, 0.4)"
+        style={{ pointerEvents: "none" }}
+      />
+    );
+
+    // Période de sommeil recommandée (9h avant le lever)
+    const recommendedSleepStart = (wakeHour - 9 + 24) % 24;
+    const recommendedAngle = angleFromHour(recommendedSleepStart);
+    
+    sleepOverlays.push(
+      <path
+        key="sleep-recommended"
+        d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, recommendedAngle, bedAngle)}
+        fill="rgba(0, 0, 0, 0.2)"
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -489,6 +532,11 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
+          {/* Overlays de sommeil */}
+          <g mask="url(#ringFadeMask)">
+            {sleepOverlays}
+          </g>
+
           {hoverRing && pastArc && (
             <path
               d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
@@ -531,7 +579,7 @@ export const CircularCalendar: React.FC<Props> = ({
         </svg>
 
         <div
-          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center"
+          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{
             transform: `translate(-50%, -50%)`,
             position: "absolute",
@@ -543,6 +591,10 @@ export const CircularCalendar: React.FC<Props> = ({
             cursor: event ? "pointer" : "default",
             overflowWrap: "anywhere",
             wordBreak: "break-word",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            MozUserSelect: "none",
+            msUserSelect: "none",
           }}
           onClick={() => event && onEventClick && onEventClick(event)}
           tabIndex={event ? 0 : -1}

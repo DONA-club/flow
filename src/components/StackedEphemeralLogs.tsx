@@ -11,27 +11,23 @@ type Log = {
 
 type Props = {
   logs: { message: string; type?: LogType }[];
-  // Compat: si fourni, on l’interprète comme la durée du fade (ms).
   fadeOutDuration?: number;
 };
 
 export const StackedEphemeralLogs: React.FC<Props> = ({
   logs,
-  fadeOutDuration, // si absent => 5000ms
+  fadeOutDuration,
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
   const idRef = useRef(0);
 
-  // Map des timeouts par log
   const timersRef = useRef<
     Map<number, { fadeTimeout?: number; removeTimeout?: number }>
   >(new Map());
 
-  // FLIP animation
   const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const prevPositions = useRef<Map<number, number>>(new Map());
 
-  // Flux: empilement + remplacement du "..." par confirmation/erreur
   useEffect(() => {
     if (logs.length === 0) return;
 
@@ -42,7 +38,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
 
     setDisplayed((prev) => {
       if (lastDisplayed && lastDisplayed.message.includes("...") && !isEllipsis) {
-        // Remplacer en place (même position visuelle)
         const replaced = prev.map((l, idx) =>
           idx === prev.length - 1
             ? { ...l, message: last.message, type: incomingType, fading: false }
@@ -80,15 +75,12 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
         },
       ];
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs.map((l) => l.message + (l.type ?? "info")).join(",")]);
 
-  // Durées: visible 10s, fade 5s (ou fadeOutDuration si fourni)
   const visibleMs = 10000;
   const fadeMs = fadeOutDuration ?? 5000;
   const totalMs = visibleMs + fadeMs;
 
-  // Planification fade/suppression pour les messages non "..."
   useEffect(() => {
     displayed.forEach((log) => {
       const isEllipsis = log.message.includes("...");
@@ -111,12 +103,9 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
       timersRef.current.set(log.id, { fadeTimeout, removeTimeout });
     });
 
-    return () => {
-      // pas de cleanup global pour éviter d’annuler des timers actifs sur re-render
-    };
+    return () => {};
   }, [displayed, visibleMs, fadeMs, totalMs]);
 
-  // Cleanup complet au démontage
   useEffect(() => {
     return () => {
       timersRef.current.forEach((t) => {
@@ -127,7 +116,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     };
   }, []);
 
-  // FLIP repositionnement
   useLayoutEffect(() => {
     const newPositions = new Map<number, number>();
     displayed.forEach((log) => {
@@ -161,10 +149,22 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     else nodeRefs.current.delete(id);
   };
 
-  // Style doux et fondu avec le fond: opacité plus faible
+  // Remplacer les caractères spéciaux par ASCII
+  const sanitizeMessage = (msg: string) => {
+    return msg
+      .replace(/✔️/g, "[OK]")
+      .replace(/✅/g, "[OK]")
+      .replace(/❌/g, "[X]")
+      .replace(/⚠️/g, "[!]")
+      .replace(/🔄/g, "[~]")
+      .replace(/…/g, "...");
+  };
+
   const baseTextClass =
-    "text-sm leading-tight tracking-tight select-none transition-all text-foreground/50";
-  const typeClass = (_t: LogType) => "";
+    "text-xs leading-tight tracking-tight select-none transition-all italic";
+  
+  // Couleur adaptée au fond (proche mais lisible)
+  const textColor = "rgba(255, 255, 255, 0.35)";
 
   return (
     <div
@@ -176,15 +176,16 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
         <div
           key={log.id}
           ref={setNodeRef(log.id)}
-          className={`${baseTextClass} ${typeClass(log.type)} ${
-            log.fading ? "opacity-40 translate-y-1" : "opacity-100 translate-y-0"
+          className={`${baseTextClass} ${
+            log.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
           }`}
           style={{
             transition: `opacity ${log.fading ? fadeMs : 300}ms ease, transform ${log.fading ? fadeMs : 220}ms ease`,
             willChange: "transform, opacity",
+            color: textColor,
           }}
         >
-          {log.message}
+          {sanitizeMessage(log.message)}
         </div>
       ))}
     </div>
