@@ -44,9 +44,22 @@ const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
+  // Log l'état des providers connectés
+  useEffect(() => {
+    if (!authLoading) {
+      console.log("🎯 CircularCalendarDemo: État des providers:", connectedProviders);
+    }
+  }, [connectedProviders, authLoading]);
+
   // Utiliser directement connectedProviders sans état intermédiaire
   const googleEnabled = connectedProviders?.google ?? false;
   const msEnabled = connectedProviders?.microsoft ?? false;
+
+  console.log("🔧 CircularCalendarDemo: Configuration des hooks:", {
+    googleEnabled,
+    msEnabled,
+    authLoading
+  });
 
   // Charger les données en continu si les providers sont connectés
   const {
@@ -74,6 +87,15 @@ const CircularCalendarDemo = () => {
     refresh: refreshFit,
   } = useGoogleFitSleep({ enabled: googleEnabled });
 
+  // Log l'état des hooks
+  useEffect(() => {
+    console.log("📊 CircularCalendarDemo: État des hooks:", {
+      google: { enabled: googleEnabled, connected: gConnected, events: gEvents.length, loading: gLoading, error: gError },
+      microsoft: { enabled: msEnabled, connected: oConnected, events: oEvents.length, loading: oLoading, error: oError },
+      fit: { enabled: googleEnabled, connected: fitConnected, wakeHour, bedHour, loading: fitLoading, error: fitError }
+    });
+  }, [googleEnabled, msEnabled, gConnected, oConnected, fitConnected, gEvents.length, oEvents.length, gLoading, oLoading, fitLoading, gError, oError, fitError, wakeHour, bedHour]);
+
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
@@ -91,6 +113,7 @@ const CircularCalendarDemo = () => {
     if (authLoading) return;
     const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
     if (!hasAnyConnection) {
+      console.log("⚠️ CircularCalendarDemo: Aucun provider connecté, redirection vers /");
       navigate("/", { replace: true });
     }
   }, [authLoading, connectedProviders, navigate]);
@@ -162,9 +185,16 @@ const CircularCalendarDemo = () => {
     return new Date(aStart).getTime() - new Date(bStart).getTime();
   });
 
+  console.log("📅 CircularCalendarDemo: Événements combinés:", {
+    google: gEvents.length,
+    microsoft: oEvents.length,
+    total: combinedEvents.length
+  });
+
   // Auto-refresh toutes les minutes pour maintenir la synchronisation continue
   useEffect(() => {
     const id = window.setInterval(() => {
+      console.log("🔄 CircularCalendarDemo: Auto-refresh des données");
       if (googleEnabled) {
         refreshGoogle();
         refreshFit();
