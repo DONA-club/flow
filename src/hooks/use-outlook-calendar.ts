@@ -29,11 +29,19 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+// Détecter heuristiquement si le token ressemble à un jeton Microsoft (JWT)
+function looksLikeMicrosoftToken(token: string | null): boolean {
+  if (!token) return false;
+  return token.startsWith("eyJ"); // JWT
+}
+
 async function getMicrosoftTokens() {
   const { data: sess } = await supabase.auth.getSession();
-  const userId = sess?.session?.user?.id;
+  const session = sess?.session;
+  const userId = session?.user?.id;
   if (!userId) return null;
 
+  // 1) Essayer la table oauth_tokens
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -41,8 +49,49 @@ async function getMicrosoftTokens() {
     .eq("provider", "microsoft")
     .maybeSingle();
 
-  if (error || !data) return null;
-  return data;
+  if (data && !error) {
+    return data;
+  }
+
+  // 2) Fallback: si pas encore enregistré, tenter d'utiliser le provider_token de la session
+  const accessFromSession = session?.provider_token ?? null;
+  const refreshFromSession = session?.provider_refresh_token ?? null;
+
+  // Vérifier que l'utilisateur a bien une identité Microsoft liée
+  const identities = session?.user?.identities || [];
+  const hasMicrosoftIdentity = identities.some((i: any) =>
+    ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider)
+  );
+
+  if (!hasMicrosoftIdentity) {
+    return null;
+  }
+
+  // Si le token de session ressemble à Microsoft, l'enregistrer pour activer le flux
+  if (looksLikeMicrosoftToken(accessFromSession)) {
+    const expiresAtUnix = session?.expires_at ?? null;
+    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
+
+    await supabase.from("oauth_tokens").upsert(
+      {
+        user_id: userId,
+        provider: "microsoft",
+        access_token: accessFromSession!,
+        refresh_token: refreshFromSession ?? undefined,
+        expires_at: expiresAtIso,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,provider" }
+    );
+
+    return {
+      access_token: accessFromSession!,
+      refresh_token: refreshFromSession ?? null,
+      expires_at: expiresAtIso,
+    } as any;
+  }
+
+  return null;
 }
 
 async function refreshMicrosoftToken(refreshToken: string) {
@@ -51,15 +100,15 @@ async function refreshMicrosoftToken(refreshToken: string) {
   if (!supaAccess) return null;
 
   const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
-    body: { 
+    body: {
       refresh_token: refreshToken,
-      scope: "Calendars.Read offline_access openid profile email"
+      scope: "Calendars.Read offline_access openid profile email",
     },
     headers: { Authorization: `Bearer ${supaAccess}` },
   });
 
   if (error || !data) return null;
-  
+
   const newAccessToken = data.access_token;
   if (!newAccessToken) return null;
 
@@ -70,6 +119,8 @@ async function refreshMicrosoftToken(refreshToken: string) {
       user_id: userId,
       provider: "microsoft",
       access_token: newAccessToken,
+      // Microsoft peut renvoyer un nouveau refresh_token, le conserver si présent
+      refresh_token: data.refresh_token ?? undefined,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
@@ -93,7 +144,7 @@ export function useOutlookCalendar(options?: Options): Result {
     setError(null);
 
     const tokens = await getMicrosoftTokens();
-    let accessToken = tokens?.access_token;
+    let accessToken = tokens?.access_token ?? null;
 
     if (!accessToken && tokens?.refresh_token) {
       accessToken = await refreshMicrosoftToken(tokens.refresh_token);
@@ -125,6 +176,7 @@ export function useOutlookCalendar(options?: Options): Result {
       },
     });
 
+    // Si expiré, tenter un refresh puis relancer
     if (res.status === 401 && tokens?.refresh_token) {
       const newToken = await refreshMicrosoftToken(tokens.refresh_token);
       if (newToken) {
@@ -135,6 +187,7 @@ export function useOutlookCalendar(options?: Options): Result {
     if (!res.ok) {
       setEvents([]);
       setLoading(false);
+      setConnected(false);
       setError(`Erreur Outlook (${res.status})`);
       return;
     }
