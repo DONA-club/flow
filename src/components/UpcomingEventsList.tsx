@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X } from "lucide-react";
+import { ChevronDown, Calendar, Clock, CalendarDays } from "lucide-react";
 
 type EventLike = {
   title: string;
@@ -62,8 +62,29 @@ function getDayLabel(date: Date, nowRef: Date) {
   return days[startMid.getDay()];
 }
 
+function getDaysDifference(date1: Date, date2: Date): number {
+  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+  return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
   const [open, setOpen] = React.useState(true);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkTheme = () => {
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(isDark);
+    };
+    checkTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => checkTheme();
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   const upcoming = React.useMemo(() => {
     const now = new Date();
@@ -88,6 +109,9 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
 
   if (upcoming.length === 0) return null;
 
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
+  const nowRef = new Date();
+
   if (!open) {
     return (
       <button
@@ -100,12 +124,11 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         ].join(" ").trim()}
         aria-label="Afficher les événements à venir"
       >
-        <span className="text-sm font-semibold tracking-tight">[+] A venir</span>
+        <Calendar className="w-4 h-4" />
+        <span className="text-sm font-semibold tracking-tight">A venir</span>
       </button>
     );
   }
-
-  const nowRef = new Date();
 
   return (
     <div
@@ -118,15 +141,16 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-200">
+          <Calendar className="w-4 h-4" />
           <span className="text-sm font-semibold tracking-tight">A venir</span>
         </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="p-1 rounded-md hover:bg-white/10 text-slate-300"
+          className="p-1 rounded-md hover:bg-white/10 text-slate-300 transition-transform"
           aria-label="Fermer la liste des événements"
         >
-          <X className="w-4 h-4" />
+          <ChevronDown className="w-4 h-4" />
         </button>
       </div>
 
@@ -154,6 +178,22 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           const range = startHour && endHour ? `${startHour} - ${endHour}` : startHour;
 
           const dayLabel = start ? getDayLabel(start, nowRef) : "";
+          const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
+
+          // Choisir l'icône selon le jour
+          let EventIcon = Clock;
+          let iconColor = cursorColor;
+          
+          if (dayDiff === 0) {
+            EventIcon = Clock;
+            iconColor = cursorColor;
+          } else if (dayDiff === 1) {
+            EventIcon = Calendar;
+            iconColor = "currentColor";
+          } else {
+            EventIcon = CalendarDays;
+            iconColor = "currentColor";
+          }
 
           return (
             <li key={idx}>
@@ -164,7 +204,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
                 aria-label={`Ouvrir l'événement: ${title}`}
               >
                 <div className="shrink-0 mt-0.5">
-                  <span className="text-blue-300 text-xs">[*]</span>
+                  <EventIcon className="w-4 h-4" style={{ color: iconColor }} />
                 </div>
                 <div className="min-w-0">
                   <div className="text-slate-100 text-sm font-medium truncate">{title}</div>

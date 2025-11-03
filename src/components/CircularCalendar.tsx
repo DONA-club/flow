@@ -259,8 +259,11 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
-  const cursorX1 = cx + INNER_RADIUS * Math.cos(cursorRad);
-  const cursorY1 = cy + INNER_RADIUS * Math.sin(cursorRad);
+  
+  // Prolonger le curseur vers l'intérieur (20% de l'épaisseur de l'anneau)
+  const cursorExtension = RING_THICKNESS * 0.2;
+  const cursorX1 = cx + (INNER_RADIUS - cursorExtension) * Math.cos(cursorRad);
+  const cursorY1 = cy + (INNER_RADIUS - cursorExtension) * Math.sin(cursorRad);
   const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
   const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
 
@@ -658,9 +661,9 @@ export const CircularCalendar: React.FC<Props> = ({
                 return dy > 0 ? "bottom" : "top";
               })()}
               sideOffset={6}
-              className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
+              className="bg-transparent border-0 shadow-none p-0 font-light"
             >
-              <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
+              <span style={{ fontSize: metaFontSize, lineHeight: 1.1, color: "#facc15" }}>
                 {formatHour(sunrise)}
               </span>
             </TooltipContent>
@@ -691,9 +694,9 @@ export const CircularCalendar: React.FC<Props> = ({
                 return dy > 0 ? "bottom" : "top";
               })()}
               sideOffset={6}
-              className="bg-transparent border-0 shadow-none p-0 text-gray-600 font-light"
+              className="bg-transparent border-0 shadow-none p-0 font-light"
             >
-              <span style={{ fontSize: metaFontSize, lineHeight: 1.1 }}>
+              <span style={{ fontSize: metaFontSize, lineHeight: 1.1, color: "#fb923c" }}>
                 {formatHour(sunset)}
               </span>
             </TooltipContent>
