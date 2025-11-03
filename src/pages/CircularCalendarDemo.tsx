@@ -42,7 +42,7 @@ type LogType = "info" | "success" | "error";
 const CircularCalendarDemo = () => {
   const navigate = useNavigate();
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
-  const { connectedProviders } = useMultiProviderAuth();
+  const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
   // Charger les données uniquement si les providers sont connectés
   const {
@@ -84,12 +84,13 @@ const CircularCalendarDemo = () => {
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
   useEffect(() => {
-    // Rediriger vers l'accueil si aucun compte connecté (peu importe le provider)
+    // Ne rediriger qu'une fois l'état d'auth chargé
+    if (authLoading) return;
     const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
     if (!hasAnyConnection) {
       navigate("/", { replace: true });
     }
-  }, [connectedProviders, navigate]);
+  }, [authLoading, connectedProviders, navigate]);
 
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
