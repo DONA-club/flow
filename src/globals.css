@@ -115,18 +115,44 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* Animations d'arrivée et départ des logos (fondu + blur + léger mouvement) */
+/* Animations d'arrivée et départ des logos (fondu sur place avec légère réduction de taille) */
 @keyframes logo-enter {
-  0% { opacity: 0; transform: scale(0.6) translateY(10px); filter: blur(6px); }
-  50% { opacity: 1; filter: blur(2px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+  0% { 
+    opacity: 0; 
+    transform: scale(0.85); 
+    filter: blur(6px); 
+  }
+  50% { 
+    opacity: 1; 
+    filter: blur(2px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1); 
+    filter: blur(0); 
+  }
 }
+
 @keyframes logo-exit {
-  0% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-  100% { opacity: 0; transform: scale(0.85) translateY(-8px); filter: blur(5px); }
+  0% { 
+    opacity: 1; 
+    transform: scale(1); 
+    filter: blur(0); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: scale(0.85); 
+    filter: blur(5px); 
+  }
 }
-.logo-enter { animation: logo-enter 420ms ease-out both; }
-.logo-exit { animation: logo-exit 420ms ease-in both; }
+
+.logo-enter { 
+  animation: logo-enter 420ms ease-out both; 
+}
+
+.logo-exit { 
+  animation: logo-exit 420ms ease-in both; 
+}
 
 /* Pulse du point blanc synchronisé au changement de logo */
 @keyframes point-pulse-anim {

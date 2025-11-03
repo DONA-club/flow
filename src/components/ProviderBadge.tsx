@@ -4,6 +4,7 @@ import React from "react";
 import BrandIcon from "@/components/BrandIcon";
 import type { Provider } from "@/hooks/use-multi-provider-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { Check } from "lucide-react";
 
 type Props = {
   provider: Provider;
@@ -156,21 +157,17 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   const badgeSize = "w-4 h-4";
   const badgeBg = "bg-white";
 
-  if (finalAvatarUrl) {
+  // Si connecté mais pas de photo : point vert avec check
+  if (isConnected && !finalAvatarUrl) {
     return (
       <div className="relative w-full h-full">
-        <img
-          src={finalAvatarUrl}
-          alt={`${provider} avatar`}
-          referrerPolicy="no-referrer"
-          className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
-            .join(" ")
-            .trim()}
-        />
+        <div className="w-full h-full rounded-full bg-green-500 flex items-center justify-center shadow-md">
+          <Check className="w-1/2 h-1/2 text-white" strokeWidth={3} />
+        </div>
         {/* Badge provider en bas au centre */}
         <div
           className={[
-            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/4",
+            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
             badgeBg,
             "rounded-full p-0.5 shadow-md",
             badgeSize,
@@ -185,6 +182,37 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     );
   }
 
+  // Si photo disponible
+  if (finalAvatarUrl) {
+    return (
+      <div className="relative w-full h-full">
+        <img
+          src={finalAvatarUrl}
+          alt={`${provider} avatar`}
+          referrerPolicy="no-referrer"
+          className={["w-full h-full rounded-full object-cover", baseFilters, className || ""]
+            .join(" ")
+            .trim()}
+        />
+        {/* Badge provider en bas au centre, plus bas pour laisser voir la photo */}
+        <div
+          className={[
+            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
+            badgeBg,
+            "rounded-full p-0.5 shadow-md",
+            badgeSize,
+          ].join(" ")}
+        >
+          <BrandIcon
+            name={provider}
+            className="w-full h-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Sinon : logo du provider (non connecté)
   return (
     <BrandIcon
       name={provider}
