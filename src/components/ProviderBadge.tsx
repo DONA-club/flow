@@ -155,7 +155,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
   // Badge du provider en bas de la photo
   const badgeSize = "w-4 h-4";
-  const badgeBg = "bg-white";
 
   // Si connecté mais pas de photo : point vert avec check
   if (isConnected && !finalAvatarUrl) {
@@ -168,14 +167,13 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         <div
           className={[
             "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
-            badgeBg,
             "rounded-full p-0.5 shadow-md",
             badgeSize,
           ].join(" ")}
         >
           <BrandIcon
             name={provider}
-            className="w-full h-full"
+            className={["w-full h-full", baseFilters].join(" ")}
           />
         </div>
       </div>
@@ -198,14 +196,13 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         <div
           className={[
             "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
-            badgeBg,
             "rounded-full p-0.5 shadow-md",
             badgeSize,
           ].join(" ")}
         >
           <BrandIcon
             name={provider}
-            className="w-full h-full"
+            className={["w-full h-full", baseFilters].join(" ")}
           />
         </div>
       </div>
