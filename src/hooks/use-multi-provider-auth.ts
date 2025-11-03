@@ -157,11 +157,29 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
-    const { error } = await supabase.auth.signInWithOAuth({ 
-      provider: config.supabaseProvider as any, 
-      options 
-    });
+    // Vérifier si un utilisateur est déjà connecté
+    const { data: sessionData } = await supabase.auth.getSession();
+    const hasExistingUser = !!sessionData?.session?.user;
+
+    let error: any = null;
+
+    if (hasExistingUser) {
+      // Si un utilisateur existe déjà, utiliser linkIdentity pour ajouter le provider
+      console.log(`🔗 useMultiProviderAuth: Utilisation de linkIdentity pour ${provider} (utilisateur existant)`);
+      const result = await supabase.auth.linkIdentity({
+        provider: config.supabaseProvider as any,
+        options
+      } as any);
+      error = result.error;
+    } else {
+      // Sinon, utiliser signInWithOAuth pour la première connexion
+      console.log(`🆕 useMultiProviderAuth: Utilisation de signInWithOAuth pour ${provider} (première connexion)`);
+      const result = await supabase.auth.signInWithOAuth({ 
+        provider: config.supabaseProvider as any, 
+        options 
+      });
+      error = result.error;
+    }
 
     if (error) {
       console.error(`❌ useMultiProviderAuth: Erreur connexion ${provider}:`, error);
