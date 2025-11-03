@@ -30,7 +30,8 @@ const Index = () => {
     navigate("/calendar");
   };
 
-  const sparkRadiusRem = 1.25;
+  // Rayon des particules légèrement augmenté
+  const sparkRadiusRem = 1.6;
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -41,7 +42,7 @@ const Index = () => {
             className={`point-blanc cursor-pointer ${burstActive ? "point-pulse" : ""}`}
             aria-label="Ouvrir le calendrier circulaire"
           />
-          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-4">
+          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-6">
             <div className="relative">
               <LogoScroller onActiveIndexChange={handleChange} />
               <SparkBurst active={burstActive} distanceRem={sparkRadiusRem} />

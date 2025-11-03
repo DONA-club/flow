@@ -8,7 +8,7 @@ type Props = {
   distanceRem?: number;
 };
 
-const SparkBurst: React.FC<Props> = ({ active, distanceRem = 1.25 }) => {
+const SparkBurst: React.FC<Props> = ({ active, distanceRem = 1.6 }) => {
   if (!active) return null;
 
   const count = 13;
@@ -22,7 +22,7 @@ const SparkBurst: React.FC<Props> = ({ active, distanceRem = 1.25 }) => {
       <div className="relative w-full h-full">
         {Array.from({ length: count }).map((_, i) => {
           const angle = baseStep * i + (Math.random() * 16 - 8); // ±8° de jitter
-          const dist = distanceRem * (0.6 + Math.random() * 0.6); // 60% à 120% du rayon
+          const dist = distanceRem * (0.8 + Math.random() * 0.6); // 80% à 140% du rayon
           const delay = Math.random() * 120; // 0–120ms
           const dur = 500 + Math.random() * 240; // 500–740ms
           const size = 4 + Math.random() * 3; // 4–7px
