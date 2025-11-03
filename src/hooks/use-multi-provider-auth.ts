@@ -15,7 +15,9 @@ type ProviderConfig = {
 const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
   google: {
     supabaseProvider: "google",
-    scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
+    // Ajout des scopes de profil pour récupérer l’avatar et les claims
+    scopes:
+      "openid profile email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
     queryParams: {
       prompt: "consent",
       access_type: "offline",
@@ -106,11 +108,10 @@ export function useMultiProviderAuth() {
 
     if (tokens) {
       for (const token of tokens) {
-        const provider = token.provider as Provider;
+        const provider = token.provider as keyof ConnectedProviders;
         if (isTokenValid(token.access_token, provider) || token.refresh_token) {
           connected[provider] = true;
         }
-        // Ne plus supprimer agressivement: certains providers changent le format du token
       }
     }
 
@@ -122,7 +123,6 @@ export function useMultiProviderAuth() {
     checkConnectedProviders();
 
     const { data } = supabase.auth.onAuthStateChange(() => {
-      // Laisser le temps au session/user de se stabiliser
       setTimeout(() => {
         checkConnectedProviders();
       }, 800);

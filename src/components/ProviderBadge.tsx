@@ -39,12 +39,13 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
   // Fallback Microsoft: récupérer la photo via Graph si non fournie
   const [msPhotoUrl, setMsPhotoUrl] = React.useState<string | null>(null);
+  // Fallback Google: récupérer la photo via userinfo si non fournie
+  const [ggPhotoUrl, setGgPhotoUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let revokeUrl: string | null = null;
 
     async function fetchMicrosoftPhoto() {
-      // Ne tenter que pour Microsoft, connecté, sans avatar déjà dispo
       if (provider !== "microsoft" || !isConnected || !!avatarUrl || !user?.id) {
         if (msPhotoUrl) setMsPhotoUrl(null);
         return;
@@ -63,7 +64,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         return;
       }
 
-      // Essayer une petite photo optimisée, sinon fallback à la photo par défaut
       const tryUrls = [
         "https://graph.microsoft.com/v1.0/me/photos/96x96/$value",
         "https://graph.microsoft.com/v1.0/me/photo/$value",
@@ -91,7 +91,45 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     };
   }, [provider, isConnected, avatarUrl, user?.id]);
 
-  const finalAvatarUrl = avatarUrl || msPhotoUrl;
+  React.useEffect(() => {
+    async function fetchGooglePhoto() {
+      if (provider !== "google" || !isConnected || !!avatarUrl || !user?.id) {
+        if (ggPhotoUrl) setGgPhotoUrl(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("oauth_tokens")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .eq("provider", "google")
+        .maybeSingle();
+
+      const token = data?.access_token || null;
+      if (!token || error) {
+        setGgPhotoUrl(null);
+        return;
+      }
+
+      // Endpoint userinfo (nécessite openid profile email)
+      const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        setGgPhotoUrl(null);
+        return;
+      }
+
+      const json = await res.json();
+      const pic = json?.picture || null;
+      setGgPhotoUrl(pic || null);
+    }
+
+    fetchGooglePhoto();
+  }, [provider, isConnected, avatarUrl, user?.id]);
+
+  const finalAvatarUrl = avatarUrl || msPhotoUrl || ggPhotoUrl;
 
   const baseFilters =
     "filter grayscale blur-[1px] opacity-90 transition-all duration-200 ease-out group-hover:grayscale-0 group-hover:blur-0 group-hover:opacity-100";
