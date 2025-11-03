@@ -98,14 +98,29 @@ async function saveProviderTokens() {
   }
 
   if (!providerToSave) {
-    console.warn("⚠️ AuthTokensWatcher: Impossible de déterminer le provider");
+    console.warn("⚠️ AuthTokensWatcher: Impossible de déterminer le provider, abandon pour éviter d'écraser d'autres tokens");
+    return;
+  }
+
+  // 3) Vérifier si ce provider a déjà des tokens enregistrés
+  const { data: existingToken } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token")
+    .eq("user_id", user.id)
+    .eq("provider", providerToSave)
+    .maybeSingle();
+
+  // Si le provider a déjà des tokens ET qu'il n'y a pas de pending_provider_connection,
+  // on ne fait rien pour éviter d'écraser avec des tokens d'un autre provider
+  if (existingToken && !pendingProvider) {
+    console.log(`⏭️ AuthTokensWatcher: ${providerToSave} a déjà des tokens et pas de pending, on ne fait rien`);
     return;
   }
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
 
-  console.log(`💾 AuthTokensWatcher: Tentative de sauvegarde tokens ${providerToSave}...`);
+  console.log(`💾 AuthTokensWatcher: Sauvegarde tokens ${providerToSave}...`);
 
   const { error } = await supabase
     .from("oauth_tokens")
