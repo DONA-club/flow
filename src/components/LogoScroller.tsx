@@ -110,7 +110,8 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
 
   return (
     <div
-      className="relative w-[2.05rem] h-[2.05rem] group pointer-events-auto select-none cursor-pointer"
+      className="relative w-[2.05rem] group pointer-events-auto select-none cursor-pointer"
+      style={{ height: "2.8rem" }}
       role="button"
       aria-label={`Se connecter avec ${current}`}
       tabIndex={0}

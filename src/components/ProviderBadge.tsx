@@ -150,27 +150,22 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
   const finalAvatarUrl = avatarUrl || msPhotoUrl || ggPhotoUrl;
 
+  // Désaturation partielle (50%) et flou léger, pas complètement gris
   const baseFilters =
-    "filter grayscale blur-[1px] opacity-90 transition-all duration-200 ease-out group-hover:grayscale-0 group-hover:blur-0 group-hover:opacity-100";
+    "filter saturate-50 blur-[1.5px] transition-all duration-200 ease-out group-hover:saturate-100 group-hover:blur-0";
 
-  // Badge du provider en bas de la photo
-  const badgeSize = "w-4 h-4";
+  // Badge du provider sous la photo
+  const badgeSize = "w-3.5 h-3.5";
 
   // Si connecté mais pas de photo : point vert avec check
   if (isConnected && !finalAvatarUrl) {
     return (
-      <div className="relative w-full h-full">
-        <div className="w-full h-full rounded-full bg-green-500 flex items-center justify-center shadow-md">
+      <div className="flex flex-col items-center gap-1">
+        <div className={["w-full h-full rounded-full bg-green-500 flex items-center justify-center shadow-md", baseFilters].join(" ")}>
           <Check className="w-1/2 h-1/2 text-white" strokeWidth={3} />
         </div>
-        {/* Badge provider en bas au centre */}
-        <div
-          className={[
-            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
-            "rounded-full p-0.5 shadow-md",
-            badgeSize,
-          ].join(" ")}
-        >
+        {/* Badge provider directement sous le point vert */}
+        <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
             className={["w-full h-full", baseFilters].join(" ")}
@@ -183,7 +178,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   // Si photo disponible
   if (finalAvatarUrl) {
     return (
-      <div className="relative w-full h-full">
+      <div className="flex flex-col items-center gap-1">
         <img
           src={finalAvatarUrl}
           alt={`${provider} avatar`}
@@ -192,14 +187,8 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
             .join(" ")
             .trim()}
         />
-        {/* Badge provider en bas au centre, plus bas pour laisser voir la photo */}
-        <div
-          className={[
-            "absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
-            "rounded-full p-0.5 shadow-md",
-            badgeSize,
-          ].join(" ")}
-        >
+        {/* Badge provider directement sous la photo */}
+        <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
             className={["w-full h-full", baseFilters].join(" ")}
