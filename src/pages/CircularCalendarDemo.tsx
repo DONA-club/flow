@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
-import { Calendar, ArrowLeft } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
@@ -174,14 +174,6 @@ const CircularCalendarDemo = () => {
   return (
     <>
       <FontLoader />
-
-      <Link 
-        to="/" 
-        className="fixed top-4 left-4 z-30 flex items-center gap-2 px-4 py-2 glass backdrop-blur-md rounded-xl hover:bg-white/20 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4 text-white" />
-        <span className="text-white text-sm font-medium">Retour</span>
-      </Link>
 
       {hasAnyConnection && (
         <UpcomingEventsList

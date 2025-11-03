@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, X } from "lucide-react";
 
 type EventLike = {
   title: string;
@@ -49,7 +49,22 @@ function formatHour(decimal: number) {
   return `${h}:${m}`;
 }
 
+function getDayLabel(date: Date, nowRef: Date) {
+  const startMid = new Date(date);
+  startMid.setHours(0, 0, 0, 0);
+  const nowMid = new Date(nowRef);
+  nowMid.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((startMid.getTime() - nowMid.getTime()) / 86_400_000);
+
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Demain";
+  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  return days[startMid.getDay()];
+}
+
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
+  const [open, setOpen] = React.useState(true);
+
   const upcoming = React.useMemo(() => {
     const now = new Date();
     const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -69,23 +84,52 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           x.start.getTime() <= threeDaysLater.getTime()
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime());
-    // Plus de slice: on affiche tous les événements dans les 3 prochains jours
   }, [events, maxItems]);
 
   if (upcoming.length === 0) return null;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={[
+          "fixed top-4 left-4 z-20 glass px-3 py-2 backdrop-blur-md rounded-lg",
+          "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
+          className || "",
+        ].join(" ").trim()}
+        aria-label="Afficher les événements à venir"
+      >
+        <Calendar className="w-4 h-4 text-blue-200" />
+        <span className="text-sm font-semibold tracking-tight">À venir</span>
+      </button>
+    );
+  }
+
+  const nowRef = new Date();
 
   return (
     <div
       className={[
         "fixed top-4 left-4 z-20 w-[88vw] sm:w-[320px] md:w-[360px]",
-        "glass p-3 sm:p-4 backdrop-blur-md",
+        "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
         className || "",
       ].join(" ").trim()}
       aria-label="Événements à venir"
     >
-      <div className="flex items-center gap-2 mb-2 text-slate-200">
-        <Calendar className="w-4 h-4 text-blue-200" />
-        <span className="text-sm font-semibold tracking-tight">À venir</span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-slate-200">
+          <Calendar className="w-4 h-4 text-blue-200" />
+          <span className="text-sm font-semibold tracking-tight">À venir</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="p-1 rounded-md hover:bg-white/10 text-slate-300"
+          aria-label="Fermer la liste des événements"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       <ul className="space-y-2">
@@ -96,6 +140,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
             e?.raw?.location?.displayName ||
             e?.raw?.organizer?.emailAddress?.name ||
             "Agenda";
+
           const startHour =
             typeof e.start === "number"
               ? formatHour(e.start)
@@ -109,6 +154,8 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
               ? end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
               : "";
           const range = startHour && endHour ? `${startHour} — ${endHour}` : startHour;
+
+          const dayLabel = start ? getDayLabel(start, nowRef) : "";
 
           return (
             <li key={idx}>
@@ -124,7 +171,9 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
                 <div className="min-w-0">
                   <div className="text-slate-100 text-sm font-medium truncate">{title}</div>
                   <div className="text-slate-300 text-xs truncate">{place}</div>
-                  {range && <div className="text-slate-400 text-xs mt-0.5">{range}</div>}
+                  <div className="text-slate-400 text-xs mt-0.5">
+                    {dayLabel}{range ? ` • ${range}` : ""}
+                  </div>
                 </div>
               </button>
             </li>
