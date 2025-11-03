@@ -8,7 +8,8 @@ type Props = {
   onActiveIndexChange?: (index: number, provider: Provider) => void;
 };
 
-const providers: Provider[] = ["google", "microsoft", "apple", "facebook", "amazon"];
+// Ordre demandé: Google, Apple, Facebook, Amazon, Microsoft
+const providers: Provider[] = ["google", "apple", "facebook", "amazon", "microsoft"];
 
 const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
   const { user, connectedProviders, connectProvider } = useMultiProviderAuth();
@@ -18,10 +19,14 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
   const [lock, setLock] = useState(false);
   const touchStartY = useRef<number | null>(null);
 
+  const normalizeIndex = (idx: number) => {
+    const len = providers.length;
+    return ((idx % len) + len) % len;
+  };
+
   const goToIndex = useCallback(
     (idx: number) => {
-      const max = providers.length - 1;
-      const safeIdx = Math.max(0, Math.min(idx, max));
+      const safeIdx = normalizeIndex(idx);
       if (safeIdx === currentIndex) return;
       setPrevIndex(currentIndex);
       setCurrentIndex(safeIdx);
@@ -37,13 +42,8 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
       e.preventDefault();
       if (lock) return;
       const dir = e.deltaY > 0 ? 1 : -1;
-      const next = currentIndex + dir;
-      // Bloquer aux extrémités pour éviter la boucle
-      if ((dir < 0 && currentIndex <= 0) || (dir > 0 && currentIndex >= providers.length - 1)) {
-        return;
-      }
       setLock(true);
-      goToIndex(next);
+      goToIndex(currentIndex + dir);
       setTimeout(() => setLock(false), 500);
     },
     [currentIndex, goToIndex, lock]
@@ -53,12 +53,10 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
     (e: KeyboardEvent) => {
       if (lock) return;
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-        if (currentIndex >= providers.length - 1) return; // blocage à droite/bas
         setLock(true);
         goToIndex(currentIndex + 1);
         setTimeout(() => setLock(false), 500);
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-        if (currentIndex <= 0) return; // blocage à gauche/haut
         setLock(true);
         goToIndex(currentIndex - 1);
         setTimeout(() => setLock(false), 500);
@@ -79,12 +77,7 @@ const LogoScroller: React.FC<Props> = ({ onActiveIndexChange }) => {
       if (start == null || end == null) return;
       const delta = end - start;
       if (Math.abs(delta) < 20) return;
-      const dir = delta < 0 ? 1 : -1;
-      // Bloquer aux extrémités
-      if ((dir < 0 && currentIndex <= 0) || (dir > 0 && currentIndex >= providers.length - 1)) {
-        touchStartY.current = null;
-        return;
-      }
+      const dir = delta < 0 ? 1 : -1; // swipe up => suivant, swipe down => précédent
       setLock(true);
       goToIndex(currentIndex + dir);
       setTimeout(() => setLock(false), 500);

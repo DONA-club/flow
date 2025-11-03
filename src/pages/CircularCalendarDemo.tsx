@@ -84,8 +84,8 @@ const CircularCalendarDemo = () => {
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
   useEffect(() => {
-    // Rediriger vers l'accueil si aucun compte connecté
-    const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
+    // Rediriger vers l'accueil si aucun compte connecté (peu importe le provider)
+    const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
     if (!hasAnyConnection) {
       navigate("/", { replace: true });
     }
@@ -168,7 +168,7 @@ const CircularCalendarDemo = () => {
     return () => window.clearInterval(id);
   }, [refreshGoogle, refreshOutlook, refreshFit]);
 
-  const hasAnyConnection = connectedProviders.google || connectedProviders.microsoft;
+  const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
   return (
     <>
