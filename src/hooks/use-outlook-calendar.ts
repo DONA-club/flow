@@ -29,7 +29,13 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-async function getMicrosoftTokens() {
+type MicrosoftTokens = {
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null; // ISO string
+};
+
+async function getMicrosoftTokens(): Promise<MicrosoftTokens | null> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
   if (!userId) {
@@ -56,13 +62,26 @@ async function getMicrosoftTokens() {
 
   console.log("✅ Tokens Microsoft trouvés:", { 
     hasAccess: !!data.access_token, 
-    hasRefresh: !!data.refresh_token 
+    hasRefresh: !!data.refresh_token,
+    expires_at: data.expires_at
   });
   
-  return data;
+  return {
+    access_token: data.access_token ?? null,
+    refresh_token: data.refresh_token ?? null,
+    expires_at: data.expires_at ?? null,
+  };
 }
 
-async function refreshMicrosoftToken(refreshToken: string) {
+type RefreshResponse = {
+  access_token: string;
+  expires_in: number;
+  refresh_token?: string;
+  scope?: string;
+  token_type?: string;
+};
+
+async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshResponse | null> {
   console.log("🔄 Tentative de refresh du token Microsoft...");
   
   const { data: sess } = await supabase.auth.getSession();
@@ -81,31 +100,44 @@ async function refreshMicrosoftToken(refreshToken: string) {
   });
 
   if (error || !data) {
-    console.error("❌ Erreur refresh token Microsoft:", error);
+    console.error("❌ Erreur refresh token Microsoft:", error, data);
     return null;
   }
 
-  const newAccessToken = data.access_token;
-  if (!newAccessToken) {
-    console.error("❌ Pas de nouveau token dans la réponse");
+  const payload = data as RefreshResponse;
+
+  if (!payload.access_token) {
+    console.error("❌ Pas de nouveau access_token dans la réponse de refresh");
     return null;
   }
 
-  console.log("✅ Token Microsoft refreshé avec succès");
+  // Calculer le nouvel expires_at basé sur expires_in
+  const newExpiresAtIso = new Date(Date.now() + (payload.expires_in ?? 3600) * 1000).toISOString();
+
+  console.log("✅ Token Microsoft refreshé avec succès (nouvelle expiration):", newExpiresAtIso);
   
-  // Sauvegarder le nouveau token
+  // Sauvegarder le nouveau token + potentiellement le refresh_token rotaté
   const userId = sess?.session?.user?.id;
   await supabase.from("oauth_tokens").upsert(
     {
-      user_id: userId,
+      user_id: userId!,
       provider: "microsoft",
-      access_token: newAccessToken,
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token ?? refreshToken, // conserver le nouveau si fourni, sinon l'ancien
+      expires_at: newExpiresAtIso,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,provider" }
   );
 
-  return newAccessToken;
+  return payload;
+}
+
+function isExpiredOrNear(expIso: string | null, skewMs = 60_000) {
+  if (!expIso) return false;
+  const exp = Date.parse(expIso);
+  if (Number.isNaN(exp)) return false;
+  return Date.now() + skewMs >= exp;
 }
 
 export function useOutlookCalendar(options?: Options): Result {
@@ -128,9 +160,15 @@ export function useOutlookCalendar(options?: Options): Result {
 
     const tokens = await getMicrosoftTokens();
     let accessToken = tokens?.access_token ?? null;
+    let refreshToken = tokens?.refresh_token ?? null;
 
-    if (!accessToken && tokens?.refresh_token) {
-      accessToken = await refreshMicrosoftToken(tokens.refresh_token);
+    // Refresh proactif si token expiré ou proche de l'expiration
+    if (refreshToken && (!accessToken || isExpiredOrNear(tokens?.expires_at ?? null))) {
+      const refreshed = await refreshMicrosoftToken(refreshToken);
+      if (refreshed?.access_token) {
+        accessToken = refreshed.access_token;
+        refreshToken = refreshed.refresh_token ?? refreshToken;
+      }
     }
 
     if (!accessToken) {
@@ -153,29 +191,51 @@ export function useOutlookCalendar(options?: Options): Result {
       "&$orderby=start/dateTime" +
       "&$select=subject,organizer,start,end,location,webLink";
 
-    console.log("🌐 Appel API Microsoft Graph...");
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    });
+    async function runGraphCall(tryRefreshOn401: boolean) {
+      console.log("🌐 Appel API Microsoft Graph...");
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+      });
 
-    if (res.status === 401 && tokens?.refresh_token) {
-      console.log("🔄 Token expiré, tentative de refresh...");
-      const newToken = await refreshMicrosoftToken(tokens.refresh_token);
-      if (newToken) {
-        return fetchEvents();
+      if (res.status === 401 && tryRefreshOn401 && refreshToken) {
+        console.log("🔄 401 Graph: tentative de refresh et retry...");
+        const refreshed = await refreshMicrosoftToken(refreshToken);
+        if (refreshed?.access_token) {
+          accessToken = refreshed.access_token;
+          const retryRes = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/json",
+            },
+          });
+          return retryRes;
+        }
       }
+
+      return res;
     }
+
+    const res = await runGraphCall(true);
 
     if (!res.ok) {
       setEvents([]);
       setLoading(false);
       setConnected(false);
-      const errorMsg = `Erreur Outlook (${res.status})`;
-      setError(errorMsg);
-      console.error("❌", errorMsg);
+
+      let errMsg = `Erreur Outlook (${res.status})`;
+      try {
+        const json = await res.json();
+        if (json?.error) {
+          errMsg += `: ${typeof json.error === "string" ? json.error : JSON.stringify(json.error)}`;
+        }
+      } catch {
+        // ignore parse error
+      }
+      setError(errMsg);
+      console.error("❌", errMsg);
       return;
     }
 
