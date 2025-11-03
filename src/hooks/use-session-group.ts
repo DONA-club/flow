@@ -76,7 +76,21 @@ export function useSessionGroup() {
     refreshToken?: string,
     expiresAt?: string
   ) => {
-    if (!groupId) return false;
+    // Attendre que le groupe soit initialisé
+    if (loading) {
+      console.log("⏳ Attente initialisation groupe...");
+      // Attendre un peu et réessayer
+      await new Promise(resolve => setTimeout(resolve, 300));
+      if (loading) {
+        console.error("❌ Groupe pas prêt après attente");
+        return false;
+      }
+    }
+
+    if (!groupId) {
+      console.error("❌ Pas de groupe de session disponible");
+      return false;
+    }
 
     const { error } = await supabase
       .from("session_tokens")
@@ -91,11 +105,22 @@ export function useSessionGroup() {
         onConflict: "session_group_id,provider"
       });
 
-    return !error;
-  }, [groupId]);
+    if (error) {
+      console.error("❌ Erreur sauvegarde token:", error);
+      return false;
+    }
+
+    return true;
+  }, [groupId, loading]);
 
   // Récupérer un token du groupe
   const getToken = useCallback(async (provider: string) => {
+    if (loading) {
+      // Attendre que le groupe soit prêt
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (loading) return null;
+    }
+
     if (!groupId) return null;
 
     const { data, error } = await supabase
@@ -111,10 +136,15 @@ export function useSessionGroup() {
     }
 
     return data;
-  }, [groupId]);
+  }, [groupId, loading]);
 
   // Récupérer tous les tokens du groupe
   const getAllTokens = useCallback(async () => {
+    if (loading) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (loading) return [];
+    }
+
     if (!groupId) return [];
 
     const { data, error } = await supabase
@@ -128,10 +158,15 @@ export function useSessionGroup() {
     }
 
     return data;
-  }, [groupId]);
+  }, [groupId, loading]);
 
   // Supprimer un token du groupe
   const removeToken = useCallback(async (provider: string) => {
+    if (loading) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (loading) return false;
+    }
+
     if (!groupId) return false;
 
     const { error } = await supabase
@@ -141,7 +176,7 @@ export function useSessionGroup() {
       .eq("provider", provider);
 
     return !error;
-  }, [groupId]);
+  }, [groupId, loading]);
 
   useEffect(() => {
     initializeGroup();

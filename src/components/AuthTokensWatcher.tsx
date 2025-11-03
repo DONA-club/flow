@@ -69,7 +69,15 @@ function hasIdentity(user: any, provider: Provider) {
   return identities.some((i: any) => normalizeProviderFromIdentity(i.provider) === provider);
 }
 
-async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>) {
+async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>, isGroupReady: boolean) {
+  // Attendre que le groupe soit prêt
+  if (!isGroupReady) {
+    console.log("⏳ Groupe de sessions pas encore prêt, attente...");
+    // Attendre un peu et réessayer
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return;
+  }
+
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
@@ -134,12 +142,12 @@ async function saveCurrentProviderTokens(saveTokenFn: (provider: string, accessT
 }
 
 const AuthTokensWatcher: React.FC = () => {
-  const { saveToken, initializeGroup } = useSessionGroup();
+  const { saveToken, initializeGroup, loading: groupLoading } = useSessionGroup();
 
   React.useEffect(() => {
     // Sauvegarde initiale si on arrive déjà authentifié
     const saveTokens = async () => {
-      await saveCurrentProviderTokens(saveToken);
+      await saveCurrentProviderTokens(saveToken, !groupLoading);
     };
     saveTokens();
 
@@ -147,7 +155,7 @@ const AuthTokensWatcher: React.FC = () => {
       console.log(`🔐 Auth event: ${event}`);
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
         setTimeout(() => {
-          saveCurrentProviderTokens(saveToken);
+          saveCurrentProviderTokens(saveToken, !groupLoading);
         }, 500);
       }
     });
@@ -155,7 +163,7 @@ const AuthTokensWatcher: React.FC = () => {
     return () => {
       data.subscription.unsubscribe();
     };
-  }, [saveToken]);
+  }, [saveToken, groupLoading]);
 
   return null;
 };
