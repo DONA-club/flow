@@ -15,8 +15,7 @@ type ProviderConfig = {
 const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
   google: {
     supabaseProvider: "google",
-    scopes:
-      "openid profile email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
+    scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
     queryParams: {
       prompt: "consent",
       access_type: "offline",
@@ -42,18 +41,6 @@ const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
 type ConnectedProviders = {
   [K in Provider]: boolean;
 };
-
-function isTokenValid(token: string | null, _provider: Provider): boolean {
-  if (!token) return false;
-  return token.length > 10;
-}
-
-function identityMatchesProvider(identityProvider: string, target: Provider): boolean {
-  if (target === "microsoft") {
-    return ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(identityProvider);
-  }
-  return identityProvider === target;
-}
 
 export function useMultiProviderAuth() {
   const [user, setUser] = useState<any>(null);
@@ -86,29 +73,21 @@ export function useMultiProviderAuth() {
 
     setUser(currentUser);
 
-    // Vérifier les tokens dans oauth_tokens (source de vérité principale)
+    // Vérifier quels providers ont des tokens dans oauth_tokens
     const { data: tokens } = await supabase
       .from("oauth_tokens")
-      .select("provider, access_token, refresh_token")
+      .select("provider")
       .eq("user_id", currentUser.id);
 
-    const connected: ConnectedProviders = {
-      google: false,
-      microsoft: false,
-      apple: false,
-      facebook: false,
-      amazon: false,
-    };
+    const tokenProviders = new Set(tokens?.map(t => t.provider) || []);
 
-    if (tokens) {
-      for (const token of tokens) {
-        const provider = token.provider as keyof ConnectedProviders;
-        if (isTokenValid(token.access_token, provider) || token.refresh_token) {
-          connected[provider] = true;
-          console.log(`✅ Provider ${provider} détecté avec token valide`);
-        }
-      }
-    }
+    const connected: ConnectedProviders = {
+      google: tokenProviders.has("google"),
+      microsoft: tokenProviders.has("microsoft"),
+      apple: tokenProviders.has("apple"),
+      facebook: tokenProviders.has("facebook"),
+      amazon: tokenProviders.has("amazon"),
+    };
 
     setConnectedProviders(connected);
     setLoading(false);
@@ -117,26 +96,17 @@ export function useMultiProviderAuth() {
   useEffect(() => {
     checkConnectedProviders();
 
-    // Vérification périodique toutes les 5 secondes
-    const intervalId = setInterval(() => {
-      checkConnectedProviders();
-    }, 5000);
-
     const { data } = supabase.auth.onAuthStateChange(() => {
-      setTimeout(() => {
-        checkConnectedProviders();
-      }, 1000);
+      checkConnectedProviders();
     });
 
-    return () => {
-      clearInterval(intervalId);
-      data.subscription.unsubscribe();
-    };
+    return () => data.subscription.unsubscribe();
   }, [checkConnectedProviders]);
 
   const connectProvider = useCallback(async (provider: Provider) => {
     const config = PROVIDER_CONFIGS[provider];
     
+    // Stocker le provider demandé dans localStorage pour le récupérer après redirect
     localStorage.setItem("pending_provider_connection", provider);
     
     toast(`Redirection vers ${provider}…`, {
@@ -155,28 +125,18 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    const { data: sess } = await supabase.auth.getSession();
-    const hasUser = !!sess?.session?.user;
+    // TOUJOURS utiliser signInWithOAuth pour capturer les tokens
+    // Si l'utilisateur existe déjà, Supabase va automatiquement lier l'identité
+    // si "Manual linking" est activé
+    const { error } = await supabase.auth.signInWithOAuth({ 
+      provider: config.supabaseProvider as any, 
+      options 
+    });
 
-    let err: any = null;
-
-    if (hasUser) {
-      const { error } = await supabase.auth.linkIdentity(
-        { provider: config.supabaseProvider as any, options } as any
-      );
-      err = error;
-    } else {
-      const { error } = await supabase.auth.signInWithOAuth({ 
-        provider: config.supabaseProvider as any, 
-        options 
-      });
-      err = error;
-    }
-
-    if (err) {
+    if (error) {
       localStorage.removeItem("pending_provider_connection");
       toast.error(`Connexion ${provider} indisponible`, {
-        description: err.message,
+        description: error.message,
       });
       return false;
     }
@@ -187,6 +147,7 @@ export function useMultiProviderAuth() {
   const disconnectProvider = useCallback(async (provider: Provider) => {
     if (!user) return false;
 
+    // Supprimer les tokens de la base
     const { error } = await supabase
       .from("oauth_tokens")
       .delete()
@@ -200,6 +161,7 @@ export function useMultiProviderAuth() {
       return false;
     }
 
+    // Essayer de délier l'identité (optionnel, peut échouer si c'est la dernière)
     const identities = user.identities || [];
     const identity = identities.find((i: any) => {
       if (provider === "microsoft") {

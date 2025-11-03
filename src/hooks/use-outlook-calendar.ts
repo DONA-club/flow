@@ -2,7 +2,6 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSessionGroup } from "@/hooks/use-session-group";
 
 export type CalendarEvent = {
   title: string;
@@ -30,13 +29,46 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+async function getMicrosoftTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) {
+    console.log("❌ Pas d'utilisateur connecté");
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
+    .eq("provider", "microsoft")
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ Erreur lecture tokens Microsoft:", error);
+    return null;
+  }
+  
+  if (!data) {
+    console.log("⚠️ Aucun token Microsoft trouvé dans oauth_tokens");
+    return null;
+  }
+
+  console.log("✅ Tokens Microsoft trouvés:", { 
+    hasAccess: !!data.access_token, 
+    hasRefresh: !!data.refresh_token 
+  });
+  
+  return data;
+}
+
 async function refreshMicrosoftToken(refreshToken: string) {
-  console.log("🔄 [Microsoft] Tentative de refresh du token...");
+  console.log("🔄 Tentative de refresh du token Microsoft...");
   
   const { data: sess } = await supabase.auth.getSession();
   const supaAccess = sess?.session?.access_token;
   if (!supaAccess) {
-    console.error("❌ [Microsoft] Pas de token Supabase pour appeler la fonction edge");
+    console.error("❌ Pas de token Supabase pour appeler la fonction edge");
     return null;
   }
 
@@ -49,23 +81,35 @@ async function refreshMicrosoftToken(refreshToken: string) {
   });
 
   if (error || !data) {
-    console.error("❌ [Microsoft] Erreur refresh token:", error);
+    console.error("❌ Erreur refresh token Microsoft:", error);
     return null;
   }
 
   const newAccessToken = data.access_token;
   if (!newAccessToken) {
-    console.error("❌ [Microsoft] Pas de nouveau token dans la réponse");
+    console.error("❌ Pas de nouveau token dans la réponse");
     return null;
   }
 
-  console.log("✅ [Microsoft] Token refreshé avec succès");
+  console.log("✅ Token Microsoft refreshé avec succès");
+  
+  // Sauvegarder le nouveau token
+  const userId = sess?.session?.user?.id;
+  await supabase.from("oauth_tokens").upsert(
+    {
+      user_id: userId,
+      provider: "microsoft",
+      access_token: newAccessToken,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,provider" }
+  );
+
   return newAccessToken;
 }
 
 export function useOutlookCalendar(options?: Options): Result {
   const enabled = options?.enabled ?? true;
-  const { getToken, saveToken } = useSessionGroup();
 
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -74,30 +118,19 @@ export function useOutlookCalendar(options?: Options): Result {
 
   const fetchEvents = React.useCallback(async () => {
     if (!enabled) {
-      console.log("⏸️ [Microsoft] Calendar désactivé");
+      console.log("⏸️ Microsoft Calendar désactivé");
       return;
     }
 
-    console.log("📅 [Microsoft] Chargement Calendar...");
+    console.log("📅 Chargement Microsoft Calendar...");
     setLoading(true);
     setError(null);
 
-    // Récupérer le token depuis le groupe de sessions
-    const tokenData = await getToken("microsoft");
-    let accessToken = tokenData?.access_token ?? null;
+    const tokens = await getMicrosoftTokens();
+    let accessToken = tokens?.access_token ?? null;
 
-    if (!accessToken && tokenData?.refresh_token) {
-      const newToken = await refreshMicrosoftToken(tokenData.refresh_token);
-      if (newToken) {
-        // Sauvegarder le nouveau token
-        await saveToken(
-          "microsoft",
-          newToken,
-          tokenData.refresh_token,
-          new Date(Date.now() + 3600000).toISOString() // +1h
-        );
-        accessToken = newToken;
-      }
+    if (!accessToken && tokens?.refresh_token) {
+      accessToken = await refreshMicrosoftToken(tokens.refresh_token);
     }
 
     if (!accessToken) {
@@ -105,7 +138,7 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Microsoft non connecté. Connectez Microsoft depuis la page d'accueil.");
-      console.log("❌ [Microsoft] Impossible de récupérer un access token");
+      console.log("❌ Impossible de récupérer un access token Microsoft");
       return;
     }
 
@@ -120,7 +153,7 @@ export function useOutlookCalendar(options?: Options): Result {
       "&$orderby=start/dateTime" +
       "&$select=subject,organizer,start,end,location,webLink";
 
-    console.log("🌐 [Microsoft] Appel API Graph...");
+    console.log("🌐 Appel API Microsoft Graph...");
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -128,18 +161,10 @@ export function useOutlookCalendar(options?: Options): Result {
       },
     });
 
-    // Si expiré, tenter un refresh puis relancer
-    if (res.status === 401 && tokenData?.refresh_token) {
-      console.log("🔄 [Microsoft] Token expiré, tentative de refresh...");
-      const newToken = await refreshMicrosoftToken(tokenData.refresh_token);
+    if (res.status === 401 && tokens?.refresh_token) {
+      console.log("🔄 Token expiré, tentative de refresh...");
+      const newToken = await refreshMicrosoftToken(tokens.refresh_token);
       if (newToken) {
-        // Sauvegarder le nouveau token
-        await saveToken(
-          "microsoft",
-          newToken,
-          tokenData.refresh_token,
-          new Date(Date.now() + 3600000).toISOString() // +1h
-        );
         return fetchEvents();
       }
     }
@@ -150,7 +175,7 @@ export function useOutlookCalendar(options?: Options): Result {
       setConnected(false);
       const errorMsg = `Erreur Outlook (${res.status})`;
       setError(errorMsg);
-      console.error("❌ [Microsoft]", errorMsg);
+      console.error("❌", errorMsg);
       return;
     }
 
@@ -158,7 +183,7 @@ export function useOutlookCalendar(options?: Options): Result {
     const json = await res.json();
     const items: any[] = json?.value ?? [];
 
-    console.log(`✅ [Microsoft] ${items.length} événements récupérés`);
+    console.log(`✅ ${items.length} événements Microsoft récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {
@@ -194,7 +219,7 @@ export function useOutlookCalendar(options?: Options): Result {
 
     setEvents(upcoming);
     setLoading(false);
-  }, [enabled, getToken, saveToken]);
+  }, [enabled]);
 
   React.useEffect(() => {
     if (!enabled) return;

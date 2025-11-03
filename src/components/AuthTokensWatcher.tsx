@@ -3,7 +3,6 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useSessionGroup } from "@/hooks/use-session-group";
 
 type Provider = "google" | "microsoft" | "apple" | "facebook" | "amazon";
 
@@ -56,38 +55,11 @@ function detectProviderFromToken(accessToken: string): Provider | null {
   return null;
 }
 
-function normalizeProviderFromIdentity(provider?: string | null): Provider | null {
-  if (!provider) return null;
-  const v = provider.toLowerCase();
-  if (v === "google") return "google";
-  if (v === "azure" || v === "azure-oidc" || v === "azuread" || v === "microsoft" || v === "outlook") {
-    return "microsoft";
-  }
-  if (v === "apple") return "apple";
-  if (v === "facebook") return "facebook";
-  if (v === "amazon") return "amazon";
-  return null;
-}
-
-function hasIdentity(user: any, provider: Provider) {
-  const identities = user?.identities || [];
-  return identities.some((i: any) => normalizeProviderFromIdentity(i.provider) === provider);
-}
-
-async function saveCurrentProviderTokens(
-  saveTokenFn: (provider: string, accessToken: string, refreshToken?: string, expiresAt?: string) => Promise<boolean>,
-  isReady: boolean
-) {
-  // Attendre que le système soit prêt
-  if (!isReady) {
-    console.log("⏳ Système pas encore prêt, attente...");
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return;
-  }
-
+async function saveProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
+  
   if (!user) {
     console.log("⚠️ Pas d'utilisateur connecté");
     return;
@@ -101,77 +73,78 @@ async function saveCurrentProviderTokens(
     return;
   }
 
-  // 1) Priorité absolue au provider en attente (défini au clic sur le bouton)
-  const pendingProvider = (localStorage.getItem("pending_provider_connection") as Provider | null) ?? null;
+  // 1) Priorité au provider en attente (défini au clic sur le bouton)
+  const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   let providerToSave: Provider | null = null;
 
-  if (pendingProvider && hasIdentity(user, pendingProvider)) {
+  if (pendingProvider) {
     providerToSave = pendingProvider;
     console.log(`🎯 Provider prioritaire (pending): ${providerToSave}`);
   }
 
-  // 2) Détection fiable via token (Google ya29, Microsoft via iss JWT)
+  // 2) Détection via token si pas de pending
   if (!providerToSave) {
     const detected = detectProviderFromToken(accessToken);
-    if (detected && hasIdentity(user, detected)) {
+    if (detected) {
       providerToSave = detected;
       console.log(`🔎 Provider détecté par token: ${providerToSave}`);
     }
   }
 
   if (!providerToSave) {
-    console.warn("⚠️ Impossible de déterminer le provider pour l'upsert de tokens");
+    console.warn("⚠️ Impossible de déterminer le provider");
     return;
   }
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
 
-  const success = await saveTokenFn(
-    providerToSave,
-    accessToken,
-    refreshToken ?? undefined,
-    expiresAtIso
-  );
+  const { error } = await supabase
+    .from("oauth_tokens")
+    .upsert({
+      user_id: user.id,
+      provider: providerToSave,
+      access_token: accessToken,
+      refresh_token: refreshToken ?? undefined,
+      expires_at: expiresAtIso,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: "user_id,provider"
+    });
 
-  if (success) {
-    console.log(`✅ Tokens ${providerToSave} sauvegardés`);
-    const pending = localStorage.getItem("pending_provider_connection");
-    if (pending === providerToSave) {
-      localStorage.removeItem("pending_provider_connection");
-      toast.success(`${providerToSave} connecté avec succès !`, {
-        description: "Vos données seront maintenant synchronisées.",
-      });
-    }
-  } else {
-    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}`);
+  if (error) {
+    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}:`, error);
+    return;
+  }
+
+  console.log(`✅ Tokens ${providerToSave} sauvegardés`);
+  
+  if (pendingProvider === providerToSave) {
+    localStorage.removeItem("pending_provider_connection");
+    toast.success(`${providerToSave} connecté avec succès !`, {
+      description: "Vos données seront maintenant synchronisées.",
+    });
   }
 }
 
 const AuthTokensWatcher: React.FC = () => {
-  const { saveToken, loading } = useSessionGroup();
-
   React.useEffect(() => {
     // Sauvegarde initiale
-    const saveTokens = async () => {
-      await saveCurrentProviderTokens(saveToken, !loading);
-    };
-    saveTokens();
+    saveProviderTokens();
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
       console.log(`🔐 Auth event: ${event}`);
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
-        // Délai pour laisser le temps à la session de se mettre à jour
         setTimeout(() => {
-          saveCurrentProviderTokens(saveToken, !loading);
-        }, 800);
+          saveProviderTokens();
+        }, 500);
       }
     });
 
     return () => {
       data.subscription.unsubscribe();
     };
-  }, [saveToken, loading]);
+  }, []);
 
   return null;
 };

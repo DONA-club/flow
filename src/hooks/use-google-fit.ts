@@ -2,7 +2,6 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSessionGroup } from "@/hooks/use-session-group";
 
 type Result = {
   wakeHour: number | null;
@@ -22,10 +21,25 @@ function toLocalDecimalHourFromMillis(ms: number): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
+async function getGoogleTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data;
+}
+
 async function refreshGoogleToken(refreshToken: string) {
   const { data: sess } = await supabase.auth.getSession();
-  const session = sess?.session;
-  const supaAccess = session?.access_token;
+  const supaAccess = sess?.session?.access_token;
   if (!supaAccess) return null;
 
   const { data, error } = await supabase.functions.invoke("google-token-refresh", {
@@ -33,17 +47,25 @@ async function refreshGoogleToken(refreshToken: string) {
     headers: { Authorization: `Bearer ${supaAccess}` },
   });
 
-  if (error || !data) return null;
-  
-  const newAccessToken = data.access_token;
-  if (!newAccessToken) return null;
+  if (error || !data?.access_token) return null;
 
-  return newAccessToken;
+  // Sauvegarder le nouveau token
+  const userId = sess?.session?.user?.id;
+  await supabase.from("oauth_tokens").upsert(
+    {
+      user_id: userId,
+      provider: "google",
+      access_token: data.access_token,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,provider" }
+  );
+
+  return data.access_token;
 }
 
 export function useGoogleFitSleep(options?: Options): Result {
   const enabled = options?.enabled ?? true;
-  const { getToken, saveToken } = useSessionGroup();
 
   const [wakeHour, setWakeHour] = React.useState<number | null>(null);
   const [bedHour, setBedHour] = React.useState<number | null>(null);
@@ -57,22 +79,11 @@ export function useGoogleFitSleep(options?: Options): Result {
     setLoading(true);
     setError(null);
 
-    // Récupérer le token depuis le groupe de sessions
-    const tokenData = await getToken("google");
-    let accessToken = tokenData?.access_token;
+    const tokens = await getGoogleTokens();
+    let accessToken = tokens?.access_token;
 
-    if (!accessToken && tokenData?.refresh_token) {
-      const newToken = await refreshGoogleToken(tokenData.refresh_token);
-      if (newToken) {
-        // Sauvegarder le nouveau token
-        await saveToken(
-          "google",
-          newToken,
-          tokenData.refresh_token,
-          new Date(Date.now() + 3600000).toISOString() // +1h
-        );
-        accessToken = newToken;
-      }
+    if (!accessToken && tokens?.refresh_token) {
+      accessToken = await refreshGoogleToken(tokens.refresh_token);
     }
 
     if (!accessToken) {
@@ -94,16 +105,9 @@ export function useGoogleFitSleep(options?: Options): Result {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (res.status === 401 && tokenData?.refresh_token) {
-      const newToken = await refreshGoogleToken(tokenData.refresh_token);
+    if (res.status === 401 && tokens?.refresh_token) {
+      const newToken = await refreshGoogleToken(tokens.refresh_token);
       if (newToken) {
-        // Sauvegarder le nouveau token
-        await saveToken(
-          "google",
-          newToken,
-          tokenData.refresh_token,
-          new Date(Date.now() + 3600000).toISOString() // +1h
-        );
         return fetchSleep();
       }
     }
@@ -148,7 +152,7 @@ export function useGoogleFitSleep(options?: Options): Result {
     setWakeHour(Number(lastEndHour.toFixed(4)));
     setBedHour(Number(lastStartHour.toFixed(4)));
     setLoading(false);
-  }, [enabled, getToken, saveToken]);
+  }, [enabled]);
 
   React.useEffect(() => {
     if (!enabled) return;
