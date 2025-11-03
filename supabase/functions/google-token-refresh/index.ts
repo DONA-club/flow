@@ -68,7 +68,10 @@ serve(async (req) => {
   const json = await googleResp.json();
 
   if (!googleResp.ok) {
-    const msg = typeof json?.error === "string" ? json.error : "Token refresh failed";
+    const msg =
+      (typeof json?.error_description === "string" && json.error_description) ||
+      (typeof json?.error === "string" && json.error) ||
+      "Token refresh failed";
     return new Response(JSON.stringify({ error: msg, details: json }), {
       status: googleResp.status,
       headers: { "Content-Type": "application/json", ...corsHeaders },

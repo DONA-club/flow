@@ -94,7 +94,7 @@ async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshRespo
   const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
     body: {
       refresh_token: refreshToken,
-      scope: "Calendars.Read offline_access openid profile email",
+      scope: "https://graph.microsoft.com/Calendars.Read offline_access openid profile email",
     },
     headers: { Authorization: `Bearer ${supaAccess}` },
   });

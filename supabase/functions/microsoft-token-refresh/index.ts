@@ -54,10 +54,11 @@ serve(async (req) => {
     });
   }
 
-  // Pour MS identity v2, l'endpoint de token:
+  // Endpoint de token v2
   const tokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 
-  const defaultScopes = "Calendars.Read offline_access openid profile email";
+  // Scopes recommandés: scope qualifié pour Graph
+  const defaultScopes = "https://graph.microsoft.com/Calendars.Read offline_access openid profile email";
   const scopes = (body.scope && String(body.scope).trim().length > 0) ? body.scope! : defaultScopes;
 
   const params = new URLSearchParams();

@@ -24,7 +24,8 @@ const PROVIDER_CONFIGS: Record<Provider, ProviderConfig> = {
   },
   microsoft: {
     supabaseProvider: "azure",
-    scopes: "openid profile email offline_access Calendars.Read",
+    // Utiliser un scope qualifié pour Graph
+    scopes: "https://graph.microsoft.com/Calendars.Read offline_access openid profile email",
     queryParams: { prompt: "consent" },
   },
   apple: {
