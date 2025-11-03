@@ -29,19 +29,16 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-// Détecter heuristiquement si le token ressemble à un jeton Microsoft (JWT)
-function looksLikeMicrosoftToken(token: string | null): boolean {
-  if (!token) return false;
-  return token.startsWith("eyJ"); // JWT
-}
-
 async function getMicrosoftTokens() {
   const { data: sess } = await supabase.auth.getSession();
   const session = sess?.session;
   const userId = session?.user?.id;
-  if (!userId) return null;
+  if (!userId) {
+    console.log("❌ [Microsoft] Pas d'utilisateur connecté");
+    return null;
+  }
 
-  // 1) Essayer la table oauth_tokens
+  // TOUJOURS vérifier oauth_tokens en priorité
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -50,54 +47,26 @@ async function getMicrosoftTokens() {
     .maybeSingle();
 
   if (data && !error) {
+    console.log("✅ [Microsoft] Tokens trouvés dans oauth_tokens:", {
+      hasAccess: !!data.access_token,
+      hasRefresh: !!data.refresh_token
+    });
     return data;
   }
 
-  // 2) Fallback: si pas encore enregistré, tenter d'utiliser le provider_token de la session
-  const accessFromSession = session?.provider_token ?? null;
-  const refreshFromSession = session?.provider_refresh_token ?? null;
-
-  // Vérifier que l'utilisateur a bien une identité Microsoft liée
-  const identities = session?.user?.identities || [];
-  const hasMicrosoftIdentity = identities.some((i: any) =>
-    ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider)
-  );
-
-  if (!hasMicrosoftIdentity) {
-    return null;
-  }
-
-  // Si le token de session ressemble à Microsoft, l'enregistrer pour activer le flux
-  if (looksLikeMicrosoftToken(accessFromSession)) {
-    const expiresAtUnix = session?.expires_at ?? null;
-    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
-
-    await supabase.from("oauth_tokens").upsert(
-      {
-        user_id: userId,
-        provider: "microsoft",
-        access_token: accessFromSession!,
-        refresh_token: refreshFromSession ?? undefined,
-        expires_at: expiresAtIso,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,provider" }
-    );
-
-    return {
-      access_token: accessFromSession!,
-      refresh_token: refreshFromSession ?? null,
-      expires_at: expiresAtIso,
-    } as any;
-  }
-
+  console.log("⚠️ [Microsoft] Aucun token dans oauth_tokens");
   return null;
 }
 
 async function refreshMicrosoftToken(refreshToken: string) {
+  console.log("🔄 [Microsoft] Tentative de refresh du token...");
+  
   const { data: sess } = await supabase.auth.getSession();
   const supaAccess = sess?.session?.access_token;
-  if (!supaAccess) return null;
+  if (!supaAccess) {
+    console.error("❌ [Microsoft] Pas de token Supabase pour appeler la fonction edge");
+    return null;
+  }
 
   const { data, error } = await supabase.functions.invoke("microsoft-token-refresh", {
     body: {
@@ -107,10 +76,18 @@ async function refreshMicrosoftToken(refreshToken: string) {
     headers: { Authorization: `Bearer ${supaAccess}` },
   });
 
-  if (error || !data) return null;
+  if (error || !data) {
+    console.error("❌ [Microsoft] Erreur refresh token:", error);
+    return null;
+  }
 
   const newAccessToken = data.access_token;
-  if (!newAccessToken) return null;
+  if (!newAccessToken) {
+    console.error("❌ [Microsoft] Pas de nouveau token dans la réponse");
+    return null;
+  }
+
+  console.log("✅ [Microsoft] Token refreshé avec succès");
 
   // Sauvegarder le nouveau token
   const userId = sess?.session?.user?.id;
@@ -119,7 +96,6 @@ async function refreshMicrosoftToken(refreshToken: string) {
       user_id: userId,
       provider: "microsoft",
       access_token: newAccessToken,
-      // Microsoft peut renvoyer un nouveau refresh_token, le conserver si présent
       refresh_token: data.refresh_token ?? undefined,
       updated_at: new Date().toISOString(),
     },
@@ -138,8 +114,12 @@ export function useOutlookCalendar(options?: Options): Result {
   const [connected, setConnected] = React.useState(false);
 
   const fetchEvents = React.useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled) {
+      console.log("⏸️ [Microsoft] Calendar désactivé");
+      return;
+    }
 
+    console.log("📅 [Microsoft] Chargement Calendar...");
     setLoading(true);
     setError(null);
 
@@ -155,6 +135,7 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Microsoft non connecté. Connectez Microsoft depuis la page d'accueil.");
+      console.log("❌ [Microsoft] Impossible de récupérer un access token");
       return;
     }
 
@@ -169,6 +150,7 @@ export function useOutlookCalendar(options?: Options): Result {
       "&$orderby=start/dateTime" +
       "&$select=subject,organizer,start,end,location,webLink";
 
+    console.log("🌐 [Microsoft] Appel API Graph...");
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -178,6 +160,7 @@ export function useOutlookCalendar(options?: Options): Result {
 
     // Si expiré, tenter un refresh puis relancer
     if (res.status === 401 && tokens?.refresh_token) {
+      console.log("🔄 [Microsoft] Token expiré, tentative de refresh...");
       const newToken = await refreshMicrosoftToken(tokens.refresh_token);
       if (newToken) {
         return fetchEvents();
@@ -188,13 +171,17 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setConnected(false);
-      setError(`Erreur Outlook (${res.status})`);
+      const errorMsg = `Erreur Outlook (${res.status})`;
+      setError(errorMsg);
+      console.error("❌ [Microsoft]", errorMsg);
       return;
     }
 
     setConnected(true);
     const json = await res.json();
     const items: any[] = json?.value ?? [];
+
+    console.log(`✅ [Microsoft] ${items.length} événements récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {

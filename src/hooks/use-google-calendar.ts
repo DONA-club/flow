@@ -29,20 +29,16 @@ function toHourDecimal(iso: string): number {
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
 }
 
-function looksLikeGoogleToken(token: string | null): boolean {
-  return !!token && token.startsWith("ya29.");
-}
-
 async function getGoogleTokens() {
   const { data: sess } = await supabase.auth.getSession();
   const session = sess?.session;
   const userId = session?.user?.id;
   if (!userId) {
-    console.log("❌ Pas d'utilisateur connecté");
+    console.log("❌ [Google] Pas d'utilisateur connecté");
     return null;
   }
 
-  // 1) Essayer la table oauth_tokens
+  // TOUJOURS vérifier oauth_tokens en priorité
   const { data, error } = await supabase
     .from("oauth_tokens")
     .select("access_token, refresh_token, expires_at")
@@ -51,65 +47,25 @@ async function getGoogleTokens() {
     .maybeSingle();
 
   if (!error && data) {
-    console.log("✅ Tokens Google trouvés:", { hasAccess: !!data.access_token, hasRefresh: !!data.refresh_token });
+    console.log("✅ [Google] Tokens trouvés dans oauth_tokens:", { 
+      hasAccess: !!data.access_token, 
+      hasRefresh: !!data.refresh_token 
+    });
     return data;
   }
 
-  // 2) Fallback: si pas encore enregistré, tenter d'utiliser le provider_token de la session
-  const accessFromSession = session?.provider_token ?? null;
-  const refreshFromSession = session?.provider_refresh_token ?? null;
-
-  // Vérifier que l'utilisateur a bien une identité Google liée
-  const identities = session?.user?.identities || [];
-  const hasGoogleIdentity = identities.some((i: any) => i.provider === "google");
-
-  if (!hasGoogleIdentity) {
-    console.log("⚠️ Aucune identité Google liée au compte.");
-    return null;
-  }
-
-  // Si le token de session ressemble à Google, l'enregistrer pour activer le flux
-  if (looksLikeGoogleToken(accessFromSession)) {
-    const expiresAtUnix = session?.expires_at ?? null;
-    const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
-
-    const { error: upsertErr } = await supabase.from("oauth_tokens").upsert(
-      {
-        user_id: userId,
-        provider: "google",
-        access_token: accessFromSession!,
-        refresh_token: refreshFromSession ?? undefined,
-        expires_at: expiresAtIso,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,provider" }
-    );
-
-    if (upsertErr) {
-      console.error("❌ Erreur enregistrement token Google depuis la session:", upsertErr);
-      return null;
-    }
-
-    console.log("✅ Token Google enregistré depuis la session");
-    return {
-      access_token: accessFromSession!,
-      refresh_token: refreshFromSession ?? null,
-      expires_at: expiresAtIso,
-    } as any;
-  }
-
-  console.log("⚠️ Aucun token Google dans oauth_tokens et le provider_token de session ne ressemble pas à Google.");
+  console.log("⚠️ [Google] Aucun token dans oauth_tokens");
   return null;
 }
 
 async function refreshGoogleToken(refreshToken: string) {
-  console.log("🔄 Tentative de refresh du token Google...");
+  console.log("🔄 [Google] Tentative de refresh du token...");
   
   const { data: sess } = await supabase.auth.getSession();
   const session = sess?.session;
   const supaAccess = session?.access_token;
   if (!supaAccess) {
-    console.error("❌ Pas de token Supabase pour appeler la fonction edge");
+    console.error("❌ [Google] Pas de token Supabase pour appeler la fonction edge");
     return null;
   }
 
@@ -119,16 +75,16 @@ async function refreshGoogleToken(refreshToken: string) {
   });
 
   if (error) {
-    console.error("❌ Erreur refresh token Google:", error);
+    console.error("❌ [Google] Erreur refresh token:", error);
     return null;
   }
   
   if (!data?.access_token) {
-    console.error("❌ Pas de nouveau token dans la réponse");
+    console.error("❌ [Google] Pas de nouveau token dans la réponse");
     return null;
   }
 
-  console.log("✅ Token Google refreshé avec succès");
+  console.log("✅ [Google] Token refreshé avec succès");
   
   // Sauvegarder le nouveau token
   const userId = session?.user?.id;
@@ -156,11 +112,11 @@ export function useGoogleCalendar(options?: Options): Result {
 
   const fetchEvents = React.useCallback(async () => {
     if (!enabled) {
-      console.log("⏸️ Google Calendar désactivé");
+      console.log("⏸️ [Google] Calendar désactivé");
       return;
     }
 
-    console.log("📅 Chargement Google Calendar...");
+    console.log("📅 [Google] Chargement Calendar...");
     setLoading(true);
     setError(null);
 
@@ -176,7 +132,7 @@ export function useGoogleCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Google non connecté. Cliquez sur le logo Google sur la page d'accueil.");
-      console.log("❌ Impossible de récupérer un access token Google");
+      console.log("❌ [Google] Impossible de récupérer un access token");
       return;
     }
 
@@ -187,13 +143,13 @@ export function useGoogleCalendar(options?: Options): Result {
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
 
-    console.log("🌐 Appel API Google Calendar...");
+    console.log("🌐 [Google] Appel API Calendar...");
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (res.status === 401 && tokens?.refresh_token) {
-      console.log("🔄 Token expiré, tentative de refresh...");
+      console.log("🔄 [Google] Token expiré, tentative de refresh...");
       const newToken = await refreshGoogleToken(tokens.refresh_token);
       if (newToken) {
         return fetchEvents();
@@ -206,7 +162,7 @@ export function useGoogleCalendar(options?: Options): Result {
       setConnected(false);
       const errorMsg = `Erreur Google Calendar (${res.status})`;
       setError(errorMsg);
-      console.error("❌", errorMsg);
+      console.error("❌ [Google]", errorMsg);
       return;
     }
 
@@ -214,7 +170,7 @@ export function useGoogleCalendar(options?: Options): Result {
     const json = await res.json();
     const items: any[] = json?.items ?? [];
 
-    console.log(`✅ ${items.length} événements Google récupérés`);
+    console.log(`✅ [Google] ${items.length} événements récupérés`);
 
     const mapped: CalendarEvent[] = items
       .map((item) => {

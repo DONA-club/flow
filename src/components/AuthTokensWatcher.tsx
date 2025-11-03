@@ -14,10 +14,14 @@ function base64UrlDecode(input: string) {
 }
 
 function getJwtClaims(token: string) {
-  const parts = token.split(".");
-  if (parts.length < 2) return null;
-  const payload = base64UrlDecode(parts[1]);
-  return JSON.parse(payload);
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const payload = base64UrlDecode(parts[1]);
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
 }
 
 function detectProviderFromToken(accessToken: string): Provider | null {
@@ -64,16 +68,6 @@ function hasIdentity(user: any, provider: Provider) {
   return identities.some((i: any) => normalizeProviderFromIdentity(i.provider) === provider);
 }
 
-function pickSingleIdentityProvider(user: any): Provider | null {
-  const identities = user?.identities || [];
-  const normalized = identities
-    .map((i: any) => normalizeProviderFromIdentity(i.provider))
-    .filter((p) => p === "google" || p === "microsoft") as Provider[];
-  const unique = Array.from(new Set(normalized));
-  if (unique.length === 1) return unique[0] as Provider;
-  return null;
-}
-
 async function saveCurrentProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -91,7 +85,7 @@ async function saveCurrentProviderTokens() {
     return;
   }
 
-  // 1) Priorité au provider en attente (défini au clic sur le bouton)
+  // 1) Priorité absolue au provider en attente (défini au clic sur le bouton)
   const pendingProvider = (localStorage.getItem("pending_provider_connection") as Provider | null) ?? null;
   let providerToSave: Provider | null = null;
 
@@ -109,17 +103,25 @@ async function saveCurrentProviderTokens() {
     }
   }
 
-  // 3) À défaut, si une seule identité pertinente
   if (!providerToSave) {
-    const single = pickSingleIdentityProvider(user);
-    if (single) {
-      providerToSave = single;
-      console.log(`🧩 Provider déduit par identité unique: ${providerToSave}`);
-    }
+    console.warn("⚠️ Impossible de déterminer le provider pour l'upsert de tokens");
+    return;
   }
 
-  if (!providerToSave) {
-    console.warn("⚠️ Impossible de déterminer le provider pour l’upsert de tokens");
+  // Vérifier si ce provider a déjà un token enregistré
+  const { data: existing } = await supabase
+    .from("oauth_tokens")
+    .select("access_token")
+    .eq("user_id", user.id)
+    .eq("provider", providerToSave)
+    .maybeSingle();
+
+  // Si le token existe déjà et est identique, ne rien faire
+  if (existing && existing.access_token === accessToken) {
+    console.log(`✅ Token ${providerToSave} déjà à jour`);
+    if (pendingProvider === providerToSave) {
+      localStorage.removeItem("pending_provider_connection");
+    }
     return;
   }
 
