@@ -44,14 +44,26 @@ const CircularCalendarDemo = () => {
   const { sunrise, sunset, loading, error, retry } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
-  // Charger les données uniquement si les providers sont connectés
+  // Activation persistante des providers pour éviter les désactivations temporaires
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [msEnabled, setMsEnabled] = useState(false);
+
+  useEffect(() => {
+    if (connectedProviders?.google) setGoogleEnabled(true);
+  }, [connectedProviders?.google]);
+
+  useEffect(() => {
+    if (connectedProviders?.microsoft) setMsEnabled(true);
+  }, [connectedProviders?.microsoft]);
+
+  // Charger les données (désormais découplé du flicker d'état global)
   const {
     events: gEvents,
     loading: gLoading,
     error: gError,
     connected: gConnected,
     refresh: refreshGoogle,
-  } = useGoogleCalendar({ enabled: connectedProviders.google });
+  } = useGoogleCalendar({ enabled: googleEnabled });
 
   const {
     events: oEvents,
@@ -59,7 +71,7 @@ const CircularCalendarDemo = () => {
     error: oError,
     connected: oConnected,
     refresh: refreshOutlook,
-  } = useOutlookCalendar({ enabled: connectedProviders.microsoft });
+  } = useOutlookCalendar({ enabled: msEnabled });
 
   const {
     wakeHour,
@@ -68,7 +80,7 @@ const CircularCalendarDemo = () => {
     error: fitError,
     connected: fitConnected,
     refresh: refreshFit,
-  } = useGoogleFitSleep({ enabled: connectedProviders.google });
+  } = useGoogleFitSleep({ enabled: googleEnabled });
 
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
