@@ -598,10 +598,14 @@ export const CircularCalendar: React.FC<Props> = ({
   ];
 
   const animateReturn = React.useCallback(() => {
+    console.log("🔙 Début animation retour");
     const duration = 1500;
     const startTime = performance.now();
     const startVirtualTime = new Date(virtualDateTime);
     const targetTime = new Date();
+    
+    console.log("📍 De:", formatDateShort(startVirtualTime), formatHour(startVirtualTime.getHours() + startVirtualTime.getMinutes() / 60));
+    console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
     
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -616,6 +620,7 @@ export const CircularCalendar: React.FC<Props> = ({
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
+        console.log("✅ Animation retour terminée");
         setVirtualDateTime(new Date());
         setIsReturning(false);
         setShowTimeLabel(true);
@@ -706,11 +711,16 @@ export const CircularCalendar: React.FC<Props> = ({
       
       // Délai aléatoire entre 8 et 10 secondes
       const randomDelay = 8000 + Math.random() * 2000;
+      console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
       
       scrollTimeoutRef.current = window.setTimeout(() => {
+        console.log("⏰ Timeout déclenché - début du retour");
         setIsScrolling(false);
         setIsReturning(true);
-        animateReturn();
+        // Utiliser setTimeout pour s'assurer que les états sont mis à jour avant l'animation
+        setTimeout(() => {
+          animateReturn();
+        }, 50);
       }, randomDelay);
     };
 
