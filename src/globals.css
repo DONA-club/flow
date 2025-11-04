@@ -182,3 +182,33 @@ body {
   60% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) translate(calc(var(--dist, 1.6rem) * 0.75)) scale(0.9); }
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--dist, 1.6rem)) scale(0.3); }
 }
+
+/* Styles personnalisés pour Sonner Toaster - Centrage parfait */
+[data-sonner-toaster] {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: 90vw !important;
+  padding-bottom: 24px !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Assurer que les toasts custom sont bien centrés */
+[data-sonner-toaster][data-y-position="bottom"] {
+  bottom: 0 !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+[data-sonner-toaster][data-x-position="center"] {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
