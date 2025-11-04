@@ -74,6 +74,7 @@ const CircularCalendarDemo = () => {
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
+  const [selectedEventFromList, setSelectedEventFromList] = useState<any>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -167,7 +168,7 @@ const CircularCalendarDemo = () => {
         <UpcomingEventsList
           events={combinedEvents}
           onSelect={(evt) => {
-            // La sélection est gérée par CircularCalendar
+            setSelectedEventFromList(evt);
           }}
         />
       )}
@@ -184,6 +185,8 @@ const CircularCalendarDemo = () => {
             size={size}
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
+            externalSelectedEvent={selectedEventFromList}
+            onEventBubbleClosed={() => setSelectedEventFromList(null)}
           />
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">

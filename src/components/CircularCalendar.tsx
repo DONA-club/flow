@@ -25,6 +25,8 @@ type Props = {
   longitude?: number;
   wakeHour?: number | null;
   bedHour?: number | null;
+  externalSelectedEvent?: Event | null;
+  onEventBubbleClosed?: () => void;
 };
 
 const DEFAULT_SIZE = 320;
@@ -301,10 +303,19 @@ export const CircularCalendar: React.FC<Props> = ({
   longitude,
   wakeHour,
   bedHour,
+  externalSelectedEvent,
+  onEventBubbleClosed,
 }) => {
   const [now, setNow] = React.useState<Date>(() => new Date());
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
+
+  // Synchroniser avec l'événement externe sélectionné depuis la liste
+  React.useEffect(() => {
+    if (externalSelectedEvent) {
+      setSelectedEvent(externalSelectedEvent);
+    }
+  }, [externalSelectedEvent]);
 
   React.useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -615,6 +626,13 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   };
 
+  const handleBubbleClose = () => {
+    setSelectedEvent(null);
+    if (onEventBubbleClosed) {
+      onEventBubbleClosed();
+    }
+  };
+
   // Calculer les détails de l'événement pour EventInfoBubble
   let eventOrganizer = "";
   let eventDate = "";
@@ -801,7 +819,7 @@ export const CircularCalendar: React.FC<Props> = ({
             date={eventDate}
             timeRemaining={timeRemaining}
             url={eventUrl}
-            onClose={() => setSelectedEvent(null)}
+            onClose={handleBubbleClose}
             diameter={bubbleDiameter}
           />
         )}
