@@ -2,6 +2,7 @@ import React from "react";
 import { Sunrise, Sunset } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { VideoConferenceToast } from "@/components/VideoConferenceToast";
 
 type Event = {
   title: string;
@@ -600,23 +601,18 @@ export const CircularCalendar: React.FC<Props> = ({
     const videoLink = extractVideoConferenceLink(evt);
     
     if (videoLink) {
-      toast.info(evt.title, {
-        description: (
-          <div className="flex flex-col gap-2">
-            <span>{formatHour(evt.start)} - {formatHour(evt.end)}</span>
-            <a
-              href={videoLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600 underline font-medium"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Connectez-vous à la vidéo conférence
-            </a>
-          </div>
+      toast.custom(
+        (t) => (
+          <VideoConferenceToast
+            link={videoLink}
+            onClose={() => toast.dismiss(t)}
+          />
         ),
-        duration: 10000,
-      });
+        {
+          duration: 10000,
+          position: "bottom-center",
+        }
+      );
     }
     
     if (onEventClick) {
