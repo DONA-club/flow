@@ -1,6 +1,7 @@
 import React from "react";
 import { Sunrise, Sunset } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 type Event = {
   title: string;
@@ -8,6 +9,7 @@ type Event = {
   start: number;
   end: number;
   url?: string;
+  raw?: any;
 };
 
 type Props = {
@@ -163,6 +165,71 @@ function getDaysDifference(date1: Date, date2: Date): number {
   const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
   const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
   return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+// Fonction pour extraire un lien de vidéoconférence
+function extractVideoConferenceLink(event: Event): string | null {
+  const raw = event.raw;
+  if (!raw) return null;
+
+  // Patterns de vidéoconférence courants
+  const videoPatterns = [
+    /https?:\/\/[^\s]*meet\.google\.com[^\s]*/i,
+    /https?:\/\/[^\s]*zoom\.us[^\s]*/i,
+    /https?:\/\/[^\s]*teams\.microsoft\.com[^\s]*/i,
+    /https?:\/\/[^\s]*webex\.com[^\s]*/i,
+    /https?:\/\/[^\s]*gotomeeting\.com[^\s]*/i,
+    /https?:\/\/[^\s]*whereby\.com[^\s]*/i,
+    /https?:\/\/[^\s]*jitsi[^\s]*/i,
+  ];
+
+  // Chercher dans la description (Google Calendar)
+  if (raw.description) {
+    for (const pattern of videoPatterns) {
+      const match = raw.description.match(pattern);
+      if (match) return match[0];
+    }
+  }
+
+  // Chercher dans le body (Outlook)
+  if (raw.body?.content) {
+    for (const pattern of videoPatterns) {
+      const match = raw.body.content.match(pattern);
+      if (match) return match[0];
+    }
+  }
+
+  // Chercher dans la localisation
+  if (raw.location) {
+    const locationStr = typeof raw.location === 'string' 
+      ? raw.location 
+      : raw.location.displayName || '';
+    
+    for (const pattern of videoPatterns) {
+      const match = locationStr.match(pattern);
+      if (match) return match[0];
+    }
+  }
+
+  // Chercher dans les propriétés de conférence (Google Calendar)
+  if (raw.conferenceData?.entryPoints) {
+    const videoEntry = raw.conferenceData.entryPoints.find(
+      (ep: any) => ep.entryPointType === 'video'
+    );
+    if (videoEntry?.uri) return videoEntry.uri;
+  }
+
+  // Chercher dans onlineMeeting (Outlook)
+  if (raw.onlineMeeting?.joinUrl) {
+    return raw.onlineMeeting.joinUrl;
+  }
+
+  // Chercher dans hangoutLink (Google Calendar)
+  if (raw.hangoutLink) {
+    return raw.hangoutLink;
+  }
+
+  return null;
 }
 
 export const CircularCalendar: React.FC<Props> = ({
@@ -474,6 +541,35 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   }
 
+  // Gestionnaire de clic sur événement
+  const handleEventClick = (evt: Event) => {
+    const videoLink = extractVideoConferenceLink(evt);
+    
+    if (videoLink) {
+      toast.info(evt.title, {
+        description: (
+          <div className="flex flex-col gap-2">
+            <span>{formatHour(evt.start)} - {formatHour(evt.end)}</span>
+            <a
+              href={videoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-600 underline font-medium"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Connectez-vous à la vidéo conférence
+            </a>
+          </div>
+        ),
+        duration: 10000,
+      });
+    }
+    
+    if (onEventClick) {
+      onEventClick(evt);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center">
       <div style={{ position: "relative", width: SIZE, height: SIZE }}>
@@ -600,7 +696,7 @@ export const CircularCalendar: React.FC<Props> = ({
             MozUserSelect: "none",
             msUserSelect: "none",
           }}
-          onClick={() => event && onEventClick && onEventClick(event)}
+          onClick={() => event && handleEventClick(event)}
           tabIndex={event ? 0 : -1}
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}

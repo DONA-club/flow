@@ -6,7 +6,6 @@ import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import EventInfoBubble from "@/components/EventInfoBubble";
-import { toast } from "sonner";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
@@ -210,9 +209,6 @@ const CircularCalendarDemo = () => {
           events={combinedEvents}
           onSelect={(evt) => {
             setSelectedEvent(evt);
-            toast.info("Détails de l'événement", {
-              description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
-            });
           }}
         />
       )}
@@ -231,9 +227,6 @@ const CircularCalendarDemo = () => {
             bedHour={effectiveBed}
             onEventClick={(evt) => {
               setSelectedEvent(evt);
-              toast.info("Détails de l'événement", {
-                description: `${evt.title} • ${formatRange(evt.start, evt.end)}`,
-              });
             }}
           />
           {selectedEvent && (

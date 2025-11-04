@@ -96,7 +96,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         const end = start ? getEventEndDate(e, start) : null;
         return { e, start, end };
       })
-      .filter((x) => x.start) as { e: EventLike; start: Date; end: Date | null }[];
+      .filter(Boolean) as { e: EventLike; start: Date; end: Date | null }[];
 
     return mapped
       .filter(
