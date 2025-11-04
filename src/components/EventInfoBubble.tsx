@@ -59,37 +59,37 @@ const EventInfoBubble: React.FC<Props> = ({
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-full backdrop-blur-xl" />
       <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl" />
       
-      {/* Contenu */}
-      <div className="relative flex flex-col items-center justify-center px-6 py-4 w-full h-full">
+      {/* Contenu - Centré verticalement */}
+      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2">
         {/* Organisateur (discret en haut) */}
         {organizer && (
-          <div className="text-xs text-white/60 mb-2 truncate w-full font-light">
+          <div className="text-xs text-white/60 truncate w-full font-light">
             {organizer}
           </div>
         )}
 
         {/* Titre de l'événement */}
-        <div className="text-white font-bold text-base leading-tight mb-3 line-clamp-2">
+        <div className="text-white font-bold text-base leading-tight line-clamp-2">
           {title}
         </div>
 
         {/* Date formatée */}
         {date && (
-          <div className="text-white/80 text-sm mb-2 font-medium">
+          <div className="text-white/80 text-sm font-medium">
             {date}
           </div>
         )}
 
         {/* Temps restant */}
         {timeRemaining && (
-          <div className="text-white/70 text-xs font-semibold mb-3">
+          <div className="text-white/70 text-xs font-semibold">
             {timeRemaining}
           </div>
         )}
 
         {/* Icône de lien */}
         {url && (
-          <div className="mt-auto">
+          <div className="mt-2">
             <div className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
               <ExternalLink className="w-4 h-4 text-white/80" />
             </div>

@@ -602,6 +602,12 @@ export const CircularCalendar: React.FC<Props> = ({
           position: "bottom-center",
         }
       );
+    } else {
+      // Pas de lien vidéo : fermer le toast s'il existe
+      if (currentVideoToastId !== null) {
+        toast.dismiss(currentVideoToastId);
+        currentVideoToastId = null;
+      }
     }
     
     if (onEventClick) {
