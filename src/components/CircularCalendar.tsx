@@ -302,10 +302,6 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-function formatDateShort(date: Date): string {
-  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-}
-
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -337,13 +333,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
-  
-  // Ref pour stocker virtualDateTime sans déclencher de re-render
-  const virtualDateTimeRef = React.useRef(virtualDateTime);
-  
-  React.useEffect(() => {
-    virtualDateTimeRef.current = virtualDateTime;
-  }, [virtualDateTime]);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -434,6 +423,13 @@ export const CircularCalendar: React.FC<Props> = ({
 
     return filtered;
   }, [events, virtualDateTime, now]);
+
+  // Ref pour accéder à preloadedEvents depuis le listener wheel
+  const preloadedEventsRef = React.useRef(preloadedEvents);
+  
+  React.useEffect(() => {
+    preloadedEventsRef.current = preloadedEvents;
+  }, [preloadedEvents]);
 
   // Événements visibles sur la roue (3 jours à partir de virtualDateTime)
   const upcomingEvents = React.useMemo(() => {
@@ -652,17 +648,17 @@ export const CircularCalendar: React.FC<Props> = ({
           setShowDateLabel(true);
         }
         
-        // Recherche d'événement - on utilise preloadedEvents qui est dans la closure
+        // Utiliser preloadedEventsRef pour accéder aux événements préchargés
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
         
-        // Filtrer les événements du jour virtuel
+        // Filtrer les événements du jour virtuel depuis preloadedEventsRef
         const virtualDayStart = new Date(newVirtualTime);
         virtualDayStart.setHours(0, 0, 0, 0);
         const nextDay = new Date(virtualDayStart);
         nextDay.setDate(nextDay.getDate() + 1);
         
-        const dayEvents = preloadedEvents.filter((x) => {
+        const dayEvents = preloadedEventsRef.current.filter((x) => {
           return x.start.getTime() >= virtualDayStart.getTime() && 
                  x.start.getTime() < nextDay.getTime();
         });
@@ -691,22 +687,16 @@ export const CircularCalendar: React.FC<Props> = ({
         }
         
         const randomDelay = 8000 + Math.random() * 2000;
-        console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
         
         const capturedVirtualTime = new Date(newVirtualTime);
         
         scrollTimeoutRef.current = window.setTimeout(() => {
-          console.log("⏰ Timeout déclenché - début du retour");
-          console.log("📍 De:", formatDateShort(capturedVirtualTime), formatHour(capturedVirtualTime.getHours() + capturedVirtualTime.getMinutes() / 60));
-          
           setIsScrolling(false);
           setIsReturning(true);
           
           const duration = 1500;
           const startTime = performance.now();
           const targetTime = new Date();
-          
-          console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
           
           const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
@@ -721,7 +711,6 @@ export const CircularCalendar: React.FC<Props> = ({
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-              console.log("✅ Animation retour terminée");
               setVirtualDateTime(new Date());
               setIsReturning(false);
               setShowTimeLabel(true);
@@ -763,7 +752,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, []); // AUCUNE DÉPENDANCE - le listener ne se recrée JAMAIS
+  }, []);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
