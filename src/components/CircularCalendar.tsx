@@ -356,7 +356,22 @@ export const CircularCalendar: React.FC<Props> = ({
       sunrise,
       sunset,
     });
-  }, []);
+    
+    // Log détaillé des événements reçus
+    if (events.length > 0) {
+      console.log("📋 Détail des événements reçus:");
+      events.forEach((e, idx) => {
+        const start = getEventStartDate(e, new Date());
+        const end = start ? getEventEndDate(e, start) : null;
+        console.log(`  ${idx + 1}. "${e.title}"`, {
+          startDate: start?.toLocaleString(),
+          endDate: end?.toLocaleString(),
+          place: e.place,
+          raw: e.raw,
+        });
+      });
+    }
+  }, [events.length]);
 
   // Synchroniser les refs avec les states
   React.useEffect(() => {
@@ -402,10 +417,17 @@ export const CircularCalendar: React.FC<Props> = ({
     const container = document.getElementById('calendar-container');
     const pageContainer = document.getElementById('calendar-page-container');
     
-    if (!container || !pageContainer) {
-      console.warn("⚠️ Containers non trouvés pour centrer le dégradé");
+    if (!container) {
+      console.error("❌ Container calendar-container NON TROUVÉ !");
       return;
     }
+    
+    if (!pageContainer) {
+      console.error("❌ Container calendar-page-container NON TROUVÉ !");
+      return;
+    }
+
+    console.log("✅ Containers trouvés pour le dégradé");
 
     const updateGradientCenter = () => {
       const rect = container.getBoundingClientRect();
@@ -436,7 +458,11 @@ export const CircularCalendar: React.FC<Props> = ({
     const date = new Date(now);
     date.setDate(date.getDate() + dayOffset);
     date.setHours(0, 0, 0, 0);
-    console.log("📅 Date de référence:", date.toLocaleDateString(), "offset:", dayOffset);
+    console.log("📅 Date de référence calculée:", {
+      dateString: date.toLocaleDateString(),
+      offset: dayOffset,
+      timestamp: date.getTime(),
+    });
     return date;
   }, [now, dayOffset]);
 
@@ -620,17 +646,33 @@ export const CircularCalendar: React.FC<Props> = ({
     })
     .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
+  console.log("🔍 Tous les événements avec dates:", eventsWithDates.map(x => ({
+    title: x.e.title,
+    start: x.start.toLocaleString(),
+    end: x.end.toLocaleString(),
+  })));
+
   // Filtrer les événements du jour de référence
   const dayStart = new Date(referenceDate);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(referenceDate);
   dayEnd.setHours(23, 59, 59, 999);
 
+  console.log("🔍 Filtrage pour le jour:", {
+    referenceDate: referenceDate.toLocaleDateString(),
+    dayStart: dayStart.toLocaleString(),
+    dayEnd: dayEnd.toLocaleString(),
+  });
+
   const upcomingEvents = eventsWithDates
     .filter((x) => {
       const eventDate = new Date(x.start);
       eventDate.setHours(0, 0, 0, 0);
-      return eventDate.getTime() === dayStart.getTime();
+      const matches = eventDate.getTime() === dayStart.getTime();
+      
+      console.log(`  - "${x.e.title}": eventDate=${eventDate.toLocaleDateString()}, dayStart=${dayStart.toLocaleDateString()}, matches=${matches}`);
+      
+      return matches;
     })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
@@ -707,13 +749,14 @@ export const CircularCalendar: React.FC<Props> = ({
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) {
-      console.warn("⚠️ Container calendar-container non trouvé");
+      console.error("❌ Container calendar-container NON TROUVÉ pour le listener wheel !");
       return;
     }
 
-    console.log("🎯 Listener wheel enregistré sur calendar-container");
+    console.log("✅ Container trouvé, enregistrement du listener wheel");
 
     const handleWheel = (e: WheelEvent) => {
+      console.log("🎯 WHEEL EVENT DÉTECTÉ !", { deltaY: e.deltaY });
       e.preventDefault();
       
       if (animationFrameRef.current) {
@@ -734,6 +777,13 @@ export const CircularCalendar: React.FC<Props> = ({
       
       let newHour = currentHour + delta;
       let newDayOffset = dayOffsetRef.current;
+      
+      console.log("⏰ Scroll:", {
+        prevHour: formatHour(prevHour),
+        currentHour: formatHour(currentHour),
+        newHour: formatHour(newHour),
+        delta,
+      });
       
       // Détecter le passage de minuit
       if (prevHour < 1 && newHour >= 23) {
@@ -759,10 +809,14 @@ export const CircularCalendar: React.FC<Props> = ({
       const events = upcomingEventsRef.current;
       let foundEventIndex: number | null = null;
       
+      console.log(`🔍 Recherche d'événement à ${formatHour(newHour)} parmi ${events.length} événements`);
+      
       for (let i = 0; i < events.length; i++) {
         const { e, start, end } = events[i];
         const startHour = start.getHours() + start.getMinutes() / 60;
         const endHour = end.getHours() + end.getMinutes() / 60;
+        
+        console.log(`  - "${e.title}": ${formatHour(startHour)} - ${formatHour(endHour)}`);
         
         if (newHour >= startHour && newHour <= endHour) {
           foundEventIndex = i;
@@ -773,6 +827,7 @@ export const CircularCalendar: React.FC<Props> = ({
       }
       
       if (foundEventIndex === null) {
+        console.log("❌ Aucun événement trouvé à cette heure");
         setSelectedEvent(null);
       }
       
@@ -796,6 +851,7 @@ export const CircularCalendar: React.FC<Props> = ({
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
+    console.log("🎯 Listener wheel ENREGISTRÉ avec succès");
     
     return () => {
       console.log("🗑️ Listener wheel supprimé");
@@ -876,6 +932,8 @@ export const CircularCalendar: React.FC<Props> = ({
       </g>
     );
   });
+
+  console.log("🎨 eventArcs générés:", eventArcs.length);
 
   const sleepOverlays: JSX.Element[] = [];
   
@@ -973,6 +1031,8 @@ export const CircularCalendar: React.FC<Props> = ({
     selectedEvent: selectedEvent?.title,
     dayOffset,
     showDateLabel,
+    isScrolling,
+    scrollHourDecimal: scrollHourDecimal ? formatHour(scrollHourDecimal) : null,
   });
 
   return (
