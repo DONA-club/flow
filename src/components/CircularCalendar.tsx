@@ -687,6 +687,7 @@ export const CircularCalendar: React.FC<Props> = ({
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
             const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
             
+            // IMPORTANT: Mettre à jour virtualDateTime pendant l'animation pour que le curseur suive
             setVirtualDateTime(newTime);
             
             if (progress < 1) {
