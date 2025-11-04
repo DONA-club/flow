@@ -586,15 +586,6 @@ export const CircularCalendar: React.FC<Props> = ({
              x.start.getTime() < threeDaysLater.getTime();
     }).sort((a, b) => a.start.getTime() - b.start.getTime());
 
-    console.log("🔄 Filtrage événements:", {
-      virtualDate: formatDateShort(virtualDateTime),
-      virtualDayStart: formatDateShort(virtualDayStart),
-      threeDaysLater: formatDateShort(threeDaysLater),
-      totalEvents: events.length,
-      filteredEvents: filtered.length,
-      eventDates: filtered.map(x => formatDateShort(x.start))
-    });
-
     return filtered;
   }, [events, virtualDateTime, now]);
 
@@ -672,12 +663,6 @@ export const CircularCalendar: React.FC<Props> = ({
       
       const dayChanged = newVirtualTime.getDate() !== virtualDateTime.getDate();
       
-      console.log("⏰ Scroll temporel:", {
-        from: formatDateShort(virtualDateTime) + " " + formatHour(virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60),
-        to: formatDateShort(newVirtualTime) + " " + formatHour(newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60),
-        dayChanged
-      });
-      
       setVirtualDateTime(newVirtualTime);
       setIsScrolling(true);
       
@@ -705,7 +690,6 @@ export const CircularCalendar: React.FC<Props> = ({
         if (virtualHour >= startHour && virtualHour <= endHour) {
           foundEventIndex = i;
           setSelectedEvent(e);
-          console.log("✅ Événement trouvé:", e.title);
           break;
         }
       }
@@ -720,11 +704,14 @@ export const CircularCalendar: React.FC<Props> = ({
         window.clearTimeout(scrollTimeoutRef.current);
       }
       
+      // Délai aléatoire entre 8 et 10 secondes
+      const randomDelay = 8000 + Math.random() * 2000;
+      
       scrollTimeoutRef.current = window.setTimeout(() => {
         setIsScrolling(false);
         setIsReturning(true);
         animateReturn();
-      }, 3000);
+      }, randomDelay);
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
