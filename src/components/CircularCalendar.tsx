@@ -319,7 +319,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
-  const targetHourRef = React.useRef<number | null>(null);
+  
+  // Stocker l'heure où le curseur s'est arrêté
+  const frozenScrollHourRef = React.useRef<number | null>(null);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -552,6 +554,13 @@ export const CircularCalendar: React.FC<Props> = ({
 
   // Animation de retour du curseur avec ralentissement
   const animateReturn = React.useCallback((startHour: number, targetHour: number, startTime: number) => {
+    console.log('🎬 DÉBUT ANIMATION:', {
+      startHour: startHour.toFixed(4),
+      targetHour: targetHour.toFixed(4),
+      startFormatted: formatHour(startHour),
+      targetFormatted: formatHour(targetHour),
+    });
+    
     const duration = 1500; // 1.5 secondes pour l'animation
     
     const animate = (currentTime: number) => {
@@ -578,15 +587,30 @@ export const CircularCalendar: React.FC<Props> = ({
       if (newHour < 0) newHour += 24;
       if (newHour >= 24) newHour -= 24;
       
+      console.log('⏱️ FRAME ANIMATION:', {
+        progress: (progress * 100).toFixed(1) + '%',
+        easedProgress: (easedProgress * 100).toFixed(1) + '%',
+        newHour: newHour.toFixed(4),
+        formatted: formatHour(newHour),
+      });
+      
       setScrollHourDecimal(newHour);
       
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
-        // Animation terminée
+        // Animation terminée - téléportation finale à l'heure exacte actuelle
+        const finalHour = new Date().getHours() + new Date().getMinutes() / 60 + new Date().getSeconds() / 3600;
+        console.log('✅ FIN ANIMATION - Téléportation finale:', {
+          animationEndHour: newHour.toFixed(4),
+          finalHour: finalHour.toFixed(4),
+          finalFormatted: formatHour(finalHour),
+        });
+        
         setScrollHourDecimal(null);
         setIsReturning(false);
         setShowTimeLabel(true);
+        frozenScrollHourRef.current = null;
         
         // Masquer l'étiquette après 3 secondes
         if (labelTimeoutRef.current) {
@@ -605,8 +629,11 @@ export const CircularCalendar: React.FC<Props> = ({
   const handleWheel = React.useCallback((e: WheelEvent) => {
     e.preventDefault();
     
+    console.log('🖱️ SCROLL DÉTECTÉ');
+    
     // Annuler toute animation de retour en cours
     if (animationFrameRef.current) {
+      console.log('⏹️ Annulation animation en cours');
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
@@ -622,12 +649,21 @@ export const CircularCalendar: React.FC<Props> = ({
     if (newHour < 0) newHour += 24;
     if (newHour >= 24) newHour -= 24;
     
+    console.log('📍 NOUVELLE POSITION CURSEUR:', {
+      currentHour: currentHour.toFixed(4),
+      delta: delta.toFixed(4),
+      newHour: newHour.toFixed(4),
+      formatted: formatHour(newHour),
+    });
+    
     setScrollHourDecimal(newHour);
+    frozenScrollHourRef.current = newHour; // Figer cette position
     setIsScrolling(true);
     
     // Chercher un événement à cette heure
     const eventAtHour = findEventAtHour(newHour);
     if (eventAtHour) {
+      console.log('📅 Événement trouvé:', eventAtHour.title);
       setSelectedEvent(eventAtHour);
     }
     
@@ -636,22 +672,32 @@ export const CircularCalendar: React.FC<Props> = ({
       window.clearTimeout(scrollTimeoutRef.current);
     }
     
-    // Capturer l'heure cible actuelle
-    const currentTargetHour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
-    targetHourRef.current = currentTargetHour;
-    
     scrollTimeoutRef.current = window.setTimeout(() => {
+      console.log('⏰ TIMEOUT DÉCLENCHÉ - Préparation retour');
+      console.log('📊 État au moment du timeout:', {
+        frozenScrollHour: frozenScrollHourRef.current?.toFixed(4),
+        scrollHourDecimal: scrollHourDecimal?.toFixed(4),
+        hourDecimal: hourDecimal.toFixed(4),
+      });
+      
       setIsScrolling(false);
       setIsReturning(true);
       
-      // Utiliser l'heure cible capturée
-      const startHour = scrollHourDecimal !== null ? scrollHourDecimal : currentTargetHour;
-      const targetHour = targetHourRef.current !== null ? targetHourRef.current : currentTargetHour;
+      // Utiliser l'heure figée comme point de départ
+      const startHour = frozenScrollHourRef.current !== null ? frozenScrollHourRef.current : hourDecimal;
+      // Capturer l'heure cible au moment exact du déclenchement
+      const targetHour = new Date().getHours() + new Date().getMinutes() / 60 + new Date().getSeconds() / 3600;
       
-      console.log('🔄 Démarrage animation retour:', { startHour, targetHour });
+      console.log('🚀 LANCEMENT ANIMATION RETOUR:', {
+        startHour: startHour.toFixed(4),
+        targetHour: targetHour.toFixed(4),
+        startFormatted: formatHour(startHour),
+        targetFormatted: formatHour(targetHour),
+      });
+      
       animateReturn(startHour, targetHour, performance.now());
     }, 3000);
-  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn, now]);
+  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn]);
 
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
