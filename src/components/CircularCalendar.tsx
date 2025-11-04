@@ -25,6 +25,7 @@ type Props = {
   bedHour?: number | null;
   externalSelectedEvent?: Event | null;
   onEventBubbleClosed?: () => void;
+  onDayChange?: (date: Date) => void;
 };
 
 const DEFAULT_SIZE = 320;
@@ -315,6 +316,7 @@ export const CircularCalendar: React.FC<Props> = ({
   bedHour,
   externalSelectedEvent,
   onEventBubbleClosed,
+  onDayChange,
 }) => {
   const [now, setNow] = React.useState<Date>(() => new Date());
   const [isDarkMode, setIsDarkMode] = React.useState(false);
@@ -329,6 +331,7 @@ export const CircularCalendar: React.FC<Props> = ({
   
   const [virtualDateTime, setVirtualDateTime] = React.useState<Date>(() => new Date());
   const [showDateLabel, setShowDateLabel] = React.useState(false);
+  const [lastDayNotified, setLastDayNotified] = React.useState<string>("");
   
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
@@ -395,18 +398,13 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [size]);
 
-  // Préchargement des événements : on charge 1 jour avant et 3 jours après la date virtuelle
-  const preloadedEvents = React.useMemo(() => {
+  // Filtrer les événements pour les afficher sur la roue (3 jours à partir de virtualDateTime)
+  const upcomingEvents = React.useMemo(() => {
     const virtualDayStart = new Date(virtualDateTime);
     virtualDayStart.setHours(0, 0, 0, 0);
     
-    // 1 jour avant pour le scroll arrière
-    const oneDayBefore = new Date(virtualDayStart);
-    oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-    
-    // 3 jours après pour le scroll avant
     const threeDaysLater = new Date(virtualDayStart);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 4);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
     const eventsWithDates = events
       .map((e) => {
@@ -416,34 +414,11 @@ export const CircularCalendar: React.FC<Props> = ({
       })
       .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
-    const filtered = eventsWithDates.filter((x) => {
-      return x.start.getTime() >= oneDayBefore.getTime() && 
-             x.start.getTime() < threeDaysLater.getTime();
-    }).sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    return filtered;
-  }, [events, virtualDateTime, now]);
-
-  // Ref pour accéder à preloadedEvents depuis le listener wheel
-  const preloadedEventsRef = React.useRef(preloadedEvents);
-  
-  React.useEffect(() => {
-    preloadedEventsRef.current = preloadedEvents;
-  }, [preloadedEvents]);
-
-  // Événements visibles sur la roue (3 jours à partir de virtualDateTime)
-  const upcomingEvents = React.useMemo(() => {
-    const virtualDayStart = new Date(virtualDateTime);
-    virtualDayStart.setHours(0, 0, 0, 0);
-    
-    const threeDaysLater = new Date(virtualDayStart);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    return preloadedEvents.filter((x) => {
+    return eventsWithDates.filter((x) => {
       return x.start.getTime() >= virtualDayStart.getTime() && 
              x.start.getTime() < threeDaysLater.getTime();
-    });
-  }, [preloadedEvents, virtualDateTime]);
+    }).sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [events, virtualDateTime, now]);
 
   const hourDecimal = virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60 + virtualDateTime.getSeconds() / 3600;
   const hour = virtualDateTime.getHours();
@@ -617,7 +592,7 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // useEffect pour le listener wheel - SANS DÉPENDANCES qui changent
+  // useEffect pour le listener wheel
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
@@ -646,19 +621,25 @@ export const CircularCalendar: React.FC<Props> = ({
         
         if (dayChanged) {
           setShowDateLabel(true);
+          
+          // Notifier le changement de jour pour précharger les événements
+          const dayKey = `${newVirtualTime.getFullYear()}-${newVirtualTime.getMonth()}-${newVirtualTime.getDate()}`;
+          if (dayKey !== lastDayNotified && onDayChange) {
+            setLastDayNotified(dayKey);
+            onDayChange(newVirtualTime);
+          }
         }
         
-        // Utiliser preloadedEventsRef pour accéder aux événements préchargés
+        // Recherche d'événement
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
         
-        // Filtrer les événements du jour virtuel depuis preloadedEventsRef
         const virtualDayStart = new Date(newVirtualTime);
         virtualDayStart.setHours(0, 0, 0, 0);
         const nextDay = new Date(virtualDayStart);
         nextDay.setDate(nextDay.getDate() + 1);
         
-        const dayEvents = preloadedEventsRef.current.filter((x) => {
+        const dayEvents = upcomingEvents.filter((x) => {
           return x.start.getTime() >= virtualDayStart.getTime() && 
                  x.start.getTime() < nextDay.getTime();
         });
@@ -752,7 +733,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, []);
+  }, [upcomingEvents, lastDayNotified, onDayChange]);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;

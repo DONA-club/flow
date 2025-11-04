@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
@@ -9,6 +9,7 @@ import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
@@ -35,6 +36,143 @@ function useGoldenCircleSize() {
 }
 
 type LogType = "info" | "success" | "error";
+
+type CalendarEvent = {
+  title: string;
+  place: string;
+  start: number;
+  end: number;
+  url?: string;
+  raw?: any;
+};
+
+function toHourDecimal(iso: string): number {
+  const d = new Date(iso);
+  return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+}
+
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return [];
+
+  const { data: tokens } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token")
+    .eq("user_id", userId)
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (!tokens?.access_token) return [];
+
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+    dayStart.toISOString()
+  )}&timeMax=${encodeURIComponent(dayEnd.toISOString())}&maxResults=50&fields=items(summary,description,location,start,end,htmlLink,conferenceData,hangoutLink,organizer)`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
+
+  if (!res.ok) return [];
+
+  const json = await res.json();
+  const items: any[] = json?.items ?? [];
+
+  return items
+    .map((item) => {
+      const title = item.summary || "Événement";
+      const place = item.location || (item.organizer?.displayName ?? "Agenda");
+      const startIso = item.start?.dateTime || item.start?.date;
+      const endIso = item.end?.dateTime || item.end?.date;
+      if (!startIso || !endIso) return null;
+
+      const startDec = toHourDecimal(startIso);
+      const endDec = toHourDecimal(endIso);
+
+      return {
+        title,
+        place,
+        start: startDec,
+        end: endDec,
+        url: item.htmlLink,
+        raw: item,
+      };
+    })
+    .filter(Boolean) as CalendarEvent[];
+}
+
+async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return [];
+
+  const { data: tokens } = await supabase
+    .from("oauth_tokens")
+    .select("access_token, refresh_token")
+    .eq("user_id", userId)
+    .eq("provider", "microsoft")
+    .maybeSingle();
+
+  if (!tokens?.access_token) return [];
+
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const url =
+    "https://graph.microsoft.com/v1.0/me/calendarview" +
+    `?startDateTime=${encodeURIComponent(dayStart.toISOString())}` +
+    `&endDateTime=${encodeURIComponent(dayEnd.toISOString())}` +
+    "&$orderby=start/dateTime" +
+    "&$select=subject,organizer,start,end,location,webLink,body,onlineMeeting";
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${tokens.access_token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) return [];
+
+  const json = await res.json();
+  const items: any[] = json?.value ?? [];
+
+  return items
+    .map((item) => {
+      const title = item.subject || "Événement";
+      const place =
+        item.location?.displayName ||
+        item.organizer?.emailAddress?.name ||
+        "Agenda";
+      const startIso = item.start?.dateTime;
+      const endIso = item.end?.dateTime;
+      if (!startIso || !endIso) return null;
+
+      const startDec = toHourDecimal(startIso);
+      const endDec = toHourDecimal(endIso);
+
+      return {
+        title,
+        place,
+        start: startDec,
+        end: endDec,
+        url: item.webLink,
+        raw: item,
+      };
+    })
+    .filter(Boolean) as CalendarEvent[];
+}
 
 const CircularCalendarDemo = () => {
   const navigate = useNavigate();
@@ -75,6 +213,10 @@ const CircularCalendarDemo = () => {
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
   const [selectedEventFromList, setSelectedEventFromList] = useState<any>(null);
+
+  // Cache des événements par jour
+  const [eventsByDay, setEventsByDay] = useState<Map<string, CalendarEvent[]>>(new Map());
+  const [loadingDays, setLoadingDays] = useState<Set<string>>(new Set());
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -137,13 +279,90 @@ const CircularCalendarDemo = () => {
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
-  const outerPad = Math.max(8, Math.round(size * 0.03));
+  // Charger les événements initiaux (aujourd'hui + 3 jours + hier)
+  useEffect(() => {
+    const today = new Date();
+    const newCache = new Map<string, CalendarEvent[]>();
 
-  const combinedEvents = [...gEvents, ...oEvents].sort((a, b) => {
-    const aStart = (a as any)?.raw?.start?.dateTime || (a.start ?? 0);
-    const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
-    return new Date(aStart).getTime() - new Date(bStart).getTime();
-  });
+    // Événements d'aujourd'hui et des 3 prochains jours (depuis les hooks)
+    const allInitialEvents = [...gEvents, ...oEvents];
+    
+    for (let i = -1; i <= 3; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const key = formatDateKey(date);
+      
+      const dayEvents = allInitialEvents.filter((e) => {
+        const raw = e.raw;
+        const startIso = raw?.start?.dateTime || raw?.start?.date;
+        if (!startIso) return false;
+        const eventDate = new Date(startIso);
+        return formatDateKey(eventDate) === key;
+      });
+      
+      newCache.set(key, dayEvents);
+    }
+
+    setEventsByDay(newCache);
+  }, [gEvents, oEvents]);
+
+  // Fonction pour charger les événements d'un jour spécifique
+  const loadEventsForDay = useCallback(async (date: Date) => {
+    const key = formatDateKey(date);
+    
+    // Si déjà en cache ou en cours de chargement, ne rien faire
+    if (eventsByDay.has(key) || loadingDays.has(key)) {
+      return;
+    }
+
+    setLoadingDays((prev) => new Set(prev).add(key));
+    setLogs([{ message: `Chargement des événements du ${key}…`, type: "info" }]);
+
+    try {
+      const [googleEvents, outlookEvents] = await Promise.all([
+        googleEnabled ? fetchGoogleEventsForDay(date) : Promise.resolve([]),
+        msEnabled ? fetchOutlookEventsForDay(date) : Promise.resolve([]),
+      ]);
+
+      const allEvents = [...googleEvents, ...outlookEvents];
+
+      setEventsByDay((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(key, allEvents);
+        return newMap;
+      });
+
+      setLogs([{ message: `${allEvents.length} événements chargés pour le ${key}`, type: "success" }]);
+    } catch (err) {
+      setLogs([{ message: `Erreur chargement ${key}`, type: "error" }]);
+    } finally {
+      setLoadingDays((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }
+  }, [eventsByDay, loadingDays, googleEnabled, msEnabled]);
+
+  // Callback pour le calendrier quand l'utilisateur scrolle vers un nouveau jour
+  const handleDayChange = useCallback((date: Date) => {
+    // Charger le jour actuel + le jour suivant (anticipation)
+    loadEventsForDay(date);
+    
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    loadEventsForDay(nextDay);
+    
+    // Charger aussi le jour précédent (pour le scroll arrière)
+    const prevDay = new Date(date);
+    prevDay.setDate(prevDay.getDate() - 1);
+    loadEventsForDay(prevDay);
+  }, [loadEventsForDay]);
+
+  // Combiner tous les événements du cache
+  const combinedEvents = Array.from(eventsByDay.values()).flat();
+
+  const outerPad = Math.max(8, Math.round(size * 0.03));
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -191,6 +410,7 @@ const CircularCalendarDemo = () => {
             bedHour={effectiveBed}
             externalSelectedEvent={selectedEventFromList}
             onEventBubbleClosed={() => setSelectedEventFromList(null)}
+            onDayChange={handleDayChange}
           />
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">
