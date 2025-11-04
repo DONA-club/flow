@@ -310,6 +310,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [hoveredEventIndex, setHoveredEventIndex] = React.useState<number | null>(null);
+  const [cursorEventIndex, setCursorEventIndex] = React.useState<number | null>(null);
   
   // États pour le curseur interactif
   const [isScrolling, setIsScrolling] = React.useState(false);
@@ -337,6 +338,7 @@ export const CircularCalendar: React.FC<Props> = ({
   React.useEffect(() => {
     if (externalSelectedEvent) {
       setSelectedEvent(externalSelectedEvent);
+      setCursorEventIndex(null);
     }
   }, [externalSelectedEvent]);
 
@@ -358,6 +360,35 @@ export const CircularCalendar: React.FC<Props> = ({
       return () => mq.removeEventListener("change", handler);
     }
   }, []);
+
+  // Centrer le dégradé sur le centre de l'anneau
+  React.useEffect(() => {
+    const container = document.getElementById('calendar-container');
+    const pageContainer = document.getElementById('calendar-page-container');
+    
+    if (!container || !pageContainer) return;
+
+    const updateGradientCenter = () => {
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const percentX = (centerX / window.innerWidth) * 100;
+      const percentY = (centerY / window.innerHeight) * 100;
+      
+      pageContainer.style.setProperty('--calendar-center-x', `${percentX}%`);
+      pageContainer.style.setProperty('--calendar-center-y', `${percentY}%`);
+    };
+
+    updateGradientCenter();
+    window.addEventListener('resize', updateGradientCenter);
+    window.addEventListener('scroll', updateGradientCenter);
+    
+    return () => {
+      window.removeEventListener('resize', updateGradientCenter);
+      window.removeEventListener('scroll', updateGradientCenter);
+    };
+  }, [size]);
 
   const hourDecimal =
     now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
@@ -592,6 +623,7 @@ export const CircularCalendar: React.FC<Props> = ({
         setShowTimeLabel(true);
         setIsLabelFadingOut(false);
         frozenScrollHourRef.current = null;
+        setCursorEventIndex(null);
         
         // Masquer l'étiquette après 3 secondes avec animation de disparition
         if (labelTimeoutRef.current) {
@@ -647,16 +679,25 @@ export const CircularCalendar: React.FC<Props> = ({
       
       // Chercher un événement à cette heure
       const events = upcomingEventsRef.current;
-      for (const item of events) {
-        const { e, start, end } = item;
+      let foundEventIndex: number | null = null;
+      
+      for (let i = 0; i < events.length; i++) {
+        const { e, start, end } = events[i];
         const startHour = start.getHours() + start.getMinutes() / 60;
         const endHour = end.getHours() + end.getMinutes() / 60;
         
         if (newHour >= startHour && newHour <= endHour) {
+          foundEventIndex = i;
           setSelectedEvent(e);
           break;
         }
       }
+      
+      if (foundEventIndex === null) {
+        setSelectedEvent(null);
+      }
+      
+      setCursorEventIndex(foundEventIndex);
       
       // Réinitialiser le timeout
       if (scrollTimeoutRef.current) {
@@ -703,6 +744,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
     const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
     const isHovered = hoveredEventIndex === idx;
+    const isCursorEvent = cursorEventIndex === idx;
     
     const dayDiff = getDaysDifference(start, now);
     const colorIndex = Math.min(dayDiff, dayColors.length - 1);
@@ -713,15 +755,15 @@ export const CircularCalendar: React.FC<Props> = ({
     const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
 
     const baseOpacity = isCurrent ? 1 : 0.7;
-    const opacity = isHovered ? 1 : baseOpacity;
-    const strokeWidth = isHovered 
+    const opacity = (isHovered || isCursorEvent) ? 1 : baseOpacity;
+    const strokeWidth = (isHovered || isCursorEvent)
       ? Math.max(3, radiusStep * 1.2) 
       : Math.max(2, radiusStep * 0.8);
 
     return (
       <g key={`event-${idx}`}>
-        {/* Effet liquid glass au survol */}
-        {isHovered && (
+        {/* Effet liquid glass au survol ou curseur */}
+        {(isHovered || isCursorEvent) && (
           <path
             d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
             fill="none"
@@ -746,7 +788,7 @@ export const CircularCalendar: React.FC<Props> = ({
           style={{ 
             pointerEvents: "stroke", 
             cursor: "pointer",
-            filter: isHovered 
+            filter: (isHovered || isCursorEvent)
               ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)`
               : "none",
             transition: "all 0.2s ease-out",
@@ -789,6 +831,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const handleEventClick = (evt: Event) => {
     setSelectedEvent(evt);
+    setCursorEventIndex(null);
     
     if (onEventClick) {
       onEventClick(evt);
@@ -797,6 +840,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const handleBubbleClose = () => {
     setSelectedEvent(null);
+    setCursorEventIndex(null);
     if (onEventBubbleClosed) {
       onEventBubbleClosed();
     }

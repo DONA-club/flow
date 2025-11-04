@@ -170,7 +170,11 @@ const CircularCalendarDemo = () => {
       </div>
 
       {/* Calendrier principal - z-index: 20 */}
-      <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg" style={{ position: "relative", zIndex: 20 }}>
+      <div 
+        className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg" 
+        style={{ position: "relative", zIndex: 20 }}
+        id="calendar-page-container"
+      >
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}

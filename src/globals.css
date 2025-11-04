@@ -24,8 +24,9 @@ body, html, #root {
 }
 @media (prefers-color-scheme: light) {
   .calendar-light-bg {
+    /* Le dégradé sera centré dynamiquement via JS sur le centre de l'anneau */
     background: radial-gradient(
-      circle at 50% 40%, 
+      circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), 
       #e0f7fa 0%,      /* Turquoise très clair au centre */
       #80deea 25%,     /* Turquoise clair */
       #4dd0e1 45%,     /* Turquoise moyen */
