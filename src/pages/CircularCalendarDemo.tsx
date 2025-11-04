@@ -164,16 +164,13 @@ const CircularCalendarDemo = () => {
     <>
       <FontLoader />
 
-      {hasAnyConnection && (
-        <UpcomingEventsList
-          events={combinedEvents}
-          onSelect={(evt) => {
-            setSelectedEventFromList(evt);
-          }}
-        />
-      )}
+      {/* Logs - z-index: 10 (le plus bas) */}
+      <div style={{ position: "relative", zIndex: 10 }}>
+        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
+      </div>
 
-      <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg">
+      {/* Calendrier principal - z-index: 20 */}
+      <div className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg" style={{ position: "relative", zIndex: 20 }}>
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
@@ -194,8 +191,19 @@ const CircularCalendarDemo = () => {
             </div>
           )}
         </div>
-        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
+
+      {/* Section "À venir" - z-index: 100 (le plus haut) */}
+      {hasAnyConnection && (
+        <div style={{ position: "relative", zIndex: 100 }}>
+          <UpcomingEventsList
+            events={combinedEvents}
+            onSelect={(evt) => {
+              setSelectedEventFromList(evt);
+            }}
+          />
+        </div>
+      )}
     </>
   );
 };

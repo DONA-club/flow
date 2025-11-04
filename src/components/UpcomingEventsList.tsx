@@ -124,10 +124,11 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         type="button"
         onClick={() => setOpen(true)}
         className={[
-          "fixed top-4 left-4 z-20 glass px-3 py-2 backdrop-blur-md rounded-lg",
+          "fixed top-4 left-4 glass px-3 py-2 backdrop-blur-md rounded-lg",
           "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
           className || "",
         ].join(" ").trim()}
+        style={{ zIndex: 100 }}
         aria-label="Afficher les événements à venir"
       >
         <Calendar className="w-4 h-4" />
@@ -139,10 +140,11 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   return (
     <div
       className={[
-        "fixed top-4 left-4 z-20 w-[88vw] sm:w-[320px] md:w-[360px]",
+        "fixed top-4 left-4 w-[88vw] sm:w-[320px] md:w-[360px]",
         "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
         className || "",
       ].join(" ").trim()}
+      style={{ zIndex: 100 }}
       aria-label="Événements à venir"
     >
       <div className="flex items-center justify-between mb-2">
