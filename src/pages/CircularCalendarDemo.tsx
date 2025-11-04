@@ -180,6 +180,7 @@ const CircularCalendarDemo = () => {
         <UpcomingEventsList
           events={combinedEvents}
           onSelect={(evt) => {
+            // La détection de vidéoconférence est maintenant gérée dans UpcomingEventsList
             setSelectedEvent(evt);
           }}
         />
