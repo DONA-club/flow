@@ -41,25 +41,25 @@ export const VideoConferenceToast: React.FC<Props> = ({ link, platform, onClose 
   const gradientClass = PLATFORM_COLORS[detectedPlatform];
 
   return (
-    <div className="relative group">
+    <div className="relative group w-full max-w-md mx-auto">
       {/* Liquid glass background avec animation */}
       <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} rounded-2xl blur-xl opacity-60 group-hover:opacity-80 transition-opacity duration-500`} />
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-xl" />
       
       {/* Contenu */}
-      <div className="relative px-4 py-3 rounded-2xl border border-white/20 shadow-2xl">
+      <div className="relative px-6 py-4 rounded-2xl border border-white/20 shadow-2xl">
         <a
           href={link}
           target="_blank"
           rel="noopener noreferrer"
           onClick={onClose}
-          className="flex items-center gap-3 group/link"
+          className="flex items-center gap-4 group/link"
         >
           {/* Icône caméra avec animation */}
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/link:blur-lg transition-all duration-300" />
-            <div className="relative bg-white/90 p-2 rounded-full group-hover/link:scale-110 transition-transform duration-300">
-              <Video className="w-5 h-5 text-blue-600 group-hover/link:text-blue-700" strokeWidth={2.5} />
+            <div className="relative bg-white/90 p-2.5 rounded-full group-hover/link:scale-110 transition-transform duration-300">
+              <Video className="w-6 h-6 text-blue-600 group-hover/link:text-blue-700" strokeWidth={2.5} />
             </div>
           </div>
 
@@ -68,14 +68,14 @@ export const VideoConferenceToast: React.FC<Props> = ({ link, platform, onClose 
             <div className="text-white font-semibold text-base tracking-tight group-hover/link:text-blue-100 transition-colors">
               Connectez-vous
             </div>
-            <div className="text-white/50 text-xs mt-0.5 font-light tracking-wide">
+            <div className="text-white/60 text-sm mt-0.5 font-light tracking-wide">
               {detectedPlatform}
             </div>
           </div>
 
           {/* Flèche indicatrice */}
-          <div className="text-white/60 group-hover/link:text-white/90 group-hover/link:translate-x-1 transition-all duration-300">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="text-white/60 group-hover/link:text-white/90 group-hover/link:translate-x-1 transition-all duration-300 flex-shrink-0">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
