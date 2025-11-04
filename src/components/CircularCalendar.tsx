@@ -304,6 +304,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const [now, setNow] = React.useState<Date>(() => new Date());
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
+  const [hoveredEventIndex, setHoveredEventIndex] = React.useState<number | null>(null);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -526,6 +527,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const endAngle = angleFromHour(endHour);
 
     const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
+    const isHovered = hoveredEventIndex === idx;
     
     const dayDiff = getDaysDifference(start, now);
     const colorIndex = Math.min(dayDiff, dayColors.length - 1);
@@ -535,20 +537,50 @@ export const CircularCalendar: React.FC<Props> = ({
     const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
     const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
 
-    const opacity = isCurrent ? 1 : 0.7;
+    const baseOpacity = isCurrent ? 1 : 0.7;
+    const opacity = isHovered ? 1 : baseOpacity;
+    const strokeWidth = isHovered 
+      ? Math.max(3, radiusStep * 1.2) 
+      : Math.max(2, radiusStep * 0.8);
 
     return (
-      <path
-        key={`event-${idx}`}
-        d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
-        fill="none"
-        stroke={color}
-        strokeOpacity={opacity}
-        strokeWidth={Math.max(2, radiusStep * 0.8)}
-        strokeLinecap="round"
-        style={{ pointerEvents: "stroke", cursor: "pointer" }}
-        onClick={() => handleEventClick(e)}
-      />
+      <g key={`event-${idx}`}>
+        {/* Effet liquid glass au survol */}
+        {isHovered && (
+          <path
+            d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.3)"
+            strokeWidth={strokeWidth + 4}
+            strokeLinecap="round"
+            style={{
+              pointerEvents: "none",
+              filter: "blur(4px)",
+            }}
+          />
+        )}
+        
+        {/* Arc principal de l'événement */}
+        <path
+          d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
+          fill="none"
+          stroke={color}
+          strokeOpacity={opacity}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          style={{ 
+            pointerEvents: "stroke", 
+            cursor: "pointer",
+            filter: isHovered 
+              ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)`
+              : "none",
+            transition: "all 0.2s ease-out",
+          }}
+          onClick={() => handleEventClick(e)}
+          onMouseEnter={() => setHoveredEventIndex(idx)}
+          onMouseLeave={() => setHoveredEventIndex(null)}
+        />
+      </g>
     );
   });
 
