@@ -597,53 +597,6 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  const animateReturn = React.useCallback(() => {
-    console.log("🔙 Début animation retour");
-    const duration = 1500;
-    const startTime = performance.now();
-    const startVirtualTime = new Date(virtualDateTime);
-    const targetTime = new Date();
-    
-    console.log("📍 De:", formatDateShort(startVirtualTime), formatHour(startVirtualTime.getHours() + startVirtualTime.getMinutes() / 60));
-    console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
-    
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easedProgress = easeOutCubic(progress);
-      
-      const timeDiff = targetTime.getTime() - startVirtualTime.getTime();
-      const newTime = new Date(startVirtualTime.getTime() + timeDiff * easedProgress);
-      
-      setVirtualDateTime(newTime);
-      
-      if (progress < 1) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        console.log("✅ Animation retour terminée");
-        setVirtualDateTime(new Date());
-        setIsReturning(false);
-        setShowTimeLabel(true);
-        setIsLabelFadingOut(false);
-        setCursorEventIndex(null);
-        setShowDateLabel(false);
-        
-        if (labelTimeoutRef.current) {
-          window.clearTimeout(labelTimeoutRef.current);
-        }
-        labelTimeoutRef.current = window.setTimeout(() => {
-          setIsLabelFadingOut(true);
-          setTimeout(() => {
-            setShowTimeLabel(false);
-            setIsLabelFadingOut(false);
-          }, 800);
-        }, 3000);
-      }
-    };
-    
-    animationFrameRef.current = requestAnimationFrame(animate);
-  }, [virtualDateTime]);
-
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
@@ -713,14 +666,58 @@ export const CircularCalendar: React.FC<Props> = ({
       const randomDelay = 8000 + Math.random() * 2000;
       console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
       
+      // Capturer la date virtuelle actuelle pour l'animation
+      const capturedVirtualTime = new Date(newVirtualTime);
+      
       scrollTimeoutRef.current = window.setTimeout(() => {
         console.log("⏰ Timeout déclenché - début du retour");
+        console.log("📍 De:", formatDateShort(capturedVirtualTime), formatHour(capturedVirtualTime.getHours() + capturedVirtualTime.getMinutes() / 60));
+        
         setIsScrolling(false);
         setIsReturning(true);
-        // Utiliser setTimeout pour s'assurer que les états sont mis à jour avant l'animation
-        setTimeout(() => {
-          animateReturn();
-        }, 50);
+        
+        // Animation de retour
+        const duration = 1500;
+        const startTime = performance.now();
+        const targetTime = new Date();
+        
+        console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
+        
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const easedProgress = easeOutCubic(progress);
+          
+          const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
+          const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
+          
+          setVirtualDateTime(newTime);
+          
+          if (progress < 1) {
+            animationFrameRef.current = requestAnimationFrame(animate);
+          } else {
+            console.log("✅ Animation retour terminée");
+            setVirtualDateTime(new Date());
+            setIsReturning(false);
+            setShowTimeLabel(true);
+            setIsLabelFadingOut(false);
+            setCursorEventIndex(null);
+            setShowDateLabel(false);
+            
+            if (labelTimeoutRef.current) {
+              window.clearTimeout(labelTimeoutRef.current);
+            }
+            labelTimeoutRef.current = window.setTimeout(() => {
+              setIsLabelFadingOut(true);
+              setTimeout(() => {
+                setShowTimeLabel(false);
+                setIsLabelFadingOut(false);
+              }, 800);
+            }, 3000);
+          }
+        };
+        
+        animationFrameRef.current = requestAnimationFrame(animate);
       }, randomDelay);
     };
 
@@ -738,7 +735,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [virtualDateTime, upcomingEvents, animateReturn]);
+  }, [virtualDateTime, upcomingEvents]);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
