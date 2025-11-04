@@ -305,6 +305,13 @@ export const CircularCalendar: React.FC<Props> = ({
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [hoveredEventIndex, setHoveredEventIndex] = React.useState<number | null>(null);
+  
+  // États pour le curseur interactif
+  const [isScrolling, setIsScrolling] = React.useState(false);
+  const [scrollHourDecimal, setScrollHourDecimal] = React.useState<number | null>(null);
+  const [showTimeLabel, setShowTimeLabel] = React.useState(false);
+  const scrollTimeoutRef = React.useRef<number | null>(null);
+  const labelTimeoutRef = React.useRef<number | null>(null);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -374,7 +381,10 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
-  const cursorAngle = (hourDecimal / 24) * 360 - 90;
+  
+  // Utiliser scrollHourDecimal si en mode scroll, sinon hourDecimal
+  const displayHourDecimal = isScrolling && scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
+  const cursorAngle = (displayHourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   
   const cursorExtension = RING_THICKNESS * 0.2;
@@ -517,6 +527,77 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#93c5fd" : "#3b82f6",
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
+
+  // Fonction pour trouver l'événement à une heure donnée
+  const findEventAtHour = React.useCallback((hourDec: number) => {
+    for (const item of upcomingEvents) {
+      const { e, start, end } = item;
+      const startHour = start.getHours() + start.getMinutes() / 60;
+      const endHour = end.getHours() + end.getMinutes() / 60;
+      
+      if (hourDec >= startHour && hourDec <= endHour) {
+        return e;
+      }
+    }
+    return null;
+  }, [upcomingEvents]);
+
+  // Gestion du scroll
+  const handleWheel = React.useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    
+    const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
+    const currentHour = scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
+    let newHour = currentHour + delta;
+    
+    // Normaliser entre 0 et 24
+    if (newHour < 0) newHour += 24;
+    if (newHour >= 24) newHour -= 24;
+    
+    setScrollHourDecimal(newHour);
+    setIsScrolling(true);
+    
+    // Chercher un événement à cette heure
+    const eventAtHour = findEventAtHour(newHour);
+    if (eventAtHour) {
+      setSelectedEvent(eventAtHour);
+    }
+    
+    // Réinitialiser le timeout
+    if (scrollTimeoutRef.current) {
+      window.clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    scrollTimeoutRef.current = window.setTimeout(() => {
+      setIsScrolling(false);
+      setScrollHourDecimal(null);
+      setShowTimeLabel(true);
+      
+      // Masquer l'étiquette après 3 secondes
+      if (labelTimeoutRef.current) {
+        window.clearTimeout(labelTimeoutRef.current);
+      }
+      labelTimeoutRef.current = window.setTimeout(() => {
+        setShowTimeLabel(false);
+      }, 3000);
+    }, 2000);
+  }, [scrollHourDecimal, hourDecimal, findEventAtHour]);
+
+  React.useEffect(() => {
+    const container = document.getElementById('calendar-container');
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        container.removeEventListener('wheel', handleWheel as any);
+        if (scrollTimeoutRef.current) {
+          window.clearTimeout(scrollTimeoutRef.current);
+        }
+        if (labelTimeoutRef.current) {
+          window.clearTimeout(labelTimeoutRef.current);
+        }
+      };
+    }
+  }, [handleWheel]);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
@@ -662,9 +743,14 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
+  // Position de l'étiquette d'heure (vers l'intérieur)
+  const timeLabelRadius = INNER_RADIUS - metaIconSize / 2 - iconGap;
+  const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
+  const timeLabelRotation = cursorAngle + 90;
+
   return (
     <div className="flex flex-col items-center justify-center">
-      <div style={{ position: "relative", width: SIZE, height: SIZE }}>
+      <div id="calendar-container" style={{ position: "relative", width: SIZE, height: SIZE }}>
         <svg
           width={SIZE}
           height={SIZE}
@@ -755,17 +841,69 @@ export const CircularCalendar: React.FC<Props> = ({
 
           {hoverRing && hourNumbers}
 
+          {/* Effet liquid glass sur le curseur en mode scroll */}
+          {isScrolling && (
+            <line
+              x1={cursorX1}
+              y1={cursorY1}
+              x2={cursorX2}
+              y2={cursorY2}
+              stroke="rgba(255, 255, 255, 0.4)"
+              strokeWidth={8}
+              strokeLinecap="round"
+              style={{ 
+                pointerEvents: "none",
+                filter: "blur(3px)",
+              }}
+            />
+          )}
+
+          {/* Curseur principal */}
           <line
             x1={cursorX1}
             y1={cursorY1}
             x2={cursorX2}
             y2={cursorY2}
             stroke={cursorColor}
-            strokeWidth={3}
+            strokeWidth={isScrolling ? 4 : 3}
             strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 4px ${cursorColor}88)` }}
+            style={{ 
+              filter: isScrolling 
+                ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)`
+                : `drop-shadow(0 0 4px ${cursorColor}88)`,
+              transition: "all 0.2s ease-out",
+            }}
           />
         </svg>
+
+        {/* Étiquette d'heure temporaire */}
+        {showTimeLabel && !isScrolling && (
+          <div
+            className="absolute"
+            style={{
+              left: timeLabelPt.x - 20,
+              top: timeLabelPt.y - 10,
+              transform: `rotate(${timeLabelRotation}deg)`,
+              transformOrigin: "center",
+              transition: "opacity 0.3s ease-out",
+              opacity: showTimeLabel ? 1 : 0,
+            }}
+          >
+            <div className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md shadow-lg">
+              <span 
+                style={{ 
+                  fontSize: 11, 
+                  lineHeight: 1.1, 
+                  color: cursorColor,
+                  fontWeight: 600,
+                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
+                }}
+              >
+                {formatHour(hourDecimal)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Centre de l'anneau - Fond transparent avec indicateur et titre */}
         <div
@@ -796,7 +934,7 @@ export const CircularCalendar: React.FC<Props> = ({
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
               <div className="text-sm calendar-center-meta">
-                {formatHour(hourDecimal)}
+                {formatHour(displayHourDecimal)}
               </div>
               <div className="calendar-center-title font-semibold">
                 Aucun événement
