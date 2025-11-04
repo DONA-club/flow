@@ -1,8 +1,6 @@
 import React from "react";
 import { Sunrise, Sunset } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { toast } from "sonner";
-import { VideoConferenceToast } from "@/components/VideoConferenceToast";
 import EventInfoBubble from "@/components/EventInfoBubble";
 
 type Event = {
@@ -288,9 +286,6 @@ function extractVideoConferenceLink(event: Event): string | null {
 
   return null;
 }
-
-// Variable globale pour stocker l'ID du toast actuel
-let currentVideoToastId: string | number | null = null;
 
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
@@ -588,39 +583,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const handleEventClick = (evt: Event) => {
     setSelectedEvent(evt);
     
-    const videoLink = extractVideoConferenceLink(evt);
-    
-    if (videoLink) {
-      if (currentVideoToastId !== null) {
-        toast.dismiss(currentVideoToastId);
-        currentVideoToastId = null;
-      }
-
-      currentVideoToastId = toast.custom(
-        (t) => (
-          <VideoConferenceToast
-            link={videoLink}
-            onClose={() => {
-              toast.dismiss(t);
-              if (currentVideoToastId === t) {
-                currentVideoToastId = null;
-              }
-            }}
-          />
-        ),
-        {
-          duration: 10000,
-          position: "bottom-center",
-        }
-      );
-    } else {
-      // Pas de lien vidéo : fermer le toast s'il existe
-      if (currentVideoToastId !== null) {
-        toast.dismiss(currentVideoToastId);
-        currentVideoToastId = null;
-      }
-    }
-    
     if (onEventClick) {
       onEventClick(evt);
     }
@@ -638,7 +600,7 @@ export const CircularCalendar: React.FC<Props> = ({
   let eventDate = "";
   let timeRemaining = "";
   let eventUrl = "";
-  let timeIndicator = "";
+  let videoLink = "";
 
   if (selectedEvent) {
     const startDate = getEventStartDate(selectedEvent, now);
@@ -646,7 +608,6 @@ export const CircularCalendar: React.FC<Props> = ({
     if (startDate) {
       eventDate = formatEventDate(startDate);
       timeRemaining = formatTimeRemaining(startDate, now);
-      timeIndicator = getTimeIndicator(startDate, now);
     }
 
     eventOrganizer = selectedEvent.raw?.organizer?.displayName || 
@@ -655,6 +616,7 @@ export const CircularCalendar: React.FC<Props> = ({
                      "";
     
     eventUrl = selectedEvent.url || selectedEvent.raw?.htmlLink || selectedEvent.raw?.webLink || "";
+    videoLink = extractVideoConferenceLink(selectedEvent) || "";
   }
 
   // Calculer l'indicateur de temps pour l'événement au centre
@@ -819,6 +781,7 @@ export const CircularCalendar: React.FC<Props> = ({
             date={eventDate}
             timeRemaining={timeRemaining}
             url={eventUrl}
+            videoLink={videoLink}
             onClose={handleBubbleClose}
             diameter={bubbleDiameter}
           />

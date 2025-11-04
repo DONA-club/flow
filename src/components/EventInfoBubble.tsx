@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Video } from "lucide-react";
 
 type Props = {
   title: string;
@@ -9,9 +9,23 @@ type Props = {
   date?: string;
   timeRemaining?: string;
   url?: string;
+  videoLink?: string;
   onClose?: () => void;
   diameter?: number;
 };
+
+function detectPlatform(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes("teams.microsoft.com")) return "Teams";
+  if (lower.includes("zoom.us")) return "Zoom";
+  if (lower.includes("meet.google.com")) return "Google Meet";
+  if (lower.includes("hangouts.google.com")) return "Hangouts";
+  if (lower.includes("webex.com")) return "Webex";
+  if (lower.includes("gotomeeting.com")) return "GoToMeeting";
+  if (lower.includes("whereby.com")) return "Whereby";
+  if (lower.includes("jitsi")) return "Jitsi";
+  return "Vidéoconférence";
+}
 
 const EventInfoBubble: React.FC<Props> = ({ 
   title, 
@@ -19,6 +33,7 @@ const EventInfoBubble: React.FC<Props> = ({
   date,
   timeRemaining,
   url,
+  videoLink,
   onClose, 
   diameter = 200 
 }) => {
@@ -31,12 +46,21 @@ const EventInfoBubble: React.FC<Props> = ({
     }, 300);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleCalendarClick = (e: React.MouseEvent) => {
     if (url) {
       e.stopPropagation();
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
+
+  const handleVideoClick = (e: React.MouseEvent) => {
+    if (videoLink) {
+      e.stopPropagation();
+      window.open(videoLink, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const platform = videoLink ? detectPlatform(videoLink) : "";
 
   return (
     <div
@@ -46,13 +70,11 @@ const EventInfoBubble: React.FC<Props> = ({
         "flex items-center justify-center text-center",
         "transition-opacity duration-300 select-none",
         visible ? "opacity-100" : "opacity-0",
-        url ? "cursor-pointer" : "cursor-default",
       ].join(" ")}
       style={{ width: diameter, height: diameter }}
-      role={url ? "button" : "dialog"}
+      role="dialog"
       aria-live="polite"
       onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
     >
       {/* Liquid Glass Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60" />
@@ -87,14 +109,39 @@ const EventInfoBubble: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Icône de lien */}
-        {url && (
-          <div className="mt-2">
-            <div className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+        {/* Boutons d'action */}
+        <div className="flex items-center gap-3 mt-2">
+          {/* Bouton vidéoconférence */}
+          {videoLink && (
+            <button
+              onClick={handleVideoClick}
+              className="group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
+              aria-label={`Rejoindre ${platform}`}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300" />
+                <div className="relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300">
+                  <Video className="w-4 h-4 text-blue-600" strokeWidth={2.5} />
+                </div>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-white text-xs font-semibold">Rejoindre</span>
+                <span className="text-white/60 text-[10px] font-light">{platform}</span>
+              </div>
+            </button>
+          )}
+
+          {/* Icône calendrier */}
+          {url && (
+            <button
+              onClick={handleCalendarClick}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+              aria-label="Ouvrir dans le calendrier"
+            >
               <ExternalLink className="w-4 h-4 text-white/80" />
-            </div>
-          </div>
-        )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Effet de brillance animé */}

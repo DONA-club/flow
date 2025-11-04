@@ -2,8 +2,6 @@
 
 import React from "react";
 import { ChevronDown, Calendar, Clock, CalendarDays } from "lucide-react";
-import { toast } from "sonner";
-import { VideoConferenceToast } from "@/components/VideoConferenceToast";
 
 type EventLike = {
   title: string;
@@ -70,127 +68,6 @@ function getDaysDifference(date1: Date, date2: Date): number {
   return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-// Fonction pour extraire un lien de vidéoconférence
-function extractVideoConferenceLink(event: EventLike): string | null {
-  const raw = event.raw;
-  
-  console.log("🔍 [Liste] Extraction vidéoconférence pour:", event.title);
-  console.log("📦 [Liste] Données brutes de l'événement:", raw);
-  console.log("📍 [Liste] Place:", event.place);
-
-  if (!raw) {
-    console.log("⚠️ [Liste] Pas de données brutes");
-    return null;
-  }
-
-  // Patterns de vidéoconférence courants
-  const videoPatterns = [
-    /https?:\/\/[^\s<>"]*meet\.google\.com[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*zoom\.us[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*teams\.microsoft\.com[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*webex\.com[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*gotomeeting\.com[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*whereby\.com[^\s<>"]*/gi,
-    /https?:\/\/[^\s<>"]*jitsi[^\s<>"]*/gi,
-  ];
-
-  // Chercher dans event.place d'abord
-  if (event.place) {
-    console.log("🔎 [Liste] Recherche dans event.place:", event.place);
-    for (const pattern of videoPatterns) {
-      const match = event.place.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ [Liste] Lien trouvé dans event.place:", match[0]);
-        return match[0];
-      }
-    }
-  }
-
-  // Chercher dans la description (Google Calendar)
-  if (raw.description) {
-    console.log("🔎 [Liste] Recherche dans description:", raw.description.substring(0, 200));
-    for (const pattern of videoPatterns) {
-      const match = raw.description.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ [Liste] Lien trouvé dans description:", match[0]);
-        return match[0];
-      }
-    }
-  }
-
-  // Chercher dans le body (Outlook)
-  if (raw.body?.content) {
-    console.log("🔎 [Liste] Recherche dans body.content:", raw.body.content.substring(0, 200));
-    for (const pattern of videoPatterns) {
-      const match = raw.body.content.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ [Liste] Lien trouvé dans body.content:", match[0]);
-        return match[0];
-      }
-    }
-  }
-
-  // Chercher dans la localisation brute
-  if (raw.location) {
-    const locationStr = typeof raw.location === 'string' 
-      ? raw.location 
-      : raw.location.displayName || '';
-    
-    console.log("🔎 [Liste] Recherche dans raw.location:", locationStr);
-    
-    for (const pattern of videoPatterns) {
-      const match = locationStr.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ [Liste] Lien trouvé dans raw.location:", match[0]);
-        return match[0];
-      }
-    }
-  }
-
-  // Chercher dans les propriétés de conférence (Google Calendar)
-  if (raw.conferenceData?.entryPoints) {
-    console.log("🔎 [Liste] Recherche dans conferenceData.entryPoints");
-    const videoEntry = raw.conferenceData.entryPoints.find(
-      (ep: any) => ep.entryPointType === 'video'
-    );
-    if (videoEntry?.uri) {
-      console.log("✅ [Liste] Lien trouvé dans conferenceData:", videoEntry.uri);
-      return videoEntry.uri;
-    }
-  }
-
-  // Chercher dans onlineMeeting (Outlook)
-  if (raw.onlineMeeting?.joinUrl) {
-    console.log("✅ [Liste] Lien trouvé dans onlineMeeting:", raw.onlineMeeting.joinUrl);
-    return raw.onlineMeeting.joinUrl;
-  }
-
-  // Chercher dans hangoutLink (Google Calendar)
-  if (raw.hangoutLink) {
-    console.log("✅ [Liste] Lien trouvé dans hangoutLink:", raw.hangoutLink);
-    return raw.hangoutLink;
-  }
-
-  // Détection spéciale pour "Réunion Microsoft Teams"
-  if (event.place && event.place.toLowerCase().includes("microsoft teams")) {
-    console.log("⚠️ [Liste] Détecté 'Microsoft Teams' mais pas de lien trouvé");
-    const rawStr = JSON.stringify(raw);
-    for (const pattern of videoPatterns) {
-      const match = rawStr.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ [Liste] Lien trouvé dans JSON complet:", match[0]);
-        return match[0];
-      }
-    }
-  }
-
-  console.log("❌ [Liste] Aucun lien de vidéoconférence trouvé");
-  return null;
-}
-
-// Variable globale pour stocker l'ID du toast actuel
-let currentVideoToastId: string | number | null = null;
-
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
   const [open, setOpen] = React.useState(true);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
@@ -231,41 +108,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   }, [events, maxItems]);
 
   const handleEventClick = (evt: EventLike) => {
-    const videoLink = extractVideoConferenceLink(evt);
-    
-    if (videoLink) {
-      // Fermer le toast précédent s'il existe
-      if (currentVideoToastId !== null) {
-        toast.dismiss(currentVideoToastId);
-        currentVideoToastId = null;
-      }
-
-      // Afficher le nouveau toast immédiatement
-      currentVideoToastId = toast.custom(
-        (t) => (
-          <VideoConferenceToast
-            link={videoLink}
-            onClose={() => {
-              toast.dismiss(t);
-              if (currentVideoToastId === t) {
-                currentVideoToastId = null;
-              }
-            }}
-          />
-        ),
-        {
-          duration: 10000,
-          position: "bottom-center",
-        }
-      );
-    } else {
-      // Pas de lien vidéo : fermer le toast s'il existe
-      if (currentVideoToastId !== null) {
-        toast.dismiss(currentVideoToastId);
-        currentVideoToastId = null;
-      }
-    }
-    
     if (onSelect) {
       onSelect(evt);
     }
