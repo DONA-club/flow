@@ -164,11 +164,6 @@ const CircularCalendarDemo = () => {
     <>
       <FontLoader />
 
-      {/* Logs - z-index: 10 (le plus bas) */}
-      <div style={{ position: "relative", zIndex: 10 }}>
-        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
-      </div>
-
       {/* Calendrier principal - z-index: 20 */}
       <div 
         className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg" 
@@ -195,6 +190,11 @@ const CircularCalendarDemo = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Logs - z-index: 30 (juste au-dessus du calendrier) */}
+      <div style={{ position: "relative", zIndex: 30 }}>
+        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
 
       {/* Section "À venir" - z-index: 100 (le plus haut) */}

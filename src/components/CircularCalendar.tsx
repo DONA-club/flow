@@ -218,6 +218,18 @@ function getTimeIndicator(date: Date, now: Date): string {
   return `Dans ${dayDiff} jours`;
 }
 
+function formatDateLabel(date: Date): string {
+  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  
+  const dayName = days[date.getDay()];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${dayName} ${day} ${month} ${year}`;
+}
+
 // Fonction pour extraire un lien de vidéoconférence
 function extractVideoConferenceLink(event: Event): string | null {
   const raw = event.raw;
@@ -318,21 +330,32 @@ export const CircularCalendar: React.FC<Props> = ({
   const [isReturning, setIsReturning] = React.useState(false);
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
   const [isLabelFadingOut, setIsLabelFadingOut] = React.useState(false);
+  
+  // États pour la navigation temporelle
+  const [dayOffset, setDayOffset] = React.useState(0);
+  const [showDateLabel, setShowDateLabel] = React.useState(false);
+  
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   
   // Stocker l'heure où le curseur s'est arrêté
   const frozenScrollHourRef = React.useRef<number | null>(null);
+  const previousHourRef = React.useRef<number | null>(null);
   
   // Refs pour éviter les recréations de handleWheel
   const scrollHourDecimalRef = React.useRef<number | null>(null);
+  const dayOffsetRef = React.useRef<number>(0);
   const upcomingEventsRef = React.useRef<any[]>([]);
 
   // Synchroniser les refs avec les states
   React.useEffect(() => {
     scrollHourDecimalRef.current = scrollHourDecimal;
   }, [scrollHourDecimal]);
+
+  React.useEffect(() => {
+    dayOffsetRef.current = dayOffset;
+  }, [dayOffset]);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -390,12 +413,20 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [size]);
 
+  // Calculer la date de référence en fonction du dayOffset
+  const referenceDate = React.useMemo(() => {
+    const date = new Date(now);
+    date.setDate(date.getDate() + dayOffset);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [now, dayOffset]);
+
   const hourDecimal =
     now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const hour = now.getHours();
   const currentSeason = season || getSeason(now);
 
-  const event = getCurrentOrNextEvent(events, now);
+  const event = getCurrentOrNextEvent(events, referenceDate);
 
   const SIZE = size;
   const RADIUS = SIZE / 2 - 8;
@@ -559,18 +590,29 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  const nowMs = now.getTime();
+  const nowMs = referenceDate.getTime();
 
+  // Filtrer les événements pour la date de référence
   const eventsWithDates = events
     .map((e) => {
-      const start = getEventStartDate(e, now);
+      const start = getEventStartDate(e, referenceDate);
       const end = start ? getEventEndDate(e, start) : null;
       return { e, start, end };
     })
     .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
+  // Filtrer les événements du jour de référence
+  const dayStart = new Date(referenceDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(referenceDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
   const upcomingEvents = eventsWithDates
-    .filter((x) => x.end.getTime() >= nowMs)
+    .filter((x) => {
+      const eventDate = new Date(x.start);
+      eventDate.setHours(0, 0, 0, 0);
+      return eventDate.getTime() === dayStart.getTime();
+    })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   // Synchroniser la ref
@@ -624,6 +666,8 @@ export const CircularCalendar: React.FC<Props> = ({
         setIsLabelFadingOut(false);
         frozenScrollHourRef.current = null;
         setCursorEventIndex(null);
+        setDayOffset(0);
+        setShowDateLabel(false);
         
         // Masquer l'étiquette après 3 secondes avec animation de disparition
         if (labelTimeoutRef.current) {
@@ -667,7 +711,23 @@ export const CircularCalendar: React.FC<Props> = ({
       const currentNow = new Date();
       const currentHourDecimal = currentNow.getHours() + currentNow.getMinutes() / 60 + currentNow.getSeconds() / 3600;
       const currentHour = scrollHourDecimalRef.current !== null ? scrollHourDecimalRef.current : currentHourDecimal;
+      const prevHour = previousHourRef.current !== null ? previousHourRef.current : currentHour;
+      
       let newHour = currentHour + delta;
+      let newDayOffset = dayOffsetRef.current;
+      
+      // Détecter le passage de minuit
+      if (prevHour < 1 && newHour >= 23) {
+        // Passage de 0h à 23h59 (retour en arrière)
+        newDayOffset -= 1;
+        setDayOffset(newDayOffset);
+        setShowDateLabel(true);
+      } else if (prevHour >= 23 && newHour < 1) {
+        // Passage de 23h59 à 0h (avance)
+        newDayOffset += 1;
+        setDayOffset(newDayOffset);
+        setShowDateLabel(true);
+      }
       
       // Normaliser entre 0 et 24
       if (newHour < 0) newHour += 24;
@@ -675,9 +735,10 @@ export const CircularCalendar: React.FC<Props> = ({
       
       setScrollHourDecimal(newHour);
       frozenScrollHourRef.current = newHour; // Figer cette position
+      previousHourRef.current = newHour;
       setIsScrolling(true);
       
-      // Chercher un événement à cette heure
+      // Chercher un événement à cette heure dans le jour de référence
       const events = upcomingEventsRef.current;
       let foundEventIndex: number | null = null;
       
@@ -854,7 +915,7 @@ export const CircularCalendar: React.FC<Props> = ({
   let videoLink = "";
 
   if (selectedEvent) {
-    const startDate = getEventStartDate(selectedEvent, now);
+    const startDate = getEventStartDate(selectedEvent, referenceDate);
     
     if (startDate) {
       eventDate = formatEventDate(startDate);
@@ -873,7 +934,7 @@ export const CircularCalendar: React.FC<Props> = ({
   // Calculer l'indicateur de temps pour l'événement au centre
   let centerTimeIndicator = "";
   if (event) {
-    const startDate = getEventStartDate(event, now);
+    const startDate = getEventStartDate(event, referenceDate);
     if (startDate) {
       centerTimeIndicator = getTimeIndicator(startDate, now);
     }
@@ -882,10 +943,15 @@ export const CircularCalendar: React.FC<Props> = ({
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
   // Position de l'étiquette d'heure - 15px plus loin du curseur vers le centre
-  const labelOffset = Math.max(8, RING_THICKNESS * 0.25) + 15; // Ajout de 15px d'espacement
+  const labelOffset = Math.max(8, RING_THICKNESS * 0.25) + 15;
   const timeLabelRadius = INNER_RADIUS - labelOffset;
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
+
+  // Position de l'étiquette de date - en haut près de 0h00
+  const dateLabelAngle = -90; // 0h00 en haut
+  const dateLabelRadius = INNER_RADIUS - Math.max(12, RING_THICKNESS * 0.4);
+  const dateLabelPt = toPoint(dateLabelAngle, dateLabelRadius);
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -1108,6 +1174,53 @@ export const CircularCalendar: React.FC<Props> = ({
             >
               {formatHour(hourDecimal)}
             </span>
+          </div>
+        )}
+
+        {/* Étiquette de date - z-index: 8 */}
+        {showDateLabel && dayOffset !== 0 && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: dateLabelPt.x,
+              top: dateLabelPt.y,
+              transform: `translate(-50%, -50%)`,
+              zIndex: 8,
+            }}
+          >
+            <div 
+              className="px-3 py-1.5 rounded-lg"
+              style={{ 
+                background: "rgba(0, 0, 0, 0.7)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <div
+                style={{ 
+                  fontSize: 11, 
+                  lineHeight: 1.2, 
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
+                  textAlign: "center",
+                }}
+              >
+                {formatDateLabel(referenceDate)}
+              </div>
+              <div
+                style={{ 
+                  fontSize: 9, 
+                  lineHeight: 1, 
+                  color: "rgba(255, 255, 255, 0.7)",
+                  fontWeight: 500,
+                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
+                  textAlign: "center",
+                  marginTop: "2px",
+                }}
+              >
+                {dayOffset > 0 ? `+${dayOffset} jour${dayOffset > 1 ? 's' : ''}` : `${dayOffset} jour${dayOffset < -1 ? 's' : ''}`}
+              </div>
+            </div>
           </div>
         )}
 
