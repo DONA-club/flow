@@ -183,24 +183,22 @@ body {
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--dist, 1.6rem)) scale(0.3); }
 }
 
-/* Styles personnalisés pour Sonner Toaster - Centrage parfait avec largeur fixe */
+/* Styles personnalisés pour Sonner Toaster - Centrage avec espacement aéré */
 [data-sonner-toaster] {
   position: fixed !important;
   bottom: 0 !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: 100% !important;
-  max-width: 448px !important; /* max-w-md = 28rem = 448px */
-  padding-bottom: 24px !important;
+  width: auto !important;
+  padding-bottom: 48px !important; /* Espacement plus aéré du bas */
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 12px !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast] {
-  width: 100% !important;
-  max-width: 448px !important;
+  width: auto !important;
   margin: 0 auto !important;
   box-sizing: border-box !important;
 }
@@ -222,12 +220,6 @@ body {
 /* Responsive pour mobile */
 @media (max-width: 640px) {
   [data-sonner-toaster] {
-    max-width: calc(100vw - 32px) !important;
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-  
-  [data-sonner-toaster] [data-sonner-toast] {
-    max-width: 100% !important;
+    padding-bottom: 32px !important;
   }
 }

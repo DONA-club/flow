@@ -5,7 +5,6 @@ import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
-import EventInfoBubble from "@/components/EventInfoBubble";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
@@ -75,7 +74,6 @@ const CircularCalendarDemo = () => {
   const size = useGoldenCircleSize();
 
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -138,17 +136,6 @@ const CircularCalendarDemo = () => {
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
-  function formatHour(decimal: number) {
-    const h = Math.floor(decimal).toString().padStart(2, "0");
-    const m = Math.round((decimal % 1) * 60).toString().padStart(2, "0");
-    return `${h}:${m}`;
-  }
-
-  function formatRange(start?: number, end?: number) {
-    if (start == null || end == null) return "";
-    return `${formatHour(start)} — ${formatHour(end)}`;
-  }
-
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
   const combinedEvents = [...gEvents, ...oEvents].sort((a, b) => {
@@ -180,8 +167,7 @@ const CircularCalendarDemo = () => {
         <UpcomingEventsList
           events={combinedEvents}
           onSelect={(evt) => {
-            // La détection de vidéoconférence est maintenant gérée dans UpcomingEventsList
-            setSelectedEvent(evt);
+            // La sélection est gérée par CircularCalendar
           }}
         />
       )}
@@ -198,18 +184,7 @@ const CircularCalendarDemo = () => {
             size={size}
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
-            onEventClick={(evt) => {
-              setSelectedEvent(evt);
-            }}
           />
-          {selectedEvent && (
-            <EventInfoBubble
-              title={selectedEvent.title}
-              place={selectedEvent.place}
-              time={formatRange(selectedEvent.start, selectedEvent.end)}
-              onClose={() => setSelectedEvent(null)}
-            />
-          )}
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">
               <span className="text-sm text-center px-4">{error}</span>

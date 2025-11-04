@@ -1,8 +1,9 @@
 import React from "react";
-import { Sunrise, Sunset, ExternalLink } from "lucide-react";
+import { Sunrise, Sunset } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { VideoConferenceToast } from "@/components/VideoConferenceToast";
+import EventInfoBubble from "@/components/EventInfoBubble";
 
 type Event = {
   title: string;
@@ -207,6 +208,16 @@ function getDaysDifference(date1: Date, date2: Date): number {
   return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function getTimeIndicator(date: Date, now: Date): string {
+  const dayDiff = getDaysDifference(date, now);
+  
+  if (dayDiff === 0) return "Aujourd'hui";
+  if (dayDiff === 1) return "Demain";
+  if (dayDiff === 2) return "Dans 2 jours";
+  if (dayDiff === 3) return "Dans 3 jours";
+  return `Dans ${dayDiff} jours`;
+}
+
 // Fonction pour extraire un lien de vidéoconférence
 function extractVideoConferenceLink(event: Event): string | null {
   const raw = event.raw;
@@ -293,6 +304,7 @@ export const CircularCalendar: React.FC<Props> = ({
 }) => {
   const [now, setNow] = React.useState<Date>(() => new Date());
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
 
   React.useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -528,7 +540,8 @@ export const CircularCalendar: React.FC<Props> = ({
         strokeOpacity={opacity}
         strokeWidth={Math.max(2, radiusStep * 0.8)}
         strokeLinecap="round"
-        style={{ pointerEvents: "none" }}
+        style={{ pointerEvents: "stroke", cursor: "pointer" }}
+        onClick={() => handleEventClick(e)}
       />
     );
   });
@@ -562,6 +575,8 @@ export const CircularCalendar: React.FC<Props> = ({
   }
 
   const handleEventClick = (evt: Event) => {
+    setSelectedEvent(evt);
+    
     const videoLink = extractVideoConferenceLink(evt);
     
     if (videoLink) {
@@ -594,29 +609,39 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   };
 
-  // Calculer les détails de l'événement
+  // Calculer les détails de l'événement pour EventInfoBubble
   let eventOrganizer = "";
   let eventDate = "";
   let timeRemaining = "";
   let eventUrl = "";
+  let timeIndicator = "";
 
-  if (event) {
-    const startDate = getEventStartDate(event, now);
+  if (selectedEvent) {
+    const startDate = getEventStartDate(selectedEvent, now);
     
     if (startDate) {
       eventDate = formatEventDate(startDate);
       timeRemaining = formatTimeRemaining(startDate, now);
+      timeIndicator = getTimeIndicator(startDate, now);
     }
 
-    eventOrganizer = event.raw?.organizer?.displayName || 
-                     event.raw?.organizer?.emailAddress?.name || 
-                     event.place || 
+    eventOrganizer = selectedEvent.raw?.organizer?.displayName || 
+                     selectedEvent.raw?.organizer?.emailAddress?.name || 
+                     selectedEvent.place || 
                      "";
     
-    eventUrl = event.url || event.raw?.htmlLink || event.raw?.webLink || "";
+    eventUrl = selectedEvent.url || selectedEvent.raw?.htmlLink || selectedEvent.raw?.webLink || "";
   }
 
-  // Diamètre de la bulle centrale (augmenté pour couvrir le titre)
+  // Calculer l'indicateur de temps pour l'événement au centre
+  let centerTimeIndicator = "";
+  if (event) {
+    const startDate = getEventStartDate(event, now);
+    if (startDate) {
+      centerTimeIndicator = getTimeIndicator(startDate, now);
+    }
+  }
+
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
   return (
@@ -724,78 +749,56 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
-        {/* Bulle centrale avec détails de l'événement */}
+        {/* Centre de l'anneau - Fond transparent avec indicateur et titre */}
         <div
-          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none glass"
+          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{
             transform: `translate(-50%, -50%)`,
-            width: bubbleDiameter,
-            height: bubbleDiameter,
-            borderRadius: "50%",
-            padding: "1.5rem",
+            width: INNER_RADIUS * 1.6,
+            height: INNER_RADIUS * 1.6,
             cursor: event ? "pointer" : "default",
             pointerEvents: "auto",
           }}
           onClick={() => event && handleEventClick(event)}
           role={event ? "button" : undefined}
-          aria-label={event ? `Open event: ${event.title}` : undefined}
+          aria-label={event ? `Voir les détails: ${event.title}` : undefined}
         >
           {event ? (
-            <div className="flex flex-col items-center justify-center gap-2 w-full">
-              {/* Organisateur (discret en haut) */}
-              {eventOrganizer && (
-                <div className="text-xs calendar-center-meta opacity-60 truncate w-full">
-                  {eventOrganizer}
-                </div>
-              )}
-
-              {/* Titre de l'événement */}
-              <div className="calendar-center-title font-bold text-lg leading-tight">
-                {event.title}
+            <>
+              {/* Indicateur de temps (discret en haut) */}
+              <div className="text-xs calendar-center-meta opacity-60 mb-2">
+                {centerTimeIndicator}
               </div>
 
-              {/* Date formatée */}
-              {eventDate && (
-                <div className="text-sm calendar-center-sub">
-                  {eventDate}
-                </div>
-              )}
-
-              {/* Temps restant */}
-              {timeRemaining && (
-                <div className="text-xs calendar-center-meta font-semibold">
-                  {timeRemaining}
-                </div>
-              )}
-
-              {/* Lien vers le calendrier */}
-              {eventUrl && (
-                <a
-                  href={eventUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 p-2 rounded-full hover:bg-white/10 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Ouvrir dans le calendrier"
-                >
-                  <ExternalLink className="w-5 h-5 calendar-center-meta" />
-                </a>
-              )}
-            </div>
+              {/* Titre de l'événement */}
+              <div className="calendar-center-title font-bold text-base leading-tight px-4">
+                {event.title}
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
               <div className="text-sm calendar-center-meta">
                 {formatHour(hourDecimal)}
               </div>
               <div className="calendar-center-title font-semibold">
-                No events
-              </div>
-              <div className="calendar-center-sub text-sm">
-                Enjoy your time!
+                Aucun événement
               </div>
             </div>
           )}
         </div>
+
+        {/* EventInfoBubble - Apparaît au-dessus du centre */}
+        {selectedEvent && (
+          <EventInfoBubble
+            title={selectedEvent.title}
+            organizer={eventOrganizer}
+            date={eventDate}
+            timeRemaining={timeRemaining}
+            url={eventUrl}
+            onClose={() => setSelectedEvent(null)}
+            diameter={bubbleDiameter}
+          />
+        )}
 
         {!hoverRing && (
           <Tooltip>
