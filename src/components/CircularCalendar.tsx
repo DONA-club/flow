@@ -230,7 +230,6 @@ function formatDateLabel(date: Date): string {
   return `${dayName} ${day} ${month} ${year}`;
 }
 
-// Fonction pour extraire un lien de vidéoconférence
 function extractVideoConferenceLink(event: Event): string | null {
   const raw = event.raw;
   
@@ -299,7 +298,6 @@ function extractVideoConferenceLink(event: Event): string | null {
   return null;
 }
 
-// Fonction d'easing pour ralentissement progressif
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -324,14 +322,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const [hoveredEventIndex, setHoveredEventIndex] = React.useState<number | null>(null);
   const [cursorEventIndex, setCursorEventIndex] = React.useState<number | null>(null);
   
-  // États pour le curseur interactif
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [scrollHourDecimal, setScrollHourDecimal] = React.useState<number | null>(null);
   const [isReturning, setIsReturning] = React.useState(false);
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
   const [isLabelFadingOut, setIsLabelFadingOut] = React.useState(false);
   
-  // États pour la navigation temporelle
   const [dayOffset, setDayOffset] = React.useState(0);
   const [showDateLabel, setShowDateLabel] = React.useState(false);
   
@@ -339,54 +335,23 @@ export const CircularCalendar: React.FC<Props> = ({
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   
-  // Stocker l'heure où le curseur s'est arrêté
   const frozenScrollHourRef = React.useRef<number | null>(null);
   const previousHourRef = React.useRef<number | null>(null);
   
-  // Refs pour éviter les recréations de handleWheel
   const scrollHourDecimalRef = React.useRef<number | null>(null);
   const dayOffsetRef = React.useRef<number>(0);
   const upcomingEventsRef = React.useRef<any[]>([]);
 
-  // Log au montage
-  React.useEffect(() => {
-    console.log("🎨 CircularCalendar monté", {
-      size,
-      eventsCount: events.length,
-      sunrise,
-      sunset,
-    });
-    
-    // Log détaillé des événements reçus
-    if (events.length > 0) {
-      console.log("📋 Détail des événements reçus:");
-      events.forEach((e, idx) => {
-        const start = getEventStartDate(e, new Date());
-        const end = start ? getEventEndDate(e, start) : null;
-        console.log(`  ${idx + 1}. "${e.title}"`, {
-          startDate: start?.toLocaleString(),
-          endDate: end?.toLocaleString(),
-          place: e.place,
-          raw: e.raw,
-        });
-      });
-    }
-  }, [events.length]);
-
-  // Synchroniser les refs avec les states
   React.useEffect(() => {
     scrollHourDecimalRef.current = scrollHourDecimal;
   }, [scrollHourDecimal]);
 
   React.useEffect(() => {
     dayOffsetRef.current = dayOffset;
-    console.log("📅 Day offset changé:", dayOffset);
   }, [dayOffset]);
 
-  // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
     if (externalSelectedEvent) {
-      console.log("📌 Événement externe sélectionné:", externalSelectedEvent.title);
       setSelectedEvent(externalSelectedEvent);
       setCursorEventIndex(null);
     }
@@ -401,7 +366,6 @@ export const CircularCalendar: React.FC<Props> = ({
     const checkTheme = () => {
       const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDarkMode(isDark);
-      console.log("🎨 Theme:", isDark ? "dark" : "light");
     };
     checkTheme();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -412,22 +376,11 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, []);
 
-  // Centrer le dégradé sur le centre de l'anneau
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     const pageContainer = document.getElementById('calendar-page-container');
     
-    if (!container) {
-      console.error("❌ Container calendar-container NON TROUVÉ !");
-      return;
-    }
-    
-    if (!pageContainer) {
-      console.error("❌ Container calendar-page-container NON TROUVÉ !");
-      return;
-    }
-
-    console.log("✅ Containers trouvés pour le dégradé");
+    if (!container || !pageContainer) return;
 
     const updateGradientCenter = () => {
       const rect = container.getBoundingClientRect();
@@ -439,8 +392,6 @@ export const CircularCalendar: React.FC<Props> = ({
       
       pageContainer.style.setProperty('--calendar-center-x', `${percentX}%`);
       pageContainer.style.setProperty('--calendar-center-y', `${percentY}%`);
-      
-      console.log("🎨 Dégradé centré:", { percentX: percentX.toFixed(1), percentY: percentY.toFixed(1) });
     };
 
     updateGradientCenter();
@@ -453,16 +404,10 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [size]);
 
-  // Calculer la date de référence en fonction du dayOffset
   const referenceDate = React.useMemo(() => {
     const date = new Date(now);
     date.setDate(date.getDate() + dayOffset);
     date.setHours(0, 0, 0, 0);
-    console.log("📅 Date de référence calculée:", {
-      dateString: date.toLocaleDateString(),
-      offset: dayOffset,
-      timestamp: date.getTime(),
-    });
     return date;
   }, [now, dayOffset]);
 
@@ -509,7 +454,6 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   
-  // Utiliser scrollHourDecimal si en mode scroll ou retour, sinon hourDecimal
   const displayHourDecimal = (isScrolling || isReturning) && scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
   const cursorAngle = (displayHourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
@@ -637,7 +581,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const nowMs = referenceDate.getTime();
 
-  // Filtrer les événements pour la date de référence
+  // Filtrer les événements pour les 3 prochains jours à partir de la date de référence
   const eventsWithDates = events
     .map((e) => {
       const start = getEventStartDate(e, referenceDate);
@@ -646,39 +590,19 @@ export const CircularCalendar: React.FC<Props> = ({
     })
     .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
-  console.log("🔍 Tous les événements avec dates:", eventsWithDates.map(x => ({
-    title: x.e.title,
-    start: x.start.toLocaleString(),
-    end: x.end.toLocaleString(),
-  })));
-
-  // Filtrer les événements du jour de référence
   const dayStart = new Date(referenceDate);
   dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(referenceDate);
-  dayEnd.setHours(23, 59, 59, 999);
-
-  console.log("🔍 Filtrage pour le jour:", {
-    referenceDate: referenceDate.toLocaleDateString(),
-    dayStart: dayStart.toLocaleString(),
-    dayEnd: dayEnd.toLocaleString(),
-  });
+  const threeDaysLater = new Date(dayStart);
+  threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
   const upcomingEvents = eventsWithDates
     .filter((x) => {
       const eventDate = new Date(x.start);
       eventDate.setHours(0, 0, 0, 0);
-      const matches = eventDate.getTime() === dayStart.getTime();
-      
-      console.log(`  - "${x.e.title}": eventDate=${eventDate.toLocaleDateString()}, dayStart=${dayStart.toLocaleDateString()}, matches=${matches}`);
-      
-      return matches;
+      return eventDate.getTime() >= dayStart.getTime() && eventDate.getTime() < threeDaysLater.getTime();
     })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  console.log("📊 Événements filtrés pour", referenceDate.toLocaleDateString(), ":", upcomingEvents.length);
-
-  // Synchroniser la ref
   React.useEffect(() => {
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
@@ -689,9 +613,7 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // Animation de retour du curseur avec ralentissement
   const animateReturn = React.useCallback((startHour: number, targetHour: number, startTime: number) => {
-    console.log("🔄 Animation de retour:", { startHour: formatHour(startHour), targetHour: formatHour(targetHour) });
     const duration = 1500;
     
     const animate = (currentTime: number) => {
@@ -719,7 +641,6 @@ export const CircularCalendar: React.FC<Props> = ({
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
-        console.log("✅ Animation de retour terminée");
         setScrollHourDecimal(null);
         setIsReturning(false);
         setShowTimeLabel(true);
@@ -745,18 +666,11 @@ export const CircularCalendar: React.FC<Props> = ({
     animationFrameRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // Enregistrer le listener UNE SEULE FOIS
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
-    if (!container) {
-      console.error("❌ Container calendar-container NON TROUVÉ pour le listener wheel !");
-      return;
-    }
-
-    console.log("✅ Container trouvé, enregistrement du listener wheel");
+    if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
-      console.log("🎯 WHEEL EVENT DÉTECTÉ !", { deltaY: e.deltaY });
       e.preventDefault();
       
       if (animationFrameRef.current) {
@@ -778,21 +692,12 @@ export const CircularCalendar: React.FC<Props> = ({
       let newHour = currentHour + delta;
       let newDayOffset = dayOffsetRef.current;
       
-      console.log("⏰ Scroll:", {
-        prevHour: formatHour(prevHour),
-        currentHour: formatHour(currentHour),
-        newHour: formatHour(newHour),
-        delta,
-      });
-      
       // Détecter le passage de minuit
       if (prevHour < 1 && newHour >= 23) {
-        console.log("⬅️ Passage de minuit en arrière (0h → 23h)");
         newDayOffset -= 1;
         setDayOffset(newDayOffset);
         setShowDateLabel(true);
       } else if (prevHour >= 23 && newHour < 1) {
-        console.log("➡️ Passage de minuit en avant (23h → 0h)");
         newDayOffset += 1;
         setDayOffset(newDayOffset);
         setShowDateLabel(true);
@@ -809,25 +714,19 @@ export const CircularCalendar: React.FC<Props> = ({
       const events = upcomingEventsRef.current;
       let foundEventIndex: number | null = null;
       
-      console.log(`🔍 Recherche d'événement à ${formatHour(newHour)} parmi ${events.length} événements`);
-      
       for (let i = 0; i < events.length; i++) {
         const { e, start, end } = events[i];
         const startHour = start.getHours() + start.getMinutes() / 60;
         const endHour = end.getHours() + end.getMinutes() / 60;
         
-        console.log(`  - "${e.title}": ${formatHour(startHour)} - ${formatHour(endHour)}`);
-        
         if (newHour >= startHour && newHour <= endHour) {
           foundEventIndex = i;
           setSelectedEvent(e);
-          console.log("🎯 Événement trouvé au curseur:", e.title);
           break;
         }
       }
       
       if (foundEventIndex === null) {
-        console.log("❌ Aucun événement trouvé à cette heure");
         setSelectedEvent(null);
       }
       
@@ -838,7 +737,6 @@ export const CircularCalendar: React.FC<Props> = ({
       }
       
       scrollTimeoutRef.current = window.setTimeout(() => {
-        console.log("⏸️ Fin du scroll, début du retour");
         setIsScrolling(false);
         setIsReturning(true);
         
@@ -851,10 +749,8 @@ export const CircularCalendar: React.FC<Props> = ({
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    console.log("🎯 Listener wheel ENREGISTRÉ avec succès");
     
     return () => {
-      console.log("🗑️ Listener wheel supprimé");
       container.removeEventListener('wheel', handleWheel);
       if (scrollTimeoutRef.current) {
         window.clearTimeout(scrollTimeoutRef.current);
@@ -933,8 +829,6 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  console.log("🎨 eventArcs générés:", eventArcs.length);
-
   const sleepOverlays: JSX.Element[] = [];
   
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
@@ -964,7 +858,6 @@ export const CircularCalendar: React.FC<Props> = ({
   }
 
   const handleEventClick = (evt: Event) => {
-    console.log("🖱️ Clic sur événement:", evt.title);
     setSelectedEvent(evt);
     setCursorEventIndex(null);
     
@@ -974,7 +867,6 @@ export const CircularCalendar: React.FC<Props> = ({
   };
 
   const handleBubbleClose = () => {
-    console.log("❌ Fermeture de la bubble");
     setSelectedEvent(null);
     setCursorEventIndex(null);
     if (onEventBubbleClosed) {
@@ -982,7 +874,6 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   };
 
-  // Calculer les détails de l'événement pour EventInfoBubble
   let eventOrganizer = "";
   let eventDate = "";
   let timeRemaining = "";
@@ -1006,7 +897,6 @@ export const CircularCalendar: React.FC<Props> = ({
     videoLink = extractVideoConferenceLink(selectedEvent) || "";
   }
 
-  // Calculer l'indicateur de temps pour l'événement au centre
   let centerTimeIndicator = "";
   if (event) {
     const startDate = getEventStartDate(event, referenceDate);
@@ -1025,15 +915,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const dateLabelAngle = -90;
   const dateLabelRadius = INNER_RADIUS - Math.max(12, RING_THICKNESS * 0.4);
   const dateLabelPt = toPoint(dateLabelAngle, dateLabelRadius);
-
-  console.log("🎨 Render CircularCalendar:", {
-    upcomingEventsCount: upcomingEvents.length,
-    selectedEvent: selectedEvent?.title,
-    dayOffset,
-    showDateLabel,
-    isScrolling,
-    scrollHourDecimal: scrollHourDecimal ? formatHour(scrollHourDecimal) : null,
-  });
 
   return (
     <div className="flex flex-col items-center justify-center">
