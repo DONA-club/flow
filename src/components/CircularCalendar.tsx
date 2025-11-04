@@ -837,8 +837,10 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
-  // Position de l'étiquette d'heure (plus proche du centre, à mi-chemin entre INNER_RADIUS et le centre)
-  const timeLabelRadius = INNER_RADIUS * 0.6; // 60% du rayon intérieur = plus proche du centre
+  // Position de l'étiquette d'heure - juste à l'intérieur de l'anneau, proche du curseur
+  // Distance depuis le centre = INNER_RADIUS - petit offset pour être juste à l'intérieur
+  const labelOffset = Math.max(8, RING_THICKNESS * 0.25); // Petit offset pour éviter la superposition
+  const timeLabelRadius = INNER_RADIUS - labelOffset;
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
