@@ -316,6 +316,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const [scrollHourDecimal, setScrollHourDecimal] = React.useState<number | null>(null);
   const [isReturning, setIsReturning] = React.useState(false);
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
+  const [isLabelFadingOut, setIsLabelFadingOut] = React.useState(false);
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
@@ -586,19 +587,23 @@ export const CircularCalendar: React.FC<Props> = ({
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         // Animation terminée - téléportation finale à l'heure exacte actuelle
-        const finalHour = new Date().getHours() + new Date().getMinutes() / 60 + new Date().getSeconds() / 3600;
-        
         setScrollHourDecimal(null);
         setIsReturning(false);
         setShowTimeLabel(true);
+        setIsLabelFadingOut(false);
         frozenScrollHourRef.current = null;
         
-        // Masquer l'étiquette après 3 secondes
+        // Masquer l'étiquette après 3 secondes avec animation de disparition
         if (labelTimeoutRef.current) {
           window.clearTimeout(labelTimeoutRef.current);
         }
         labelTimeoutRef.current = window.setTimeout(() => {
-          setShowTimeLabel(false);
+          setIsLabelFadingOut(true);
+          // Attendre la fin de l'animation (0.8s) avant de masquer complètement
+          setTimeout(() => {
+            setShowTimeLabel(false);
+            setIsLabelFadingOut(false);
+          }, 800);
         }, 3000);
       }
     };
@@ -622,6 +627,7 @@ export const CircularCalendar: React.FC<Props> = ({
       
       setIsReturning(false);
       setShowTimeLabel(false);
+      setIsLabelFadingOut(false);
       
       const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
       
@@ -831,8 +837,8 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
-  // Position de l'étiquette d'heure (vers l'intérieur)
-  const timeLabelRadius = INNER_RADIUS - metaIconSize / 2 - iconGap;
+  // Position de l'étiquette d'heure (plus proche du centre, à mi-chemin entre INNER_RADIUS et le centre)
+  const timeLabelRadius = INNER_RADIUS * 0.6; // 60% du rayon intérieur = plus proche du centre
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
@@ -973,7 +979,9 @@ export const CircularCalendar: React.FC<Props> = ({
               top: timeLabelPt.y,
               transform: `translate(-50%, -50%) rotate(${timeLabelRotation}deg)`,
               transformOrigin: "center",
-              animation: "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              animation: isLabelFadingOut 
+                ? "quantum-fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                : "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
             }}
           >
             <span 

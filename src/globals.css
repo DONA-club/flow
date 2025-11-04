@@ -183,7 +183,7 @@ body {
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--dist, 1.6rem)) scale(0.3); }
 }
 
-/* Animation quantique pour l'étiquette d'heure */
+/* Animation quantique pour l'apparition de l'étiquette d'heure */
 @keyframes quantum-fade-in {
   0% {
     opacity: 0;
@@ -204,6 +204,30 @@ body {
     opacity: 1;
     transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(1);
     filter: blur(0) brightness(1);
+  }
+}
+
+/* Animation quantique pour la disparition de l'étiquette d'heure (miroir de l'apparition) */
+@keyframes quantum-fade-out {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(1);
+    filter: blur(0) brightness(1);
+  }
+  40% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(1.05);
+    filter: blur(1px) brightness(1.2);
+  }
+  70% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(0.8);
+    filter: blur(4px) brightness(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--rotation, 0deg)) scale(0.5);
+    filter: blur(8px) brightness(2);
   }
 }
 
