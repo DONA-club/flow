@@ -82,16 +82,31 @@ const CircularCalendarDemo = () => {
   const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
+  // Log de debug au montage du composant
+  useEffect(() => {
+    console.log("🚀 CircularCalendarDemo monté");
+    console.log("📊 Z-index hierarchy:");
+    console.log("  - Fond: implicite (le plus bas)");
+    console.log("  - Logs: z-index 30");
+    console.log("  - Calendrier: z-index 20");
+    console.log("  - Section À venir: z-index 100");
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
+    console.log("🔐 Auth check:", { hasAnyConnection, connectedProviders });
     if (!hasAnyConnection) {
+      console.log("❌ Aucune connexion détectée, redirection vers /");
       navigate("/", { replace: true });
+    } else {
+      console.log("✅ Connexion détectée, affichage du calendrier");
     }
   }, [authLoading, connectedProviders, navigate]);
 
   useEffect(() => {
     if (sunrise !== null && sunset !== null && !loading && !error) {
+      console.log("🌅 Sunrise/Sunset mis à jour:", { sunrise, sunset });
       setDisplaySunrise(sunrise);
       setDisplaySunset(sunset);
     }
@@ -99,15 +114,26 @@ const CircularCalendarDemo = () => {
 
   useEffect(() => {
     if (loading) {
+      console.log("⏳ Chargement de la localisation...");
       setLogs([{ message: "Chargement de la localisation…", type: "info" }]);
     } else if (error) {
+      console.error("❌ Erreur localisation:", error);
       setLogs([{ message: error, type: "error" }]);
     } else if (sunrise !== null && sunset !== null) {
+      console.log("✅ Localisation détectée");
       setLogs([{ message: "Localisation détectée !", type: "success" }]);
     }
   }, [loading, error, sunrise, sunset]);
 
   useEffect(() => {
+    console.log("📅 Google Calendar:", { 
+      enabled: googleEnabled, 
+      loading: gLoading, 
+      connected: gConnected, 
+      eventsCount: gEvents.length,
+      error: gError 
+    });
+    
     if (gLoading) {
       setLogs([{ message: "Synchronisation du calendrier Google…", type: "info" }]);
     } else if (gError) {
@@ -115,9 +141,17 @@ const CircularCalendarDemo = () => {
     } else if (gConnected && gEvents.length > 0) {
       setLogs([{ message: `${gEvents.length} événements Google synchronisés ✔️`, type: "success" }]);
     }
-  }, [gLoading, gError, gConnected, gEvents.length]);
+  }, [googleEnabled, gLoading, gError, gConnected, gEvents.length]);
 
   useEffect(() => {
+    console.log("📅 Outlook Calendar:", { 
+      enabled: msEnabled, 
+      loading: oLoading, 
+      connected: oConnected, 
+      eventsCount: oEvents.length,
+      error: oError 
+    });
+    
     if (oLoading) {
       setLogs([{ message: "Synchronisation du calendrier Outlook…", type: "info" }]);
     } else if (oError) {
@@ -125,9 +159,18 @@ const CircularCalendarDemo = () => {
     } else if (oConnected && oEvents.length > 0) {
       setLogs([{ message: `${oEvents.length} événements Outlook synchronisés ✔️`, type: "success" }]);
     }
-  }, [oLoading, oError, oConnected, oEvents.length]);
+  }, [msEnabled, oLoading, oError, oConnected, oEvents.length]);
 
   useEffect(() => {
+    console.log("😴 Google Fit Sleep:", { 
+      enabled: googleEnabled, 
+      loading: fitLoading, 
+      connected: fitConnected, 
+      wakeHour, 
+      bedHour,
+      error: fitError 
+    });
+    
     if (fitLoading) {
       setLogs([{ message: "Récupération des heures de sommeil…", type: "info" }]);
     } else if (fitError) {
@@ -135,7 +178,7 @@ const CircularCalendarDemo = () => {
     } else if (fitConnected && wakeHour != null && bedHour != null) {
       setLogs([{ message: "Heures lever/coucher récupérées ✔️ (Google Fit)", type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
+  }, [googleEnabled, fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
@@ -144,6 +187,8 @@ const CircularCalendarDemo = () => {
     const bStart = (b as any)?.raw?.start?.dateTime || (b.start ?? 0);
     return new Date(aStart).getTime() - new Date(bStart).getTime();
   });
+
+  console.log("📊 Combined events:", combinedEvents.length);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -160,15 +205,34 @@ const CircularCalendarDemo = () => {
 
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
+  console.log("🎨 Render CircularCalendarDemo:", {
+    size,
+    hasAnyConnection,
+    eventsCount: combinedEvents.length,
+    displaySunrise,
+    displaySunset,
+  });
+
   return (
     <>
       <FontLoader />
 
-      {/* Calendrier principal - z-index: 20 */}
+      {/* Fond - z-index implicite (le plus bas) */}
       <div 
-        className="flex flex-col items-center justify-center min-h-screen py-8 calendar-light-bg" 
-        style={{ position: "relative", zIndex: 20 }}
+        className="fixed inset-0 calendar-light-bg" 
+        style={{ zIndex: 0 }}
         id="calendar-page-container"
+      />
+
+      {/* Logs - z-index: 1 (juste au-dessus du fond) */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none" }}>
+        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
+      </div>
+
+      {/* Calendrier principal - z-index: 10 */}
+      <div 
+        className="flex flex-col items-center justify-center min-h-screen py-8" 
+        style={{ position: "relative", zIndex: 10 }}
       >
         <div
           className="relative flex items-center justify-center"
@@ -192,20 +256,18 @@ const CircularCalendarDemo = () => {
         </div>
       </div>
 
-      {/* Logs - z-index: 30 (juste au-dessus du calendrier) */}
-      <div style={{ position: "relative", zIndex: 30 }}>
-        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
-      </div>
-
       {/* Section "À venir" - z-index: 100 (le plus haut) */}
       {hasAnyConnection && (
-        <div style={{ position: "relative", zIndex: 100 }}>
-          <UpcomingEventsList
-            events={combinedEvents}
-            onSelect={(evt) => {
-              setSelectedEventFromList(evt);
-            }}
-          />
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto" }}>
+            <UpcomingEventsList
+              events={combinedEvents}
+              onSelect={(evt) => {
+                console.log("📌 Événement sélectionné depuis la liste:", evt.title);
+                setSelectedEventFromList(evt);
+              }}
+            />
+          </div>
         </div>
       )}
     </>
