@@ -579,29 +579,31 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  const nowMs = referenceDate.getTime();
-
   // Filtrer les événements pour les 3 prochains jours à partir de la date de référence
-  const eventsWithDates = events
-    .map((e) => {
-      const start = getEventStartDate(e, referenceDate);
-      const end = start ? getEventEndDate(e, start) : null;
-      return { e, start, end };
-    })
-    .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
+  const eventsWithDates = React.useMemo(() => {
+    return events
+      .map((e) => {
+        const start = getEventStartDate(e, now);
+        const end = start ? getEventEndDate(e, start) : null;
+        return { e, start, end };
+      })
+      .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
+  }, [events, now]);
 
-  const dayStart = new Date(referenceDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const threeDaysLater = new Date(dayStart);
-  threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+  const upcomingEvents = React.useMemo(() => {
+    const dayStart = new Date(referenceDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const threeDaysLater = new Date(dayStart);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
-  const upcomingEvents = eventsWithDates
-    .filter((x) => {
-      const eventDate = new Date(x.start);
-      eventDate.setHours(0, 0, 0, 0);
-      return eventDate.getTime() >= dayStart.getTime() && eventDate.getTime() < threeDaysLater.getTime();
-    })
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+    return eventsWithDates
+      .filter((x) => {
+        const eventDate = new Date(x.start);
+        eventDate.setHours(0, 0, 0, 0);
+        return eventDate.getTime() >= dayStart.getTime() && eventDate.getTime() < threeDaysLater.getTime();
+      })
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [eventsWithDates, referenceDate]);
 
   React.useEffect(() => {
     upcomingEventsRef.current = upcomingEvents;
@@ -772,11 +774,12 @@ export const CircularCalendar: React.FC<Props> = ({
     const startAngle = angleFromHour(startHour);
     const endAngle = angleFromHour(endHour);
 
+    const nowMs = referenceDate.getTime();
     const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
     const isHovered = hoveredEventIndex === idx;
     const isCursorEvent = cursorEventIndex === idx;
     
-    const dayDiff = getDaysDifference(start, now);
+    const dayDiff = getDaysDifference(start, referenceDate);
     const colorIndex = Math.min(dayDiff, dayColors.length - 1);
     const color = dayColors[colorIndex];
     
