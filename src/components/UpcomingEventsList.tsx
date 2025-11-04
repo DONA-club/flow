@@ -188,6 +188,9 @@ function extractVideoConferenceLink(event: EventLike): string | null {
   return null;
 }
 
+// Variable globale pour stocker l'ID du toast actuel
+let currentVideoToastId: string | number | null = null;
+
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
   const [open, setOpen] = React.useState(true);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
@@ -231,11 +234,23 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     const videoLink = extractVideoConferenceLink(evt);
     
     if (videoLink) {
-      toast.custom(
+      // Fermer le toast précédent s'il existe
+      if (currentVideoToastId !== null) {
+        toast.dismiss(currentVideoToastId);
+        currentVideoToastId = null;
+      }
+
+      // Afficher le nouveau toast immédiatement
+      currentVideoToastId = toast.custom(
         (t) => (
           <VideoConferenceToast
             link={videoLink}
-            onClose={() => toast.dismiss(t)}
+            onClose={() => {
+              toast.dismiss(t);
+              if (currentVideoToastId === t) {
+                currentVideoToastId = null;
+              }
+            }}
           />
         ),
         {
