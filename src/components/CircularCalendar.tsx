@@ -331,7 +331,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
   const [isLabelFadingOut, setIsLabelFadingOut] = React.useState(false);
   
-  // Date virtuelle = date réelle + heure virtuelle + offset de jours
   const [virtualDateTime, setVirtualDateTime] = React.useState<Date>(() => new Date());
   const [showDateLabel, setShowDateLabel] = React.useState(false);
   
@@ -339,24 +338,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   
-  // Refs pour stocker les setters et éviter les problèmes de closure
-  const setVirtualDateTimeRef = React.useRef(setVirtualDateTime);
-  const setIsScrollingRef = React.useRef(setIsScrolling);
-  const setIsReturningRef = React.useRef(setIsReturning);
-  const setShowTimeLabelRef = React.useRef(setShowTimeLabel);
-  const setIsLabelFadingOutRef = React.useRef(setIsLabelFadingOut);
-  const setCursorEventIndexRef = React.useRef(setCursorEventIndex);
-  const setShowDateLabelRef = React.useRef(setShowDateLabel);
-
+  // Ref pour stocker virtualDateTime sans déclencher de re-render
+  const virtualDateTimeRef = React.useRef(virtualDateTime);
+  
   React.useEffect(() => {
-    setVirtualDateTimeRef.current = setVirtualDateTime;
-    setIsScrollingRef.current = setIsScrolling;
-    setIsReturningRef.current = setIsReturning;
-    setShowTimeLabelRef.current = setShowTimeLabel;
-    setIsLabelFadingOutRef.current = setIsLabelFadingOut;
-    setCursorEventIndexRef.current = setCursorEventIndex;
-    setShowDateLabelRef.current = setShowDateLabel;
-  });
+    virtualDateTimeRef.current = virtualDateTime;
+  }, [virtualDateTime]);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -370,7 +357,6 @@ export const CircularCalendar: React.FC<Props> = ({
       const newNow = new Date();
       setNow(newNow);
       
-      // Si on n'est pas en train de scroller, la date virtuelle suit la date réelle
       if (!isScrolling && !isReturning) {
         setVirtualDateTime(newNow);
       }
@@ -419,6 +405,49 @@ export const CircularCalendar: React.FC<Props> = ({
       window.removeEventListener('scroll', updateGradientCenter);
     };
   }, [size]);
+
+  // Préchargement des événements : on charge 1 jour avant et 3 jours après la date virtuelle
+  const preloadedEvents = React.useMemo(() => {
+    const virtualDayStart = new Date(virtualDateTime);
+    virtualDayStart.setHours(0, 0, 0, 0);
+    
+    // 1 jour avant pour le scroll arrière
+    const oneDayBefore = new Date(virtualDayStart);
+    oneDayBefore.setDate(oneDayBefore.getDate() - 1);
+    
+    // 3 jours après pour le scroll avant
+    const threeDaysLater = new Date(virtualDayStart);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 4);
+
+    const eventsWithDates = events
+      .map((e) => {
+        const start = getEventStartDate(e, now);
+        const end = start ? getEventEndDate(e, start) : null;
+        return { e, start, end };
+      })
+      .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
+
+    const filtered = eventsWithDates.filter((x) => {
+      return x.start.getTime() >= oneDayBefore.getTime() && 
+             x.start.getTime() < threeDaysLater.getTime();
+    }).sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    return filtered;
+  }, [events, virtualDateTime, now]);
+
+  // Événements visibles sur la roue (3 jours à partir de virtualDateTime)
+  const upcomingEvents = React.useMemo(() => {
+    const virtualDayStart = new Date(virtualDateTime);
+    virtualDayStart.setHours(0, 0, 0, 0);
+    
+    const threeDaysLater = new Date(virtualDayStart);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+    return preloadedEvents.filter((x) => {
+      return x.start.getTime() >= virtualDayStart.getTime() && 
+             x.start.getTime() < threeDaysLater.getTime();
+    });
+  }, [preloadedEvents, virtualDateTime]);
 
   const hourDecimal = virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60 + virtualDateTime.getSeconds() / 3600;
   const hour = virtualDateTime.getHours();
@@ -584,30 +613,6 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Filtrer les événements pour les 3 prochains jours à partir de virtualDateTime
-  const upcomingEvents = React.useMemo(() => {
-    const virtualDayStart = new Date(virtualDateTime);
-    virtualDayStart.setHours(0, 0, 0, 0);
-    
-    const threeDaysLater = new Date(virtualDayStart);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const eventsWithDates = events
-      .map((e) => {
-        const start = getEventStartDate(e, now);
-        const end = start ? getEventEndDate(e, start) : null;
-        return { e, start, end };
-      })
-      .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
-
-    const filtered = eventsWithDates.filter((x) => {
-      return x.start.getTime() >= virtualDayStart.getTime() && 
-             x.start.getTime() < threeDaysLater.getTime();
-    }).sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    return filtered;
-  }, [events, virtualDateTime, now]);
-
   const event = getCurrentOrNextEvent(events, virtualDateTime);
 
   const dayColors = [
@@ -616,6 +621,7 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
+  // useEffect pour le listener wheel - SANS DÉPENDANCES qui changent
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
@@ -628,38 +634,41 @@ export const CircularCalendar: React.FC<Props> = ({
         animationFrameRef.current = null;
       }
       
-      setIsReturningRef.current(false);
-      setShowTimeLabelRef.current(false);
-      setIsLabelFadingOutRef.current(false);
+      setIsReturning(false);
+      setShowTimeLabel(false);
+      setIsLabelFadingOut(false);
       
-      // Incrément de 15 minutes (0.25 heures)
       const deltaMinutes = e.deltaY > 0 ? 15 : -15;
       
-      setVirtualDateTimeRef.current((prev) => {
+      setVirtualDateTime((prev) => {
         const newVirtualTime = new Date(prev);
         newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
         
         const dayChanged = newVirtualTime.getDate() !== prev.getDate();
         
-        setIsScrollingRef.current(true);
+        setIsScrolling(true);
         
         if (dayChanged) {
-          setShowDateLabelRef.current(true);
+          setShowDateLabel(true);
         }
         
-        // Recherche d'événement à cette heure virtuelle
+        // Recherche d'événement - on utilise preloadedEvents qui est dans la closure
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
         
-        for (let i = 0; i < upcomingEvents.length; i++) {
-          const { e, start, end } = upcomingEvents[i];
-          
-          // Vérifier si l'événement est le même jour
-          if (start.getDate() !== newVirtualTime.getDate() ||
-              start.getMonth() !== newVirtualTime.getMonth() ||
-              start.getFullYear() !== newVirtualTime.getFullYear()) {
-            continue;
-          }
+        // Filtrer les événements du jour virtuel
+        const virtualDayStart = new Date(newVirtualTime);
+        virtualDayStart.setHours(0, 0, 0, 0);
+        const nextDay = new Date(virtualDayStart);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        const dayEvents = preloadedEvents.filter((x) => {
+          return x.start.getTime() >= virtualDayStart.getTime() && 
+                 x.start.getTime() < nextDay.getTime();
+        });
+        
+        for (let i = 0; i < dayEvents.length; i++) {
+          const { e, start, end } = dayEvents[i];
           
           const startHour = start.getHours() + start.getMinutes() / 60;
           const endHour = end.getHours() + end.getMinutes() / 60;
@@ -675,27 +684,24 @@ export const CircularCalendar: React.FC<Props> = ({
           setSelectedEvent(null);
         }
         
-        setCursorEventIndexRef.current(foundEventIndex);
+        setCursorEventIndex(foundEventIndex);
         
         if (scrollTimeoutRef.current) {
           window.clearTimeout(scrollTimeoutRef.current);
         }
         
-        // Délai aléatoire entre 8 et 10 secondes
         const randomDelay = 8000 + Math.random() * 2000;
         console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
         
-        // Capturer la date virtuelle actuelle pour l'animation
         const capturedVirtualTime = new Date(newVirtualTime);
         
         scrollTimeoutRef.current = window.setTimeout(() => {
           console.log("⏰ Timeout déclenché - début du retour");
           console.log("📍 De:", formatDateShort(capturedVirtualTime), formatHour(capturedVirtualTime.getHours() + capturedVirtualTime.getMinutes() / 60));
           
-          setIsScrollingRef.current(false);
-          setIsReturningRef.current(true);
+          setIsScrolling(false);
+          setIsReturning(true);
           
-          // Animation de retour
           const duration = 1500;
           const startTime = performance.now();
           const targetTime = new Date();
@@ -710,27 +716,27 @@ export const CircularCalendar: React.FC<Props> = ({
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
             const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
             
-            setVirtualDateTimeRef.current(newTime);
+            setVirtualDateTime(newTime);
             
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
               console.log("✅ Animation retour terminée");
-              setVirtualDateTimeRef.current(new Date());
-              setIsReturningRef.current(false);
-              setShowTimeLabelRef.current(true);
-              setIsLabelFadingOutRef.current(false);
-              setCursorEventIndexRef.current(null);
-              setShowDateLabelRef.current(false);
+              setVirtualDateTime(new Date());
+              setIsReturning(false);
+              setShowTimeLabel(true);
+              setIsLabelFadingOut(false);
+              setCursorEventIndex(null);
+              setShowDateLabel(false);
               
               if (labelTimeoutRef.current) {
                 window.clearTimeout(labelTimeoutRef.current);
               }
               labelTimeoutRef.current = window.setTimeout(() => {
-                setIsLabelFadingOutRef.current(true);
+                setIsLabelFadingOut(true);
                 setTimeout(() => {
-                  setShowTimeLabelRef.current(false);
-                  setIsLabelFadingOutRef.current(false);
+                  setShowTimeLabel(false);
+                  setIsLabelFadingOut(false);
                 }, 800);
               }, 3000);
             }
@@ -757,7 +763,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [upcomingEvents]);
+  }, []); // AUCUNE DÉPENDANCE - le listener ne se recrée JAMAIS
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
