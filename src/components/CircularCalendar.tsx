@@ -325,21 +325,12 @@ export const CircularCalendar: React.FC<Props> = ({
   
   // Refs pour éviter les recréations de handleWheel
   const scrollHourDecimalRef = React.useRef<number | null>(null);
-  const isScrollingRef = React.useRef(false);
-  const isReturningRef = React.useRef(false);
+  const upcomingEventsRef = React.useRef<any[]>([]);
 
   // Synchroniser les refs avec les states
   React.useEffect(() => {
     scrollHourDecimalRef.current = scrollHourDecimal;
   }, [scrollHourDecimal]);
-
-  React.useEffect(() => {
-    isScrollingRef.current = isScrolling;
-  }, [isScrolling]);
-
-  React.useEffect(() => {
-    isReturningRef.current = isReturning;
-  }, [isReturning]);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -550,25 +541,16 @@ export const CircularCalendar: React.FC<Props> = ({
     .filter((x) => x.end.getTime() >= nowMs)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
+  // Synchroniser la ref
+  React.useEffect(() => {
+    upcomingEventsRef.current = upcomingEvents;
+  }, [upcomingEvents]);
+
   const dayColors = [
     isDarkMode ? "#bfdbfe" : "#1d4ed8",
     isDarkMode ? "#93c5fd" : "#3b82f6",
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
-
-  // Fonction pour trouver l'événement à une heure donnée
-  const findEventAtHour = React.useCallback((hourDec: number) => {
-    for (const item of upcomingEvents) {
-      const { e, start, end } = item;
-      const startHour = start.getHours() + start.getMinutes() / 60;
-      const endHour = end.getHours() + end.getMinutes() / 60;
-      
-      if (hourDec >= startHour && hourDec <= endHour) {
-        return e;
-      }
-    }
-    return null;
-  }, [upcomingEvents]);
 
   // Animation de retour du curseur avec ralentissement
   const animateReturn = React.useCallback((startHour: number, targetHour: number, startTime: number) => {
@@ -643,106 +625,115 @@ export const CircularCalendar: React.FC<Props> = ({
     animationFrameRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // Gestion du scroll - STABLE, ne dépend plus de scrollHourDecimal ou hourDecimal
-  const handleWheel = React.useCallback((e: WheelEvent) => {
-    e.preventDefault();
-    
-    console.log('🖱️ SCROLL DÉTECTÉ');
-    
-    // Annuler toute animation de retour en cours
-    if (animationFrameRef.current) {
-      console.log('⏹️ Annulation animation en cours');
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    setIsReturning(false);
-    setShowTimeLabel(false);
-    
-    const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
-    
-    // Utiliser les refs pour avoir les valeurs actuelles
-    const currentNow = new Date();
-    const currentHourDecimal = currentNow.getHours() + currentNow.getMinutes() / 60 + currentNow.getSeconds() / 3600;
-    const currentHour = scrollHourDecimalRef.current !== null ? scrollHourDecimalRef.current : currentHourDecimal;
-    let newHour = currentHour + delta;
-    
-    // Normaliser entre 0 et 24
-    if (newHour < 0) newHour += 24;
-    if (newHour >= 24) newHour -= 24;
-    
-    console.log('📍 NOUVELLE POSITION CURSEUR:', {
-      currentHour: currentHour.toFixed(4),
-      delta: delta.toFixed(4),
-      newHour: newHour.toFixed(4),
-      formatted: formatHour(newHour),
-    });
-    
-    setScrollHourDecimal(newHour);
-    frozenScrollHourRef.current = newHour; // Figer cette position
-    setIsScrolling(true);
-    
-    // Chercher un événement à cette heure
-    const eventAtHour = findEventAtHour(newHour);
-    if (eventAtHour) {
-      console.log('📅 Événement trouvé:', eventAtHour.title);
-      setSelectedEvent(eventAtHour);
-    }
-    
-    // Réinitialiser le timeout
-    if (scrollTimeoutRef.current) {
-      console.log('🔄 Réinitialisation du timeout existant');
-      window.clearTimeout(scrollTimeoutRef.current);
-    }
-    
-    console.log('⏲️ Création nouveau timeout de 3 secondes');
-    scrollTimeoutRef.current = window.setTimeout(() => {
-      console.log('⏰ TIMEOUT DÉCLENCHÉ - Préparation retour');
-      console.log('📊 État au moment du timeout:', {
-        frozenScrollHour: frozenScrollHourRef.current?.toFixed(4),
-        scrollHourDecimalRef: scrollHourDecimalRef.current?.toFixed(4),
-      });
-      
-      setIsScrolling(false);
-      setIsReturning(true);
-      
-      // Utiliser l'heure figée comme point de départ
-      const startHour = frozenScrollHourRef.current !== null ? frozenScrollHourRef.current : currentHourDecimal;
-      // Capturer l'heure cible au moment exact du déclenchement
-      const targetNow = new Date();
-      const targetHour = targetNow.getHours() + targetNow.getMinutes() / 60 + targetNow.getSeconds() / 3600;
-      
-      console.log('🚀 LANCEMENT ANIMATION RETOUR:', {
-        startHour: startHour.toFixed(4),
-        targetHour: targetHour.toFixed(4),
-        startFormatted: formatHour(startHour),
-        targetFormatted: formatHour(targetHour),
-      });
-      
-      animateReturn(startHour, targetHour, performance.now());
-    }, 3000);
-  }, [findEventAtHour, animateReturn]);
-
+  // Enregistrer le listener UNE SEULE FOIS
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
-    if (container) {
-      console.log('✅ Enregistrement du listener wheel');
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => {
-        console.log('🧹 Nettoyage du listener wheel');
-        container.removeEventListener('wheel', handleWheel as any);
-        if (scrollTimeoutRef.current) {
-          window.clearTimeout(scrollTimeoutRef.current);
+    if (!container) return;
+
+    console.log('✅ Enregistrement UNIQUE du listener wheel');
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      console.log('🖱️ SCROLL DÉTECTÉ');
+      
+      // Annuler toute animation de retour en cours
+      if (animationFrameRef.current) {
+        console.log('⏹️ Annulation animation en cours');
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      
+      setIsReturning(false);
+      setShowTimeLabel(false);
+      
+      const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
+      
+      // Utiliser les refs pour avoir les valeurs actuelles
+      const currentNow = new Date();
+      const currentHourDecimal = currentNow.getHours() + currentNow.getMinutes() / 60 + currentNow.getSeconds() / 3600;
+      const currentHour = scrollHourDecimalRef.current !== null ? scrollHourDecimalRef.current : currentHourDecimal;
+      let newHour = currentHour + delta;
+      
+      // Normaliser entre 0 et 24
+      if (newHour < 0) newHour += 24;
+      if (newHour >= 24) newHour -= 24;
+      
+      console.log('📍 NOUVELLE POSITION CURSEUR:', {
+        currentHour: currentHour.toFixed(4),
+        delta: delta.toFixed(4),
+        newHour: newHour.toFixed(4),
+        formatted: formatHour(newHour),
+      });
+      
+      setScrollHourDecimal(newHour);
+      frozenScrollHourRef.current = newHour; // Figer cette position
+      setIsScrolling(true);
+      
+      // Chercher un événement à cette heure
+      const events = upcomingEventsRef.current;
+      for (const item of events) {
+        const { e, start, end } = item;
+        const startHour = start.getHours() + start.getMinutes() / 60;
+        const endHour = end.getHours() + end.getMinutes() / 60;
+        
+        if (newHour >= startHour && newHour <= endHour) {
+          console.log('📅 Événement trouvé:', e.title);
+          setSelectedEvent(e);
+          break;
         }
-        if (labelTimeoutRef.current) {
-          window.clearTimeout(labelTimeoutRef.current);
-        }
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      };
-    }
-  }, [handleWheel]);
+      }
+      
+      // Réinitialiser le timeout
+      if (scrollTimeoutRef.current) {
+        console.log('🔄 Réinitialisation du timeout existant');
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      console.log('⏲️ Création nouveau timeout de 3 secondes');
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        console.log('⏰ TIMEOUT DÉCLENCHÉ - Préparation retour');
+        console.log('📊 État au moment du timeout:', {
+          frozenScrollHour: frozenScrollHourRef.current?.toFixed(4),
+          scrollHourDecimalRef: scrollHourDecimalRef.current?.toFixed(4),
+        });
+        
+        setIsScrolling(false);
+        setIsReturning(true);
+        
+        // Utiliser l'heure figée comme point de départ
+        const startHour = frozenScrollHourRef.current !== null ? frozenScrollHourRef.current : currentHourDecimal;
+        // Capturer l'heure cible au moment exact du déclenchement
+        const targetNow = new Date();
+        const targetHour = targetNow.getHours() + targetNow.getMinutes() / 60 + targetNow.getSeconds() / 3600;
+        
+        console.log('🚀 LANCEMENT ANIMATION RETOUR:', {
+          startHour: startHour.toFixed(4),
+          targetHour: targetHour.toFixed(4),
+          startFormatted: formatHour(startHour),
+          targetFormatted: formatHour(targetHour),
+        });
+        
+        animateReturn(startHour, targetHour, performance.now());
+      }, 3000);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      console.log('🧹 Nettoyage FINAL du listener wheel');
+      container.removeEventListener('wheel', handleWheel);
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+      if (labelTimeoutRef.current) {
+        window.clearTimeout(labelTimeoutRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [animateReturn]); // Dépend uniquement de animateReturn qui est stable
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
