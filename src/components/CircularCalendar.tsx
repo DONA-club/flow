@@ -260,12 +260,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   
-  // Prolonger le curseur vers l'intérieur (20% de l'épaisseur de l'anneau)
+  // Prolonger le curseur vers l'intérieur ET vers l'extérieur (20% de l'épaisseur de l'anneau de chaque côté)
   const cursorExtension = RING_THICKNESS * 0.2;
   const cursorX1 = cx + (INNER_RADIUS - cursorExtension) * Math.cos(cursorRad);
   const cursorY1 = cy + (INNER_RADIUS - cursorExtension) * Math.sin(cursorRad);
-  const cursorX2 = cx + RADIUS * Math.cos(cursorRad);
-  const cursorY2 = cy + RADIUS * Math.sin(cursorRad);
+  const cursorX2 = cx + (RADIUS + cursorExtension) * Math.cos(cursorRad);
+  const cursorY2 = cy + (RADIUS + cursorExtension) * Math.sin(cursorRad);
 
   const [hoverRing, setHoverRing] = React.useState(false);
 
@@ -567,7 +567,8 @@ export const CircularCalendar: React.FC<Props> = ({
           {/* Arcs des événements */}
           {eventArcs}
 
-          {hourNumbers}
+          {/* Afficher les nombres uniquement au survol */}
+          {hoverRing && hourNumbers}
 
           <line
             x1={cursorX1}
