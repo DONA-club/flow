@@ -287,6 +287,11 @@ function extractVideoConferenceLink(event: Event): string | null {
   return null;
 }
 
+// Fonction d'easing pour ralentissement progressif
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -309,9 +314,11 @@ export const CircularCalendar: React.FC<Props> = ({
   // États pour le curseur interactif
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [scrollHourDecimal, setScrollHourDecimal] = React.useState<number | null>(null);
+  const [isReturning, setIsReturning] = React.useState(false);
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
+  const animationFrameRef = React.useRef<number | null>(null);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -382,8 +389,8 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   
-  // Utiliser scrollHourDecimal si en mode scroll, sinon hourDecimal
-  const displayHourDecimal = isScrolling && scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
+  // Utiliser scrollHourDecimal si en mode scroll ou retour, sinon hourDecimal
+  const displayHourDecimal = (isScrolling || isReturning) && scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
   const cursorAngle = (displayHourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   
@@ -542,9 +549,69 @@ export const CircularCalendar: React.FC<Props> = ({
     return null;
   }, [upcomingEvents]);
 
+  // Animation de retour du curseur avec ralentissement
+  const animateReturn = React.useCallback((startHour: number, targetHour: number, startTime: number) => {
+    const duration = 1500; // 1.5 secondes pour l'animation
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Appliquer l'easing pour ralentissement progressif
+      const easedProgress = easeOutCubic(progress);
+      
+      // Calculer la différence en tenant compte du passage de 24h à 0h
+      let diff = targetHour - startHour;
+      if (Math.abs(diff) > 12) {
+        // Prendre le chemin le plus court autour du cercle
+        if (diff > 0) {
+          diff = diff - 24;
+        } else {
+          diff = diff + 24;
+        }
+      }
+      
+      let newHour = startHour + (diff * easedProgress);
+      
+      // Normaliser entre 0 et 24
+      if (newHour < 0) newHour += 24;
+      if (newHour >= 24) newHour -= 24;
+      
+      setScrollHourDecimal(newHour);
+      
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        // Animation terminée
+        setScrollHourDecimal(null);
+        setIsReturning(false);
+        setShowTimeLabel(true);
+        
+        // Masquer l'étiquette après 3 secondes
+        if (labelTimeoutRef.current) {
+          window.clearTimeout(labelTimeoutRef.current);
+        }
+        labelTimeoutRef.current = window.setTimeout(() => {
+          setShowTimeLabel(false);
+        }, 3000);
+      }
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, []);
+
   // Gestion du scroll
   const handleWheel = React.useCallback((e: WheelEvent) => {
     e.preventDefault();
+    
+    // Annuler toute animation de retour en cours
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    setIsReturning(false);
+    setShowTimeLabel(false);
     
     const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
     const currentHour = scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
@@ -570,18 +637,14 @@ export const CircularCalendar: React.FC<Props> = ({
     
     scrollTimeoutRef.current = window.setTimeout(() => {
       setIsScrolling(false);
-      setScrollHourDecimal(null);
-      setShowTimeLabel(true);
+      setIsReturning(true);
       
-      // Masquer l'étiquette après 3 secondes
-      if (labelTimeoutRef.current) {
-        window.clearTimeout(labelTimeoutRef.current);
-      }
-      labelTimeoutRef.current = window.setTimeout(() => {
-        setShowTimeLabel(false);
-      }, 3000);
-    }, 2000);
-  }, [scrollHourDecimal, hourDecimal, findEventAtHour]);
+      // Démarrer l'animation de retour
+      const startHour = scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
+      const targetHour = hourDecimal;
+      animateReturn(startHour, targetHour, performance.now());
+    }, 3000);
+  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn]);
 
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
@@ -594,6 +657,9 @@ export const CircularCalendar: React.FC<Props> = ({
         }
         if (labelTimeoutRef.current) {
           window.clearTimeout(labelTimeoutRef.current);
+        }
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
         }
       };
     }
@@ -877,7 +943,7 @@ export const CircularCalendar: React.FC<Props> = ({
         </svg>
 
         {/* Étiquette d'heure temporaire */}
-        {showTimeLabel && !isScrolling && (
+        {showTimeLabel && !isScrolling && !isReturning && (
           <div
             className="absolute"
             style={{
