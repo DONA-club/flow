@@ -319,6 +319,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
+  const targetHourRef = React.useRef<number | null>(null);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -635,16 +636,22 @@ export const CircularCalendar: React.FC<Props> = ({
       window.clearTimeout(scrollTimeoutRef.current);
     }
     
+    // Capturer l'heure cible actuelle
+    const currentTargetHour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+    targetHourRef.current = currentTargetHour;
+    
     scrollTimeoutRef.current = window.setTimeout(() => {
       setIsScrolling(false);
       setIsReturning(true);
       
-      // Démarrer l'animation de retour
-      const startHour = scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
-      const targetHour = hourDecimal;
+      // Utiliser l'heure cible capturée
+      const startHour = scrollHourDecimal !== null ? scrollHourDecimal : currentTargetHour;
+      const targetHour = targetHourRef.current !== null ? targetHourRef.current : currentTargetHour;
+      
+      console.log('🔄 Démarrage animation retour:', { startHour, targetHour });
       animateReturn(startHour, targetHour, performance.now());
     }, 3000);
-  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn]);
+  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn, now]);
 
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
