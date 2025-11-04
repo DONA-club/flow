@@ -154,12 +154,14 @@ export function useOutlookCalendar(options?: Options): Result {
     const end = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const startISO = now.toISOString();
     const endISO = end.toISOString();
+    
+    // Ajout de body et onlineMeeting dans le $select pour récupérer le contenu complet
     const url =
       "https://graph.microsoft.com/v1.0/me/calendarview" +
       `?startDateTime=${encodeURIComponent(startISO)}` +
       `&endDateTime=${encodeURIComponent(endISO)}` +
       "&$orderby=start/dateTime" +
-      "&$select=subject,organizer,start,end,location,webLink";
+      "&$select=subject,organizer,start,end,location,webLink,body,onlineMeeting";
 
     async function runGraphCall(tryRefreshOn401: boolean) {
       const res = await fetch(url, {

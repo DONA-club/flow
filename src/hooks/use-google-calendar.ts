@@ -147,9 +147,11 @@ export function useGoogleCalendar(options?: Options): Result {
     const now = new Date();
     const timeMin = now.toISOString();
     const timeMax = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Ajout de fields pour s'assurer que description, location, conferenceData et hangoutLink sont inclus
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
       timeMin
-    )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50`;
+    )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50&fields=items(summary,description,location,start,end,htmlLink,conferenceData,hangoutLink,organizer)`;
 
     async function runGoogleCall(tryRefreshOn401: boolean) {
       const res = await fetch(url, {
