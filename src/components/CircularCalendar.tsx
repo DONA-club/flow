@@ -1,5 +1,5 @@
 import React from "react";
-import { Sunrise, Sunset } from "lucide-react";
+import { Sunrise, Sunset, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { VideoConferenceToast } from "@/components/VideoConferenceToast";
@@ -162,6 +162,45 @@ function formatHour(decimal: number) {
   return `${h}:${m}`;
 }
 
+function formatEventDate(date: Date): string {
+  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  
+  const dayName = days[date.getDay()];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  
+  return `${dayName} ${day} ${month}, à ${hours}h${minutes}`;
+}
+
+function formatTimeRemaining(startDate: Date, now: Date): string {
+  const diff = startDate.getTime() - now.getTime();
+  
+  if (diff <= 0) {
+    return "En cours";
+  }
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  const parts: string[] = [];
+  
+  if (days > 0) {
+    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes} min`);
+  }
+  
+  return `Dans ${parts.join(', ')}`;
+}
+
 function getDaysDifference(date1: Date, date2: Date): number {
   const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
   const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
@@ -172,16 +211,8 @@ function getDaysDifference(date1: Date, date2: Date): number {
 function extractVideoConferenceLink(event: Event): string | null {
   const raw = event.raw;
   
-  console.log("🔍 Extraction vidéoconférence pour:", event.title);
-  console.log("📦 Données brutes de l'événement:", raw);
-  console.log("📍 Place:", event.place);
+  if (!raw) return null;
 
-  if (!raw) {
-    console.log("⚠️ Pas de données brutes");
-    return null;
-  }
-
-  // Patterns de vidéoconférence courants
   const videoPatterns = [
     /https?:\/\/[^\s<>"]*meet\.google\.com[^\s<>"]*/gi,
     /https?:\/\/[^\s<>"]*zoom\.us[^\s<>"]*/gi,
@@ -192,98 +223,56 @@ function extractVideoConferenceLink(event: Event): string | null {
     /https?:\/\/[^\s<>"]*jitsi[^\s<>"]*/gi,
   ];
 
-  // Chercher dans event.place d'abord (car c'est là qu'on voit "O10-1-Soyouz (6); https://meet.google.com/...")
   if (event.place) {
-    console.log("🔎 Recherche dans event.place:", event.place);
     for (const pattern of videoPatterns) {
       const match = event.place.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ Lien trouvé dans event.place:", match[0]);
-        return match[0];
-      }
+      if (match && match[0]) return match[0];
     }
   }
 
-  // Chercher dans la description (Google Calendar)
   if (raw.description) {
-    console.log("🔎 Recherche dans description:", raw.description.substring(0, 200));
     for (const pattern of videoPatterns) {
       const match = raw.description.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ Lien trouvé dans description:", match[0]);
-        return match[0];
-      }
+      if (match && match[0]) return match[0];
     }
   }
 
-  // Chercher dans le body (Outlook)
   if (raw.body?.content) {
-    console.log("🔎 Recherche dans body.content:", raw.body.content.substring(0, 200));
     for (const pattern of videoPatterns) {
       const match = raw.body.content.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ Lien trouvé dans body.content:", match[0]);
-        return match[0];
-      }
+      if (match && match[0]) return match[0];
     }
   }
 
-  // Chercher dans la localisation brute
   if (raw.location) {
     const locationStr = typeof raw.location === 'string' 
       ? raw.location 
       : raw.location.displayName || '';
     
-    console.log("🔎 Recherche dans raw.location:", locationStr);
-    
     for (const pattern of videoPatterns) {
       const match = locationStr.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ Lien trouvé dans raw.location:", match[0]);
-        return match[0];
-      }
+      if (match && match[0]) return match[0];
     }
   }
 
-  // Chercher dans les propriétés de conférence (Google Calendar)
   if (raw.conferenceData?.entryPoints) {
-    console.log("🔎 Recherche dans conferenceData.entryPoints");
     const videoEntry = raw.conferenceData.entryPoints.find(
       (ep: any) => ep.entryPointType === 'video'
     );
-    if (videoEntry?.uri) {
-      console.log("✅ Lien trouvé dans conferenceData:", videoEntry.uri);
-      return videoEntry.uri;
-    }
+    if (videoEntry?.uri) return videoEntry.uri;
   }
 
-  // Chercher dans onlineMeeting (Outlook)
-  if (raw.onlineMeeting?.joinUrl) {
-    console.log("✅ Lien trouvé dans onlineMeeting:", raw.onlineMeeting.joinUrl);
-    return raw.onlineMeeting.joinUrl;
-  }
+  if (raw.onlineMeeting?.joinUrl) return raw.onlineMeeting.joinUrl;
+  if (raw.hangoutLink) return raw.hangoutLink;
 
-  // Chercher dans hangoutLink (Google Calendar)
-  if (raw.hangoutLink) {
-    console.log("✅ Lien trouvé dans hangoutLink:", raw.hangoutLink);
-    return raw.hangoutLink;
-  }
-
-  // Détection spéciale pour "Réunion Microsoft Teams"
   if (event.place && event.place.toLowerCase().includes("microsoft teams")) {
-    console.log("⚠️ Détecté 'Microsoft Teams' mais pas de lien trouvé");
-    // Chercher dans toutes les propriétés de l'objet raw
     const rawStr = JSON.stringify(raw);
     for (const pattern of videoPatterns) {
       const match = rawStr.match(pattern);
-      if (match && match[0]) {
-        console.log("✅ Lien trouvé dans JSON complet:", match[0]);
-        return match[0];
-      }
+      if (match && match[0]) return match[0];
     }
   }
 
-  console.log("❌ Aucun lien de vidéoconférence trouvé");
   return null;
 }
 
@@ -330,18 +319,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const currentSeason = season || getSeason(now);
 
   const event = getCurrentOrNextEvent(events, now);
-  let dayBadge: string | null = null;
-  if (event) {
-    const startDate = getEventStartDate(event as any, now);
-    if (startDate) {
-      const startStartOfDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
-      const nowStartOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      const diffDays = Math.round((startStartOfDay - nowStartOfDay) / (24 * 60 * 60 * 1000));
-      if (diffDays > 0) {
-        dayBadge = diffDays === 1 ? "Demain" : `Dans ${diffDays} jours`;
-      }
-    }
-  }
 
   const SIZE = size;
   const RADIUS = SIZE / 2 - 8;
@@ -355,9 +332,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
   const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
   const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
-  const titleFontSize = Math.max(14, Math.min(22 * scale, 22));
-  const subFontSize = Math.max(12, Math.min(16 * scale, 16));
-  const metaFontSize = Math.max(11, Math.min(14 * scale, 14));
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16)));
 
   const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
@@ -380,12 +354,10 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   });
 
-  // Couleur du curseur adaptée au thème
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   
-  // Prolonger le curseur vers l'intérieur ET vers l'extérieur (20% de l'épaisseur de l'anneau de chaque côté)
   const cursorExtension = RING_THICKNESS * 0.2;
   const cursorX1 = cx + (INNER_RADIUS - cursorExtension) * Math.cos(cursorRad);
   const cursorY1 = cy + (INNER_RADIUS - cursorExtension) * Math.sin(cursorRad);
@@ -507,9 +479,7 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Arcs pour les événements avec couleurs par jour
   const nowMs = now.getTime();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   const eventsWithDates = events
     .map((e) => {
@@ -519,16 +489,14 @@ export const CircularCalendar: React.FC<Props> = ({
     })
     .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
-  // Filtrer les événements d'aujourd'hui et à venir
   const upcomingEvents = eventsWithDates
     .filter((x) => x.end.getTime() >= nowMs)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  // Couleurs par jour
   const dayColors = [
-    isDarkMode ? "#bfdbfe" : "#1d4ed8", // Aujourd'hui
-    isDarkMode ? "#93c5fd" : "#3b82f6", // Demain
-    isDarkMode ? "#60a5fa" : "#2563eb", // Après-demain
+    isDarkMode ? "#bfdbfe" : "#1d4ed8",
+    isDarkMode ? "#93c5fd" : "#3b82f6",
+    isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
   const eventArcs = upcomingEvents.map((item, idx) => {
@@ -539,15 +507,12 @@ export const CircularCalendar: React.FC<Props> = ({
     const startAngle = angleFromHour(startHour);
     const endAngle = angleFromHour(endHour);
 
-    // Événement en cours ou à venir ?
     const isCurrent = start.getTime() <= nowMs && end.getTime() > nowMs;
     
-    // Calculer le jour de l'événement
     const dayDiff = getDaysDifference(start, now);
     const colorIndex = Math.min(dayDiff, dayColors.length - 1);
     const color = dayColors[colorIndex];
     
-    // Position radiale : les plus proches au bord intérieur, les suivants vers l'extérieur
     const totalEvents = upcomingEvents.length;
     const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
     const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
@@ -568,11 +533,9 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Style nocturne pour les périodes de sommeil
   const sleepOverlays: JSX.Element[] = [];
   
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
-    // Période de sommeil principale (coucher -> lever)
     const bedAngle = angleFromHour(bedHour);
     const wakeAngle = angleFromHour(wakeHour);
     
@@ -585,7 +548,6 @@ export const CircularCalendar: React.FC<Props> = ({
       />
     );
 
-    // Période de sommeil recommandée (9h avant le lever)
     const recommendedSleepStart = (wakeHour - 9 + 24) % 24;
     const recommendedAngle = angleFromHour(recommendedSleepStart);
     
@@ -599,18 +561,15 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   }
 
-  // Gestionnaire de clic sur événement
   const handleEventClick = (evt: Event) => {
     const videoLink = extractVideoConferenceLink(evt);
     
     if (videoLink) {
-      // Fermer le toast précédent s'il existe
       if (currentVideoToastId !== null) {
         toast.dismiss(currentVideoToastId);
         currentVideoToastId = null;
       }
 
-      // Afficher le nouveau toast immédiatement
       currentVideoToastId = toast.custom(
         (t) => (
           <VideoConferenceToast
@@ -634,6 +593,31 @@ export const CircularCalendar: React.FC<Props> = ({
       onEventClick(evt);
     }
   };
+
+  // Calculer les détails de l'événement
+  let eventOrganizer = "";
+  let eventDate = "";
+  let timeRemaining = "";
+  let eventUrl = "";
+
+  if (event) {
+    const startDate = getEventStartDate(event, now);
+    
+    if (startDate) {
+      eventDate = formatEventDate(startDate);
+      timeRemaining = formatTimeRemaining(startDate, now);
+    }
+
+    eventOrganizer = event.raw?.organizer?.displayName || 
+                     event.raw?.organizer?.emailAddress?.name || 
+                     event.place || 
+                     "";
+    
+    eventUrl = event.url || event.raw?.htmlLink || event.raw?.webLink || "";
+  }
+
+  // Diamètre de la bulle centrale (augmenté pour couvrir le titre)
+  const bubbleDiameter = INNER_RADIUS * 1.8;
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -696,7 +680,6 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          {/* Overlays de sommeil */}
           <g mask="url(#ringFadeMask)">
             {sleepOverlays}
           </g>
@@ -725,10 +708,8 @@ export const CircularCalendar: React.FC<Props> = ({
             />
           )}
 
-          {/* Arcs des événements */}
           {eventArcs}
 
-          {/* Afficher les nombres uniquement au survol */}
           {hoverRing && hourNumbers}
 
           <line
@@ -743,60 +724,77 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
+        {/* Bulle centrale avec détails de l'événement */}
         <div
-          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
+          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none glass"
           style={{
             transform: `translate(-50%, -50%)`,
-            position: "absolute",
-            width: INNER_RADIUS * 1.5,
-            maxWidth: "80%",
-            pointerEvents: event ? "auto" : "none",
-            top: `calc(50% + 0px)`,
-            left: `calc(50% + 0px)`,
+            width: bubbleDiameter,
+            height: bubbleDiameter,
+            borderRadius: "50%",
+            padding: "1.5rem",
             cursor: event ? "pointer" : "default",
-            overflowWrap: "anywhere",
-            wordBreak: "break-word",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            MozUserSelect: "none",
-            msUserSelect: "none",
+            pointerEvents: "auto",
           }}
           onClick={() => event && handleEventClick(event)}
-          tabIndex={event ? 0 : -1}
           role={event ? "button" : undefined}
           aria-label={event ? `Open event: ${event.title}` : undefined}
         >
-          <div
-            className="mb-1 text-xs calendar-center-meta"
-            style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
-            aria-label={`Heure actuelle ${formatHour(hourDecimal)}`}
-          >
-            {formatHour(hourDecimal)}
-          </div>
+          {event ? (
+            <div className="flex flex-col items-center justify-center gap-2 w-full">
+              {/* Organisateur (discret en haut) */}
+              {eventOrganizer && (
+                <div className="text-xs calendar-center-meta opacity-60 truncate w-full">
+                  {eventOrganizer}
+                </div>
+              )}
 
-          {event && dayBadge && (
-            <div
-              className="mb-1 text-xs calendar-center-meta"
-              style={{ fontSize: metaFontSize, lineHeight: 1.1 }}
-              aria-label={dayBadge}
-            >
-              {dayBadge}
+              {/* Titre de l'événement */}
+              <div className="calendar-center-title font-bold text-lg leading-tight">
+                {event.title}
+              </div>
+
+              {/* Date formatée */}
+              {eventDate && (
+                <div className="text-sm calendar-center-sub">
+                  {eventDate}
+                </div>
+              )}
+
+              {/* Temps restant */}
+              {timeRemaining && (
+                <div className="text-xs calendar-center-meta font-semibold">
+                  {timeRemaining}
+                </div>
+              )}
+
+              {/* Lien vers le calendrier */}
+              {eventUrl && (
+                <a
+                  href={eventUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 p-2 rounded-full hover:bg-white/10 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Ouvrir dans le calendrier"
+                >
+                  <ExternalLink className="w-5 h-5 calendar-center-meta" />
+                </a>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="text-sm calendar-center-meta">
+                {formatHour(hourDecimal)}
+              </div>
+              <div className="calendar-center-title font-semibold">
+                No events
+              </div>
+              <div className="calendar-center-sub text-sm">
+                Enjoy your time!
+              </div>
             </div>
           )}
-
-          <div
-            className="calendar-center-title font-semibold mb-1 flex items-center justify-center tracking-tight transition-colors"
-            style={{ fontSize: titleFontSize, lineHeight: 1.15 }}
-          >
-            {event ? event.title : "No events"}
-          </div>
-
-          <div
-            className="calendar-center-sub"
-            style={{ fontSize: subFontSize, lineHeight: 1.25 }}
-          >
-            {event ? event.place : "Enjoy your time!"}
-          </div>
         </div>
 
         {!hoverRing && (
@@ -825,7 +823,7 @@ export const CircularCalendar: React.FC<Props> = ({
               sideOffset={6}
               className="bg-transparent border-0 shadow-none p-0 font-light"
             >
-              <span style={{ fontSize: metaFontSize, lineHeight: 1.1, color: "#facc15" }}>
+              <span style={{ fontSize: 11, lineHeight: 1.1, color: "#facc15" }}>
                 {formatHour(sunrise)}
               </span>
             </TooltipContent>
@@ -858,7 +856,7 @@ export const CircularCalendar: React.FC<Props> = ({
               sideOffset={6}
               className="bg-transparent border-0 shadow-none p-0 font-light"
             >
-              <span style={{ fontSize: metaFontSize, lineHeight: 1.1, color: "#fb923c" }}>
+              <span style={{ fontSize: 11, lineHeight: 1.1, color: "#fb923c" }}>
                 {formatHour(sunset)}
               </span>
             </TooltipContent>
