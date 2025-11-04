@@ -322,6 +322,24 @@ export const CircularCalendar: React.FC<Props> = ({
   
   // Stocker l'heure où le curseur s'est arrêté
   const frozenScrollHourRef = React.useRef<number | null>(null);
+  
+  // Refs pour éviter les recréations de handleWheel
+  const scrollHourDecimalRef = React.useRef<number | null>(null);
+  const isScrollingRef = React.useRef(false);
+  const isReturningRef = React.useRef(false);
+
+  // Synchroniser les refs avec les states
+  React.useEffect(() => {
+    scrollHourDecimalRef.current = scrollHourDecimal;
+  }, [scrollHourDecimal]);
+
+  React.useEffect(() => {
+    isScrollingRef.current = isScrolling;
+  }, [isScrolling]);
+
+  React.useEffect(() => {
+    isReturningRef.current = isReturning;
+  }, [isReturning]);
 
   // Synchroniser avec l'événement externe sélectionné depuis la liste
   React.useEffect(() => {
@@ -625,7 +643,7 @@ export const CircularCalendar: React.FC<Props> = ({
     animationFrameRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // Gestion du scroll
+  // Gestion du scroll - STABLE, ne dépend plus de scrollHourDecimal ou hourDecimal
   const handleWheel = React.useCallback((e: WheelEvent) => {
     e.preventDefault();
     
@@ -642,7 +660,11 @@ export const CircularCalendar: React.FC<Props> = ({
     setShowTimeLabel(false);
     
     const delta = e.deltaY > 0 ? 0.25 : -0.25; // 15 minutes par scroll
-    const currentHour = scrollHourDecimal !== null ? scrollHourDecimal : hourDecimal;
+    
+    // Utiliser les refs pour avoir les valeurs actuelles
+    const currentNow = new Date();
+    const currentHourDecimal = currentNow.getHours() + currentNow.getMinutes() / 60 + currentNow.getSeconds() / 3600;
+    const currentHour = scrollHourDecimalRef.current !== null ? scrollHourDecimalRef.current : currentHourDecimal;
     let newHour = currentHour + delta;
     
     // Normaliser entre 0 et 24
@@ -669,24 +691,26 @@ export const CircularCalendar: React.FC<Props> = ({
     
     // Réinitialiser le timeout
     if (scrollTimeoutRef.current) {
+      console.log('🔄 Réinitialisation du timeout existant');
       window.clearTimeout(scrollTimeoutRef.current);
     }
     
+    console.log('⏲️ Création nouveau timeout de 3 secondes');
     scrollTimeoutRef.current = window.setTimeout(() => {
       console.log('⏰ TIMEOUT DÉCLENCHÉ - Préparation retour');
       console.log('📊 État au moment du timeout:', {
         frozenScrollHour: frozenScrollHourRef.current?.toFixed(4),
-        scrollHourDecimal: scrollHourDecimal?.toFixed(4),
-        hourDecimal: hourDecimal.toFixed(4),
+        scrollHourDecimalRef: scrollHourDecimalRef.current?.toFixed(4),
       });
       
       setIsScrolling(false);
       setIsReturning(true);
       
       // Utiliser l'heure figée comme point de départ
-      const startHour = frozenScrollHourRef.current !== null ? frozenScrollHourRef.current : hourDecimal;
+      const startHour = frozenScrollHourRef.current !== null ? frozenScrollHourRef.current : currentHourDecimal;
       // Capturer l'heure cible au moment exact du déclenchement
-      const targetHour = new Date().getHours() + new Date().getMinutes() / 60 + new Date().getSeconds() / 3600;
+      const targetNow = new Date();
+      const targetHour = targetNow.getHours() + targetNow.getMinutes() / 60 + targetNow.getSeconds() / 3600;
       
       console.log('🚀 LANCEMENT ANIMATION RETOUR:', {
         startHour: startHour.toFixed(4),
@@ -697,13 +721,15 @@ export const CircularCalendar: React.FC<Props> = ({
       
       animateReturn(startHour, targetHour, performance.now());
     }, 3000);
-  }, [scrollHourDecimal, hourDecimal, findEventAtHour, animateReturn]);
+  }, [findEventAtHour, animateReturn]);
 
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (container) {
+      console.log('✅ Enregistrement du listener wheel');
       container.addEventListener('wheel', handleWheel, { passive: false });
       return () => {
+        console.log('🧹 Nettoyage du listener wheel');
         container.removeEventListener('wheel', handleWheel as any);
         if (scrollTimeoutRef.current) {
           window.clearTimeout(scrollTimeoutRef.current);
