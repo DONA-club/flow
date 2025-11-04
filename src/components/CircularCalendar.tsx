@@ -554,13 +554,6 @@ export const CircularCalendar: React.FC<Props> = ({
 
   // Animation de retour du curseur avec ralentissement
   const animateReturn = React.useCallback((startHour: number, targetHour: number, startTime: number) => {
-    console.log('🎬 DÉBUT ANIMATION:', {
-      startHour: startHour.toFixed(4),
-      targetHour: targetHour.toFixed(4),
-      startFormatted: formatHour(startHour),
-      targetFormatted: formatHour(targetHour),
-    });
-    
     const duration = 1500; // 1.5 secondes pour l'animation
     
     const animate = (currentTime: number) => {
@@ -587,13 +580,6 @@ export const CircularCalendar: React.FC<Props> = ({
       if (newHour < 0) newHour += 24;
       if (newHour >= 24) newHour -= 24;
       
-      console.log('⏱️ FRAME ANIMATION:', {
-        progress: (progress * 100).toFixed(1) + '%',
-        easedProgress: (easedProgress * 100).toFixed(1) + '%',
-        newHour: newHour.toFixed(4),
-        formatted: formatHour(newHour),
-      });
-      
       setScrollHourDecimal(newHour);
       
       if (progress < 1) {
@@ -601,11 +587,6 @@ export const CircularCalendar: React.FC<Props> = ({
       } else {
         // Animation terminée - téléportation finale à l'heure exacte actuelle
         const finalHour = new Date().getHours() + new Date().getMinutes() / 60 + new Date().getSeconds() / 3600;
-        console.log('✅ FIN ANIMATION - Téléportation finale:', {
-          animationEndHour: newHour.toFixed(4),
-          finalHour: finalHour.toFixed(4),
-          finalFormatted: formatHour(finalHour),
-        });
         
         setScrollHourDecimal(null);
         setIsReturning(false);
@@ -630,16 +611,11 @@ export const CircularCalendar: React.FC<Props> = ({
     const container = document.getElementById('calendar-container');
     if (!container) return;
 
-    console.log('✅ Enregistrement UNIQUE du listener wheel');
-
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      console.log('🖱️ SCROLL DÉTECTÉ');
-      
       // Annuler toute animation de retour en cours
       if (animationFrameRef.current) {
-        console.log('⏹️ Annulation animation en cours');
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
@@ -659,13 +635,6 @@ export const CircularCalendar: React.FC<Props> = ({
       if (newHour < 0) newHour += 24;
       if (newHour >= 24) newHour -= 24;
       
-      console.log('📍 NOUVELLE POSITION CURSEUR:', {
-        currentHour: currentHour.toFixed(4),
-        delta: delta.toFixed(4),
-        newHour: newHour.toFixed(4),
-        formatted: formatHour(newHour),
-      });
-      
       setScrollHourDecimal(newHour);
       frozenScrollHourRef.current = newHour; // Figer cette position
       setIsScrolling(true);
@@ -678,7 +647,6 @@ export const CircularCalendar: React.FC<Props> = ({
         const endHour = end.getHours() + end.getMinutes() / 60;
         
         if (newHour >= startHour && newHour <= endHour) {
-          console.log('📅 Événement trouvé:', e.title);
           setSelectedEvent(e);
           break;
         }
@@ -686,18 +654,10 @@ export const CircularCalendar: React.FC<Props> = ({
       
       // Réinitialiser le timeout
       if (scrollTimeoutRef.current) {
-        console.log('🔄 Réinitialisation du timeout existant');
         window.clearTimeout(scrollTimeoutRef.current);
       }
       
-      console.log('⏲️ Création nouveau timeout de 3 secondes');
       scrollTimeoutRef.current = window.setTimeout(() => {
-        console.log('⏰ TIMEOUT DÉCLENCHÉ - Préparation retour');
-        console.log('📊 État au moment du timeout:', {
-          frozenScrollHour: frozenScrollHourRef.current?.toFixed(4),
-          scrollHourDecimalRef: scrollHourDecimalRef.current?.toFixed(4),
-        });
-        
         setIsScrolling(false);
         setIsReturning(true);
         
@@ -707,13 +667,6 @@ export const CircularCalendar: React.FC<Props> = ({
         const targetNow = new Date();
         const targetHour = targetNow.getHours() + targetNow.getMinutes() / 60 + targetNow.getSeconds() / 3600;
         
-        console.log('🚀 LANCEMENT ANIMATION RETOUR:', {
-          startHour: startHour.toFixed(4),
-          targetHour: targetHour.toFixed(4),
-          startFormatted: formatHour(startHour),
-          targetFormatted: formatHour(targetHour),
-        });
-        
         animateReturn(startHour, targetHour, performance.now());
       }, 3000);
     };
@@ -721,7 +674,6 @@ export const CircularCalendar: React.FC<Props> = ({
     container.addEventListener('wheel', handleWheel, { passive: false });
     
     return () => {
-      console.log('🧹 Nettoyage FINAL du listener wheel');
       container.removeEventListener('wheel', handleWheel);
       if (scrollTimeoutRef.current) {
         window.clearTimeout(scrollTimeoutRef.current);
@@ -733,7 +685,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [animateReturn]); // Dépend uniquement de animateReturn qui est stable
+  }, [animateReturn]);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
@@ -1012,32 +964,31 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
-        {/* Étiquette d'heure temporaire */}
+        {/* Étiquette d'heure temporaire avec effet quantique */}
         {showTimeLabel && !isScrolling && !isReturning && (
           <div
-            className="absolute"
+            className="absolute pointer-events-none"
             style={{
-              left: timeLabelPt.x - 20,
-              top: timeLabelPt.y - 10,
-              transform: `rotate(${timeLabelRotation}deg)`,
+              left: timeLabelPt.x,
+              top: timeLabelPt.y,
+              transform: `translate(-50%, -50%) rotate(${timeLabelRotation}deg)`,
               transformOrigin: "center",
-              transition: "opacity 0.3s ease-out",
-              opacity: showTimeLabel ? 1 : 0,
+              animation: "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
             }}
           >
-            <div className="bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md shadow-lg">
-              <span 
-                style={{ 
-                  fontSize: 11, 
-                  lineHeight: 1.1, 
-                  color: cursorColor,
-                  fontWeight: 600,
-                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
-                }}
-              >
-                {formatHour(hourDecimal)}
-              </span>
-            </div>
+            <span 
+              style={{ 
+                fontSize: 13, 
+                lineHeight: 1, 
+                color: cursorColor,
+                fontWeight: 700,
+                fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
+                textShadow: `0 0 12px ${cursorColor}88, 0 0 24px ${cursorColor}44, 0 2px 4px rgba(0,0,0,0.3)`,
+                filter: "drop-shadow(0 0 8px rgba(255,255,255,0.4))",
+              }}
+            >
+              {formatHour(hourDecimal)}
+            </span>
           </div>
         )}
 
