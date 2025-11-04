@@ -338,6 +338,25 @@ export const CircularCalendar: React.FC<Props> = ({
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
+  
+  // Refs pour stocker les setters et éviter les problèmes de closure
+  const setVirtualDateTimeRef = React.useRef(setVirtualDateTime);
+  const setIsScrollingRef = React.useRef(setIsScrolling);
+  const setIsReturningRef = React.useRef(setIsReturning);
+  const setShowTimeLabelRef = React.useRef(setShowTimeLabel);
+  const setIsLabelFadingOutRef = React.useRef(setIsLabelFadingOut);
+  const setCursorEventIndexRef = React.useRef(setCursorEventIndex);
+  const setShowDateLabelRef = React.useRef(setShowDateLabel);
+
+  React.useEffect(() => {
+    setVirtualDateTimeRef.current = setVirtualDateTime;
+    setIsScrollingRef.current = setIsScrolling;
+    setIsReturningRef.current = setIsReturning;
+    setShowTimeLabelRef.current = setShowTimeLabel;
+    setIsLabelFadingOutRef.current = setIsLabelFadingOut;
+    setCursorEventIndexRef.current = setCursorEventIndex;
+    setShowDateLabelRef.current = setShowDateLabel;
+  });
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -609,116 +628,119 @@ export const CircularCalendar: React.FC<Props> = ({
         animationFrameRef.current = null;
       }
       
-      setIsReturning(false);
-      setShowTimeLabel(false);
-      setIsLabelFadingOut(false);
+      setIsReturningRef.current(false);
+      setShowTimeLabelRef.current(false);
+      setIsLabelFadingOutRef.current(false);
       
       // Incrément de 15 minutes (0.25 heures)
       const deltaMinutes = e.deltaY > 0 ? 15 : -15;
       
-      const newVirtualTime = new Date(virtualDateTime);
-      newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
-      
-      const dayChanged = newVirtualTime.getDate() !== virtualDateTime.getDate();
-      
-      setVirtualDateTime(newVirtualTime);
-      setIsScrolling(true);
-      
-      if (dayChanged) {
-        setShowDateLabel(true);
-      }
-      
-      // Recherche d'événement à cette heure virtuelle
-      let foundEventIndex: number | null = null;
-      const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
-      
-      for (let i = 0; i < upcomingEvents.length; i++) {
-        const { e, start, end } = upcomingEvents[i];
+      setVirtualDateTimeRef.current((prev) => {
+        const newVirtualTime = new Date(prev);
+        newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
         
-        // Vérifier si l'événement est le même jour
-        if (start.getDate() !== newVirtualTime.getDate() ||
-            start.getMonth() !== newVirtualTime.getMonth() ||
-            start.getFullYear() !== newVirtualTime.getFullYear()) {
-          continue;
+        const dayChanged = newVirtualTime.getDate() !== prev.getDate();
+        
+        setIsScrollingRef.current(true);
+        
+        if (dayChanged) {
+          setShowDateLabelRef.current(true);
         }
         
-        const startHour = start.getHours() + start.getMinutes() / 60;
-        const endHour = end.getHours() + end.getMinutes() / 60;
+        // Recherche d'événement à cette heure virtuelle
+        let foundEventIndex: number | null = null;
+        const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
         
-        if (virtualHour >= startHour && virtualHour <= endHour) {
-          foundEventIndex = i;
-          setSelectedEvent(e);
-          break;
-        }
-      }
-      
-      if (foundEventIndex === null) {
-        setSelectedEvent(null);
-      }
-      
-      setCursorEventIndex(foundEventIndex);
-      
-      if (scrollTimeoutRef.current) {
-        window.clearTimeout(scrollTimeoutRef.current);
-      }
-      
-      // Délai aléatoire entre 8 et 10 secondes
-      const randomDelay = 8000 + Math.random() * 2000;
-      console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
-      
-      // Capturer la date virtuelle actuelle pour l'animation
-      const capturedVirtualTime = new Date(newVirtualTime);
-      
-      scrollTimeoutRef.current = window.setTimeout(() => {
-        console.log("⏰ Timeout déclenché - début du retour");
-        console.log("📍 De:", formatDateShort(capturedVirtualTime), formatHour(capturedVirtualTime.getHours() + capturedVirtualTime.getMinutes() / 60));
-        
-        setIsScrolling(false);
-        setIsReturning(true);
-        
-        // Animation de retour
-        const duration = 1500;
-        const startTime = performance.now();
-        const targetTime = new Date();
-        
-        console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
-        
-        const animate = (currentTime: number) => {
-          const elapsed = currentTime - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          const easedProgress = easeOutCubic(progress);
+        for (let i = 0; i < upcomingEvents.length; i++) {
+          const { e, start, end } = upcomingEvents[i];
           
-          const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
-          const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
-          
-          setVirtualDateTime(newTime);
-          
-          if (progress < 1) {
-            animationFrameRef.current = requestAnimationFrame(animate);
-          } else {
-            console.log("✅ Animation retour terminée");
-            setVirtualDateTime(new Date());
-            setIsReturning(false);
-            setShowTimeLabel(true);
-            setIsLabelFadingOut(false);
-            setCursorEventIndex(null);
-            setShowDateLabel(false);
-            
-            if (labelTimeoutRef.current) {
-              window.clearTimeout(labelTimeoutRef.current);
-            }
-            labelTimeoutRef.current = window.setTimeout(() => {
-              setIsLabelFadingOut(true);
-              setTimeout(() => {
-                setShowTimeLabel(false);
-                setIsLabelFadingOut(false);
-              }, 800);
-            }, 3000);
+          // Vérifier si l'événement est le même jour
+          if (start.getDate() !== newVirtualTime.getDate() ||
+              start.getMonth() !== newVirtualTime.getMonth() ||
+              start.getFullYear() !== newVirtualTime.getFullYear()) {
+            continue;
           }
-        };
+          
+          const startHour = start.getHours() + start.getMinutes() / 60;
+          const endHour = end.getHours() + end.getMinutes() / 60;
+          
+          if (virtualHour >= startHour && virtualHour <= endHour) {
+            foundEventIndex = i;
+            setSelectedEvent(e);
+            break;
+          }
+        }
         
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }, randomDelay);
+        if (foundEventIndex === null) {
+          setSelectedEvent(null);
+        }
+        
+        setCursorEventIndexRef.current(foundEventIndex);
+        
+        if (scrollTimeoutRef.current) {
+          window.clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        // Délai aléatoire entre 8 et 10 secondes
+        const randomDelay = 8000 + Math.random() * 2000;
+        console.log(`⏱️ Timeout configuré: ${Math.round(randomDelay)}ms`);
+        
+        // Capturer la date virtuelle actuelle pour l'animation
+        const capturedVirtualTime = new Date(newVirtualTime);
+        
+        scrollTimeoutRef.current = window.setTimeout(() => {
+          console.log("⏰ Timeout déclenché - début du retour");
+          console.log("📍 De:", formatDateShort(capturedVirtualTime), formatHour(capturedVirtualTime.getHours() + capturedVirtualTime.getMinutes() / 60));
+          
+          setIsScrollingRef.current(false);
+          setIsReturningRef.current(true);
+          
+          // Animation de retour
+          const duration = 1500;
+          const startTime = performance.now();
+          const targetTime = new Date();
+          
+          console.log("📍 Vers:", formatDateShort(targetTime), formatHour(targetTime.getHours() + targetTime.getMinutes() / 60));
+          
+          const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutCubic(progress);
+            
+            const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
+            const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
+            
+            setVirtualDateTimeRef.current(newTime);
+            
+            if (progress < 1) {
+              animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              console.log("✅ Animation retour terminée");
+              setVirtualDateTimeRef.current(new Date());
+              setIsReturningRef.current(false);
+              setShowTimeLabelRef.current(true);
+              setIsLabelFadingOutRef.current(false);
+              setCursorEventIndexRef.current(null);
+              setShowDateLabelRef.current(false);
+              
+              if (labelTimeoutRef.current) {
+                window.clearTimeout(labelTimeoutRef.current);
+              }
+              labelTimeoutRef.current = window.setTimeout(() => {
+                setIsLabelFadingOutRef.current(true);
+                setTimeout(() => {
+                  setShowTimeLabelRef.current(false);
+                  setIsLabelFadingOutRef.current(false);
+                }, 800);
+              }, 3000);
+            }
+          };
+          
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }, randomDelay);
+        
+        return newVirtualTime;
+      });
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
@@ -735,7 +757,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [virtualDateTime, upcomingEvents]);
+  }, [upcomingEvents]);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
