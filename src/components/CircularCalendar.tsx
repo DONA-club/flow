@@ -170,65 +170,119 @@ function getDaysDifference(date1: Date, date2: Date): number {
 // Fonction pour extraire un lien de vidéoconférence
 function extractVideoConferenceLink(event: Event): string | null {
   const raw = event.raw;
-  if (!raw) return null;
+  
+  console.log("🔍 Extraction vidéoconférence pour:", event.title);
+  console.log("📦 Données brutes de l'événement:", raw);
+  console.log("📍 Place:", event.place);
+
+  if (!raw) {
+    console.log("⚠️ Pas de données brutes");
+    return null;
+  }
 
   // Patterns de vidéoconférence courants
   const videoPatterns = [
-    /https?:\/\/[^\s]*meet\.google\.com[^\s]*/i,
-    /https?:\/\/[^\s]*zoom\.us[^\s]*/i,
-    /https?:\/\/[^\s]*teams\.microsoft\.com[^\s]*/i,
-    /https?:\/\/[^\s]*webex\.com[^\s]*/i,
-    /https?:\/\/[^\s]*gotomeeting\.com[^\s]*/i,
-    /https?:\/\/[^\s]*whereby\.com[^\s]*/i,
-    /https?:\/\/[^\s]*jitsi[^\s]*/i,
+    /https?:\/\/[^\s<>"]*meet\.google\.com[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*zoom\.us[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*teams\.microsoft\.com[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*webex\.com[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*gotomeeting\.com[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*whereby\.com[^\s<>"]*/gi,
+    /https?:\/\/[^\s<>"]*jitsi[^\s<>"]*/gi,
   ];
+
+  // Chercher dans event.place d'abord (car c'est là qu'on voit "O10-1-Soyouz (6); https://meet.google.com/...")
+  if (event.place) {
+    console.log("🔎 Recherche dans event.place:", event.place);
+    for (const pattern of videoPatterns) {
+      const match = event.place.match(pattern);
+      if (match && match[0]) {
+        console.log("✅ Lien trouvé dans event.place:", match[0]);
+        return match[0];
+      }
+    }
+  }
 
   // Chercher dans la description (Google Calendar)
   if (raw.description) {
+    console.log("🔎 Recherche dans description:", raw.description.substring(0, 200));
     for (const pattern of videoPatterns) {
       const match = raw.description.match(pattern);
-      if (match) return match[0];
+      if (match && match[0]) {
+        console.log("✅ Lien trouvé dans description:", match[0]);
+        return match[0];
+      }
     }
   }
 
   // Chercher dans le body (Outlook)
   if (raw.body?.content) {
+    console.log("🔎 Recherche dans body.content:", raw.body.content.substring(0, 200));
     for (const pattern of videoPatterns) {
       const match = raw.body.content.match(pattern);
-      if (match) return match[0];
+      if (match && match[0]) {
+        console.log("✅ Lien trouvé dans body.content:", match[0]);
+        return match[0];
+      }
     }
   }
 
-  // Chercher dans la localisation
+  // Chercher dans la localisation brute
   if (raw.location) {
     const locationStr = typeof raw.location === 'string' 
       ? raw.location 
       : raw.location.displayName || '';
     
+    console.log("🔎 Recherche dans raw.location:", locationStr);
+    
     for (const pattern of videoPatterns) {
       const match = locationStr.match(pattern);
-      if (match) return match[0];
+      if (match && match[0]) {
+        console.log("✅ Lien trouvé dans raw.location:", match[0]);
+        return match[0];
+      }
     }
   }
 
   // Chercher dans les propriétés de conférence (Google Calendar)
   if (raw.conferenceData?.entryPoints) {
+    console.log("🔎 Recherche dans conferenceData.entryPoints");
     const videoEntry = raw.conferenceData.entryPoints.find(
       (ep: any) => ep.entryPointType === 'video'
     );
-    if (videoEntry?.uri) return videoEntry.uri;
+    if (videoEntry?.uri) {
+      console.log("✅ Lien trouvé dans conferenceData:", videoEntry.uri);
+      return videoEntry.uri;
+    }
   }
 
   // Chercher dans onlineMeeting (Outlook)
   if (raw.onlineMeeting?.joinUrl) {
+    console.log("✅ Lien trouvé dans onlineMeeting:", raw.onlineMeeting.joinUrl);
     return raw.onlineMeeting.joinUrl;
   }
 
   // Chercher dans hangoutLink (Google Calendar)
   if (raw.hangoutLink) {
+    console.log("✅ Lien trouvé dans hangoutLink:", raw.hangoutLink);
     return raw.hangoutLink;
   }
 
+  // Détection spéciale pour "Réunion Microsoft Teams"
+  if (event.place && event.place.toLowerCase().includes("microsoft teams")) {
+    console.log("⚠️ Détecté 'Microsoft Teams' mais pas de lien trouvé");
+    // Chercher dans toutes les propriétés de l'objet raw
+    const rawStr = JSON.stringify(raw);
+    for (const pattern of videoPatterns) {
+      const match = rawStr.match(pattern);
+      if (match && match[0]) {
+        console.log("✅ Lien trouvé dans JSON complet:", match[0]);
+        return match[0];
+      }
+    }
+  }
+
+  console.log("❌ Aucun lien de vidéoconférence trouvé");
   return null;
 }
 
