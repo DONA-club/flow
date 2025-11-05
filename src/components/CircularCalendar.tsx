@@ -247,10 +247,17 @@ function getSeason(date: Date): Props["season"] {
   return "winter";
 }
 
-function isDayMinute(minute: number, sunrise: number, sunset: number) {
+function isDayMinute(minute: number, wakeHour: number, bedHour: number) {
   const hour = minute / 60;
-  if (sunrise < sunset) return hour >= sunrise && hour < sunset;
-  return hour >= sunrise || hour < sunset;
+  
+  // Si bedHour < wakeHour, le cycle traverse minuit
+  if (bedHour < wakeHour) {
+    // Période d'éveil = de wakeHour à 24h OU de 0h à bedHour
+    return hour >= wakeHour || hour < bedHour;
+  }
+  
+  // Sinon, période d'éveil normale dans la même journée
+  return hour >= wakeHour && hour < bedHour;
 }
 
 function easeOutCubic(t: number) {
@@ -324,7 +331,7 @@ export const CircularCalendar: React.FC<Props> = ({
       setNow(current);
       if (!isScrolling && !isReturning) {
         setVirtualDateTime(current);
-        onVirtualDateTimeChangeRef.current?.(null); // null = temps réel
+        onVirtualDateTimeChangeRef.current?.(null);
       }
     };
     updateNow();
@@ -404,39 +411,32 @@ export const CircularCalendar: React.FC<Props> = ({
       setShowTimeLabel(false);
       setIsLabelFadingOut(false);
 
-      // Détection du type de scroll
       const isHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
 
       setVirtualDateTime((prev) => {
         const nextTime = new Date(prev);
 
         if (isHorizontalScroll) {
-          // Scroll horizontal : accumuler le delta et changer de jour seulement quand le seuil est atteint
           horizontalScrollAccumulator.current += event.deltaX;
           
-          // Seuil de 100 pixels pour changer de jour (ajustable selon la sensibilité souhaitée)
           const threshold = 100;
           
           if (Math.abs(horizontalScrollAccumulator.current) >= threshold) {
             const dayDelta = horizontalScrollAccumulator.current > 0 ? 1 : -1;
             nextTime.setDate(nextTime.getDate() + dayDelta);
-            horizontalScrollAccumulator.current = 0; // Réinitialiser l'accumulateur
+            horizontalScrollAccumulator.current = 0;
           } else {
-            // Pas assez de scroll accumulé, on ne change pas de jour
             return prev;
           }
         } else {
-          // Scroll vertical : changer l'heure dans la journée
           const deltaMinutes = event.deltaY > 0 ? 15 : -15;
           nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
-          // Réinitialiser l'accumulateur horizontal lors du scroll vertical
           horizontalScrollAccumulator.current = 0;
         }
 
         const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
         setIsScrolling(true);
         
-        // Notifier le changement de virtualDateTime
         onVirtualDateTimeChangeRef.current?.(nextTime);
 
         if (dayChanged) {
@@ -496,7 +496,6 @@ export const CircularCalendar: React.FC<Props> = ({
             const interpolated = new Date(captured.getTime() + diff * eased);
             setVirtualDateTime(interpolated);
             
-            // Notifier pendant l'animation de retour
             onVirtualDateTimeChangeRef.current?.(interpolated);
 
             if (progress < 1) {
@@ -508,9 +507,8 @@ export const CircularCalendar: React.FC<Props> = ({
               setIsLabelFadingOut(false);
               setCursorEventIndex(null);
               setShowDateLabel(false);
-              horizontalScrollAccumulator.current = 0; // Réinitialiser lors du retour
+              horizontalScrollAccumulator.current = 0;
               
-              // Retour au temps réel
               onVirtualDateTimeChangeRef.current?.(null);
 
               if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
@@ -556,6 +554,10 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
+  // Utiliser wakeHour et bedHour si disponibles, sinon utiliser sunrise/sunset
+  const effectiveWake = typeof wakeHour === "number" ? wakeHour : sunrise;
+  const effectiveBed = typeof bedHour === "number" ? bedHour : sunset;
+
   const wedges = React.useMemo(
     () =>
       Array.from({ length: SEGMENTS }, (_, i) => {
@@ -566,10 +568,10 @@ export const CircularCalendar: React.FC<Props> = ({
           return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill: "none" };
         }
 
-        const fill = isDayMinute(i, sunrise, sunset) ? SEASON_COLORS[currentSeason] : NIGHT_COLOR;
+        const fill = isDayMinute(i, effectiveWake, effectiveBed) ? SEASON_COLORS[currentSeason] : NIGHT_COLOR;
         return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill };
       }),
-    [blockAngle, cx, cy, currentSeason, innerRadius, radius, sunrise, sunset],
+    [blockAngle, cx, cy, currentSeason, innerRadius, radius, effectiveWake, effectiveBed],
   );
 
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
@@ -690,7 +692,6 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // Filtrer les événements pour n'afficher que ceux du jour du curseur
   const currentDayEvents = upcomingEvents.filter((entry) => 
     isSameDay(entry.start, virtualDateTime)
   );
@@ -791,18 +792,15 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
-  // Taille de la div centrale = même taille que la bulle d'événement
   const centerDivSize = bubbleDiameter;
 
-  // Couleurs pour le texte central selon le thème et le hover
   const centerTextColor = isDarkMode 
-    ? (hoverCenterEvent ? "#93c5fd" : "#bfdbfe") // Mode sombre: blue-300 hover, blue-200 normal
-    : (hoverCenterEvent ? "#1e3a8a" : "#1d4ed8"); // Mode clair: blue-900 hover, blue-700 normal
+    ? (hoverCenterEvent ? "#93c5fd" : "#bfdbfe")
+    : (hoverCenterEvent ? "#1e3a8a" : "#1d4ed8");
 
   return (
     <div className="flex flex-col items-center justify-center">
       <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
-        {/* Div centrale - z-index: 0 pour être sous tout le reste */}
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{ 
@@ -843,7 +841,6 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
         </div>
 
-        {/* SVG avec l'anneau - z-index: 1 */}
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none" }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
@@ -858,7 +855,6 @@ export const CircularCalendar: React.FC<Props> = ({
             </mask>
           </defs>
 
-          {/* Groupe de l'anneau avec pointer-events: auto pour détecter le hover */}
           <g 
             mask="url(#ringFadeMask)" 
             onMouseEnter={() => setHoverRing(true)} 
@@ -880,10 +876,8 @@ export const CircularCalendar: React.FC<Props> = ({
             <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
-          {/* Chiffres des heures - affichés uniquement au hover */}
           {hoverRing && <g style={{ pointerEvents: "none" }}>{hourNumbers}</g>}
           
-          {/* Arcs d'événements avec pointer-events: auto */}
           <g style={{ pointerEvents: "auto" }}>{eventArcs}</g>
 
           {isScrolling && (
@@ -906,7 +900,6 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
-        {/* Icônes sunrise/sunset - z-index: 3 */}
         {!hoverRing && (
           <>
             <Tooltip>
@@ -951,7 +944,6 @@ export const CircularCalendar: React.FC<Props> = ({
           </>
         )}
 
-        {/* EventInfoBubble - z-index: 6 */}
         {selectedEvent && (
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 6, pointerEvents: "none" }}>
             <div style={{ pointerEvents: "auto" }}>
@@ -973,7 +965,6 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Time label - z-index: 7 */}
         {showTimeLabel && !isScrolling && !isReturning && (
           <div
             className="absolute pointer-events-none"
@@ -1002,7 +993,6 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Date label - z-index: 8 */}
         {showDateLabel && daysDiff !== 0 && (
           <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.5}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
             <div className="px-3 py-1.5 rounded-lg pointer-events-none" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
