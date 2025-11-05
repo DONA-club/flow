@@ -324,6 +324,20 @@ function getCircadianGradient(
   }
 }
 
+function isSameDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+}
+
+function isTomorrow(date: Date, reference: Date): boolean {
+  const tomorrow = new Date(reference);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return isSameDay(date, tomorrow);
+}
+
 const Visualiser = () => {
   const navigate = useNavigate();
   const { sunrise: todaySunrise, sunset: todaySunset, loading: sunLoading, error: sunError, latitude, longitude, timezoneOffset } = useSunTimes();
@@ -379,9 +393,43 @@ const Visualiser = () => {
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
-  const effectiveWake = currentDayWake ?? (fitConnected && wakeHour != null ? wakeHour : SIM_WAKE);
-  const effectiveBed = currentDayBed ?? (fitConnected && bedHour != null ? bedHour : SIM_BED);
-  const effectiveTotalSleep = currentDayTotalSleep ?? totalSleepHours;
+  // Déterminer si on doit afficher les données de sommeil
+  const now = new Date();
+  const displayDate = virtualDateTime || now;
+  const isToday = isSameDay(displayDate, now);
+  const isTomorrowDay = isTomorrow(displayDate, now);
+
+  // Logique d'affichage des heures de sommeil
+  let effectiveWake: number | null = null;
+  let effectiveBed: number | null = null;
+  let effectiveTotalSleep: number | null = null;
+
+  if (isToday) {
+    // Aujourd'hui : afficher les données du jour si disponibles, sinon rien
+    if (currentDayWake !== null && currentDayBed !== null) {
+      effectiveWake = currentDayWake;
+      effectiveBed = currentDayBed;
+      effectiveTotalSleep = currentDayTotalSleep;
+    } else if (fitConnected && wakeHour !== null && bedHour !== null) {
+      effectiveWake = wakeHour;
+      effectiveBed = bedHour;
+      effectiveTotalSleep = totalSleepHours;
+    }
+  } else if (isTomorrowDay) {
+    // Demain : afficher les données d'aujourd'hui
+    if (fitConnected && wakeHour !== null && bedHour !== null) {
+      effectiveWake = wakeHour;
+      effectiveBed = bedHour;
+      effectiveTotalSleep = totalSleepHours;
+    }
+  } else {
+    // Autre jour : afficher les données du jour si disponibles, sinon rien
+    if (currentDayWake !== null && currentDayBed !== null) {
+      effectiveWake = currentDayWake;
+      effectiveBed = currentDayBed;
+      effectiveTotalSleep = currentDayTotalSleep;
+    }
+  }
 
   useEffect(() => {
     document.title = "DONA.club Visualiser";
@@ -454,7 +502,12 @@ const Visualiser = () => {
     const updateGradient = () => {
       const referenceTime = virtualDateTime || new Date();
       const currentHour = referenceTime.getHours() + referenceTime.getMinutes() / 60;
-      const gradient = getCircadianGradient(currentHour, effectiveWake, effectiveBed, isDarkMode);
+      
+      // Utiliser les valeurs effectives pour le gradient
+      const gradientWake = effectiveWake ?? SIM_WAKE;
+      const gradientBed = effectiveBed ?? SIM_BED;
+      
+      const gradient = getCircadianGradient(currentHour, gradientWake, gradientBed, isDarkMode);
       setBackgroundGradient(gradient);
     };
 
