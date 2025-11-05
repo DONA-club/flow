@@ -843,7 +843,7 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
         </div>
 
-        {/* SVG avec l'anneau - z-index: 1 - pointer-events: none sauf pour les arcs */}
+        {/* SVG avec l'anneau - z-index: 1 */}
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none" }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
@@ -858,29 +858,36 @@ export const CircularCalendar: React.FC<Props> = ({
             </mask>
           </defs>
 
-          <g mask="url(#ringFadeMask)" onMouseEnter={() => setHoverRing(true)} onMouseLeave={() => setHoverRing(false)}>
+          {/* Groupe de l'anneau avec pointer-events: auto pour détecter le hover */}
+          <g 
+            mask="url(#ringFadeMask)" 
+            onMouseEnter={() => setHoverRing(true)} 
+            onMouseLeave={() => setHoverRing(false)}
+            style={{ pointerEvents: "auto" }}
+          >
             {wedges.map((wedge) => (
               <path key={wedge.key} d={wedge.path} fill={wedge.fill} stroke="none" />
             ))}
           </g>
 
-          <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
+          <g mask="url(#ringFadeMask)" style={{ pointerEvents: "none" }}>{sleepOverlays}</g>
 
           {hoverRing && pastArc && (
-            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" />
+            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           {hoverRing && futureArc && (
-            <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" />
+            <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
-          <g>{hoverRing && hourNumbers}</g>
+          {/* Chiffres des heures - affichés uniquement au hover */}
+          {hoverRing && <g style={{ pointerEvents: "none" }}>{hourNumbers}</g>}
           
           {/* Arcs d'événements avec pointer-events: auto */}
           <g style={{ pointerEvents: "auto" }}>{eventArcs}</g>
 
           {isScrolling && (
-            <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" />
+            <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           <line
@@ -894,6 +901,7 @@ export const CircularCalendar: React.FC<Props> = ({
             style={{
               filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
+              pointerEvents: "none"
             }}
           />
         </svg>
