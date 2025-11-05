@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
@@ -413,6 +413,9 @@ const Visualiser = () => {
   const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
   const [currentDayDebtOrCapital, setCurrentDayDebtOrCapital] = useState<SleepDebtOrCapital | null>(null);
   const [isHoveringRing, setIsHoveringRing] = useState(false);
+  
+  const sleepLogTimerRef = useRef<number | null>(null);
+  const lastSleepLogTimeRef = useRef<number>(0);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -612,12 +615,8 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Log de sommeil basé sur le jour pointé et le survol de l'anneau
-  useEffect(() => {
-    if (!isHoveringRing) {
-      return;
-    }
-
+  // Fonction pour afficher le log de sommeil
+  const showSleepLog = useCallback(() => {
     if (fitLoading) {
       return;
     } else if (fitError && fitError.includes("non connecté")) {
@@ -627,35 +626,62 @@ const Visualiser = () => {
     } else if (fitError) {
       setLogs([{ message: "Sommeil indisponible", type: "info" }]);
     } else if (fitConnected && effectiveWake != null && effectiveBed != null && effectiveTotalSleep != null) {
-      // Format: "Sommeil : 6h00｜Capital/Dette : 10h15｜Coucher : 21h45"
-      // ou "Sommeil : 6h00｜Dette : 4h00 sur 3 jours｜Coucher : 21h45"
       const parts: string[] = [];
       
-      // Partie sommeil
       parts.push(`Sommeil : ${formatHourMinute(effectiveTotalSleep)}`);
       
-      // Partie capital/dette (basé sur le jour pointé)
       if (effectiveDebtOrCapital) {
         const label = effectiveDebtOrCapital.type === "capital" ? "Capital" : "Dette";
         const hoursFormatted = formatHourMinute(effectiveDebtOrCapital.hours);
         
         if (effectiveDebtOrCapital.daysCount === 7) {
-          // Si 7 jours disponibles, format court
           parts.push(`${label} : ${hoursFormatted}`);
         } else {
-          // Sinon, préciser le nombre de jours
           parts.push(`${label} : ${hoursFormatted} sur ${effectiveDebtOrCapital.daysCount} jour${effectiveDebtOrCapital.daysCount > 1 ? 's' : ''}`);
         }
       }
       
-      // Partie coucher (seulement pour aujourd'hui ou demain)
       if ((isToday || isTomorrowDay) && idealBedHour !== null) {
         parts.push(`Coucher : ${formatHourMinute(idealBedHour)}`);
       }
       
       setLogs([{ message: parts.join("｜"), type: "success" }]);
+      lastSleepLogTimeRef.current = Date.now();
     }
-  }, [isHoveringRing, fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
+  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
+
+  // Gérer le survol de l'anneau avec timer de 6 secondes
+  useEffect(() => {
+    if (isHoveringRing) {
+      // Afficher immédiatement si plus de 6 secondes se sont écoulées
+      const timeSinceLastLog = Date.now() - lastSleepLogTimeRef.current;
+      if (timeSinceLastLog >= 6000) {
+        showSleepLog();
+      }
+
+      // Configurer un timer pour réafficher toutes les 6 secondes
+      if (sleepLogTimerRef.current) {
+        window.clearInterval(sleepLogTimerRef.current);
+      }
+
+      sleepLogTimerRef.current = window.setInterval(() => {
+        showSleepLog();
+      }, 6000);
+    } else {
+      // Nettoyer le timer quand on quitte le survol
+      if (sleepLogTimerRef.current) {
+        window.clearInterval(sleepLogTimerRef.current);
+        sleepLogTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (sleepLogTimerRef.current) {
+        window.clearInterval(sleepLogTimerRef.current);
+        sleepLogTimerRef.current = null;
+      }
+    };
+  }, [isHoveringRing, showSleepLog]);
 
   useEffect(() => {
     const today = new Date();
