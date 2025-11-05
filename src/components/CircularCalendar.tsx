@@ -189,7 +189,7 @@ function getTimeIndicator(date: Date, reference: Date) {
 }
 
 function formatDateLabel(date: Date) {
-  const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
   const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
   return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
@@ -272,6 +272,20 @@ function isSameDay(date1: Date, date2: Date): boolean {
   );
 }
 
+// Calculer l'angle depuis le centre vers un point
+function getAngleFromCenter(cx: number, cy: number, x: number, y: number): number {
+  const dx = x - cx;
+  const dy = y - cy;
+  let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  angle = (angle + 90 + 360) % 360;
+  return angle;
+}
+
+// Convertir un angle en heure décimale
+function angleToHour(angle: number): number {
+  return (angle / 360) * 24;
+}
+
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -302,6 +316,8 @@ export const CircularCalendar: React.FC<Props> = ({
   const [lastDayNotified, setLastDayNotified] = React.useState("");
   const [hoverRing, setHoverRing] = React.useState(false);
   const [hoverCenterEvent, setHoverCenterEvent] = React.useState(false);
+  const [isDraggingCursor, setIsDraggingCursor] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
 
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
@@ -314,9 +330,14 @@ export const CircularCalendar: React.FC<Props> = ({
   
   // Refs pour les interactions tactiles
   const touchStartRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
-  const isTouchScrollingRef = React.useRef(false);
-  const lastTouchYRef = React.useRef<number>(0);
-  const velocityRef = React.useRef<number>(0);
+  const lastAngleRef = React.useRef<number>(0);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 640);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
@@ -337,7 +358,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const updateNow = () => {
       const current = new Date();
       setNow(current);
-      if (!isScrolling && !isReturning) {
+      if (!isScrolling && !isReturning && !isDraggingCursor) {
         setVirtualDateTime(current);
         onVirtualDateTimeChangeRef.current?.(null);
       }
@@ -347,7 +368,7 @@ export const CircularCalendar: React.FC<Props> = ({
     return () => {
       if (nowIntervalRef.current) window.clearInterval(nowIntervalRef.current);
     };
-  }, [isScrolling, isReturning]);
+  }, [isScrolling, isReturning, isDraggingCursor]);
 
   React.useEffect(() => {
     const updateTheme = () => setIsDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -404,7 +425,7 @@ export const CircularCalendar: React.FC<Props> = ({
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
 
-  // Fonction commune pour gérer le scroll (wheel ou touch)
+  // Fonction commune pour gérer le scroll (wheel ou touch horizontal)
   const handleScroll = React.useCallback((deltaY: number, deltaX: number) => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -433,12 +454,8 @@ export const CircularCalendar: React.FC<Props> = ({
           return prev;
         }
       } else {
-        // Sensibilité adaptée à la vélocité pour mobile
         const baseSensitivity = 15;
-        const velocityFactor = Math.min(Math.abs(velocityRef.current) / 10, 3);
-        const adjustedSensitivity = baseSensitivity * (1 + velocityFactor * 0.5);
-        
-        const deltaMinutes = deltaY > 0 ? adjustedSensitivity : -adjustedSensitivity;
+        const deltaMinutes = deltaY > 0 ? baseSensitivity : -baseSensitivity;
         nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
         horizontalScrollAccumulator.current = 0;
       }
@@ -548,19 +565,23 @@ export const CircularCalendar: React.FC<Props> = ({
       handleScroll(event.deltaY, event.deltaX);
     };
 
-    // Gestion du touch (mobile) - AMÉLIORÉE
+    // Gestion du touch (mobile)
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       
       const touch = event.touches[0];
+      const rect = container.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      
       touchStartRef.current = {
         x: touch.clientX,
         y: touch.clientY,
         time: Date.now()
       };
-      lastTouchYRef.current = touch.clientY;
-      velocityRef.current = 0;
-      isTouchScrollingRef.current = false;
+      
+      // Calculer l'angle initial
+      lastAngleRef.current = getAngleFromCenter(cx, cy, touch.clientX, touch.clientY);
     };
 
     const handleTouchMove = (event: TouchEvent) => {
@@ -569,14 +590,9 @@ export const CircularCalendar: React.FC<Props> = ({
       event.preventDefault();
       
       const touch = event.touches[0];
-      const currentTime = Date.now();
-      const deltaTime = currentTime - touchStartRef.current.time;
-      
-      // Calculer la vélocité
-      const deltaY = touch.clientY - lastTouchYRef.current;
-      if (deltaTime > 0) {
-        velocityRef.current = deltaY / deltaTime;
-      }
+      const rect = container.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
       
       const totalDeltaX = touch.clientX - touchStartRef.current.x;
       const totalDeltaY = touch.clientY - touchStartRef.current.y;
@@ -584,37 +600,139 @@ export const CircularCalendar: React.FC<Props> = ({
       // Déterminer la direction dominante
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
-      // Sensibilité réduite pour un contrôle plus précis
-      const sensitivity = 0.3;
-      
       if (isHorizontal) {
         // Swipe horizontal = changement de jour
+        const sensitivity = 0.3;
         const adjustedDeltaX = totalDeltaX * sensitivity;
         if (Math.abs(adjustedDeltaX) > 3) {
           handleScroll(0, adjustedDeltaX);
           touchStartRef.current = {
             x: touch.clientX,
             y: touch.clientY,
-            time: currentTime
+            time: Date.now()
           };
-          isTouchScrollingRef.current = true;
         }
       } else {
-        // Swipe vertical = changement d'heure (INSTANTANÉ)
-        const adjustedDeltaY = deltaY * sensitivity;
-        if (Math.abs(adjustedDeltaY) > 1) {
-          handleScroll(adjustedDeltaY, 0);
-          lastTouchYRef.current = touch.clientY;
-          touchStartRef.current.time = currentTime;
-          isTouchScrollingRef.current = true;
-        }
+        // Drag vertical = rotation du curseur (comme tourner une roue)
+        setIsDraggingCursor(true);
+        setIsScrolling(true);
+        
+        const currentAngle = getAngleFromCenter(cx, cy, touch.clientX, touch.clientY);
+        let angleDelta = currentAngle - lastAngleRef.current;
+        
+        // Gérer le passage de 360° à 0°
+        if (angleDelta > 180) angleDelta -= 360;
+        if (angleDelta < -180) angleDelta += 360;
+        
+        lastAngleRef.current = currentAngle;
+        
+        // Convertir la rotation en minutes (1 tour = 24h = 1440 minutes)
+        const minutesDelta = (angleDelta / 360) * 1440;
+        
+        setVirtualDateTime((prev) => {
+          const nextTime = new Date(prev);
+          nextTime.setMinutes(nextTime.getMinutes() + minutesDelta);
+          
+          const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
+          
+          onVirtualDateTimeChangeRef.current?.(nextTime);
+
+          if (dayChanged) {
+            setShowDateLabel(true);
+            const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
+            setLastDayNotified((prevKey) => {
+              if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+              return dayKey;
+            });
+          }
+
+          let matchedIndex: number | null = null;
+          const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+          const dayStart = new Date(nextTime);
+          dayStart.setHours(0, 0, 0, 0);
+          const nextDay = new Date(dayStart);
+          nextDay.setDate(nextDay.getDate() + 1);
+
+          const dayEvents = upcomingEventsRef.current.filter((entry) => {
+            const startMs = entry.start.getTime();
+            return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
+          });
+
+          for (let i = 0; i < dayEvents.length; i += 1) {
+            const { event: arcEvent, start, end } = dayEvents[i];
+            const startHour = start.getHours() + start.getMinutes() / 60;
+            const endHour = end.getHours() + end.getMinutes() / 60;
+            if (virtualHour >= startHour && virtualHour <= endHour) {
+              matchedIndex = i;
+              setSelectedEvent(arcEvent);
+              break;
+            }
+          }
+
+          if (matchedIndex === null) setSelectedEvent(null);
+          setCursorEventIndex(matchedIndex);
+          
+          return nextTime;
+        });
       }
     };
 
     const handleTouchEnd = () => {
       touchStartRef.current = null;
-      isTouchScrollingRef.current = false;
-      velocityRef.current = 0;
+      
+      if (isDraggingCursor) {
+        setIsDraggingCursor(false);
+        
+        if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+
+        const randomDelay = 8000 + Math.random() * 2000;
+        const captured = new Date(virtualDateTime);
+
+        scrollTimeoutRef.current = window.setTimeout(() => {
+          setIsScrolling(false);
+          setIsReturning(true);
+
+          const duration = 1500;
+          const startTime = performance.now();
+
+          const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = easeOutCubic(progress);
+
+            const target = new Date();
+            const diff = target.getTime() - captured.getTime();
+            const interpolated = new Date(captured.getTime() + diff * eased);
+            setVirtualDateTime(interpolated);
+            
+            onVirtualDateTimeChangeRef.current?.(interpolated);
+
+            if (progress < 1) {
+              animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              setVirtualDateTime(new Date());
+              setIsReturning(false);
+              setShowTimeLabel(true);
+              setIsLabelFadingOut(false);
+              setCursorEventIndex(null);
+              setShowDateLabel(false);
+              
+              onVirtualDateTimeChangeRef.current?.(null);
+
+              if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+              labelTimeoutRef.current = window.setTimeout(() => {
+                setIsLabelFadingOut(true);
+                window.setTimeout(() => {
+                  setShowTimeLabel(false);
+                  setIsLabelFadingOut(false);
+                }, 800);
+              }, 3000);
+            }
+          };
+
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }, randomDelay);
+      }
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -634,7 +752,7 @@ export const CircularCalendar: React.FC<Props> = ({
       if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [handleScroll]);
+  }, [handleScroll, isDraggingCursor, virtualDateTime]);
 
   const currentSeason = season || getSeason(virtualDateTime);
   const sizeScale = size / DEFAULT_SIZE;
@@ -1109,13 +1227,13 @@ export const CircularCalendar: React.FC<Props> = ({
           <div 
             className="absolute left-1/2 pointer-events-none" 
             style={{ 
-              top: `calc(50% - ${innerRadius * 0.5}px)`,
+              top: `calc(50% - ${innerRadius * 0.375}px)`,
               transform: "translateX(-50%)", 
               zIndex: 8 
             }}
           >
             <div 
-              className="px-4 py-2 rounded-xl pointer-events-none relative overflow-hidden"
+              className="px-3 py-1.5 rounded-xl pointer-events-none relative overflow-hidden"
               style={{ 
                 background: "rgba(15, 23, 42, 0.75)",
                 backdropFilter: "blur(16px) saturate(180%)",
@@ -1139,20 +1257,21 @@ export const CircularCalendar: React.FC<Props> = ({
                 <div 
                   className="pointer-events-none" 
                   style={{ 
-                    fontSize: 13, 
-                    lineHeight: 1.3, 
+                    fontSize: isMobile ? 11 : 13, 
+                    lineHeight: 1.2, 
                     color: "#e2e8f0", 
-                    fontWeight: 600, 
+                    fontWeight: 400, 
                     fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", 
-                    textAlign: "center" 
+                    textAlign: "center",
+                    textTransform: "none"
                   }}
                 >
                   {formatDateLabel(virtualDateTime)}
                 </div>
                 <div 
-                  className="pointer-events-none mt-1" 
+                  className="pointer-events-none mt-0.5" 
                   style={{ 
-                    fontSize: 11, 
+                    fontSize: isMobile ? 10 : 11, 
                     lineHeight: 1, 
                     color: daysDiff > 0 ? "#60a5fa" : "#fb923c",
                     fontWeight: 600, 
