@@ -738,10 +738,12 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Overlays de sommeil : afficher toutes les périodes séparément
+  // Overlays de sommeil : n'afficher que si on a des données valides
   const sleepOverlays: JSX.Element[] = [];
-  if (typeof wakeHour === "number" && typeof bedHour === "number") {
-    // Période principale de sommeil (la plus longue)
+  const hasSleepData = typeof wakeHour === "number" && typeof bedHour === "number";
+  
+  if (hasSleepData) {
+    // Période principale de sommeil
     const bedAngle = angleFromHour(bedHour);
     const wakeAngle = angleFromHour(wakeHour);
     sleepOverlays.push(
@@ -863,7 +865,9 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          <g mask="url(#ringFadeMask)" style={{ pointerEvents: "none" }}>{sleepOverlays}</g>
+          {sleepOverlays.length > 0 && (
+            <g mask="url(#ringFadeMask)" style={{ pointerEvents: "none" }}>{sleepOverlays}</g>
+          )}
 
           {hoverRing && pastArc && (
             <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
