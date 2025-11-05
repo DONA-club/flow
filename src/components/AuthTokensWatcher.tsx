@@ -80,6 +80,37 @@ async function detectProviderFromIdentities(user: any): Promise<Provider | null>
   return null;
 }
 
+// Nouvelle fonction pour capturer les tokens depuis l'URL
+function captureTokensFromUrl(): { accessToken: string | null; refreshToken: string | null; provider: Provider | null } {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const providerToken = params.get('provider_token');
+  const providerRefreshToken = params.get('provider_refresh_token');
+  
+  console.log("🔗 Tokens depuis URL:", {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    hasProviderToken: !!providerToken,
+    hasProviderRefreshToken: !!providerRefreshToken
+  });
+  
+  const finalAccessToken = providerToken || accessToken;
+  const finalRefreshToken = providerRefreshToken || refreshToken;
+  
+  if (!finalAccessToken) return { accessToken: null, refreshToken: null, provider: null };
+  
+  const provider = detectProviderFromToken(finalAccessToken);
+  
+  return { 
+    accessToken: finalAccessToken, 
+    refreshToken: finalRefreshToken, 
+    provider 
+  };
+}
+
 async function saveProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -90,17 +121,27 @@ async function saveProviderTokens() {
     return;
   }
 
-  const accessToken: string | null = session?.provider_token ?? null;
-  const refreshToken: string | null = session?.provider_refresh_token ?? null;
+  let accessToken: string | null = session?.provider_token ?? null;
+  let refreshToken: string | null = session?.provider_refresh_token ?? null;
 
-  console.log("🔑 Tokens disponibles:", {
+  console.log("🔑 Tokens depuis session:", {
     hasAccessToken: !!accessToken,
     hasRefreshToken: !!refreshToken,
     accessTokenPreview: accessToken ? accessToken.substring(0, 20) + "..." : null
   });
 
+  // Si pas de tokens dans la session, essayer de les capturer depuis l'URL
   if (!accessToken) {
-    console.log("❌ Pas de provider_token dans la session");
+    const urlTokens = captureTokensFromUrl();
+    if (urlTokens.accessToken) {
+      accessToken = urlTokens.accessToken;
+      refreshToken = urlTokens.refreshToken;
+      console.log("✅ Tokens capturés depuis l'URL");
+    }
+  }
+
+  if (!accessToken) {
+    console.log("❌ Pas de provider_token disponible");
     return;
   }
 
@@ -190,6 +231,11 @@ async function saveProviderTokens() {
     toast.success(`${providerToSave} connecté avec succès !`, {
       description: "Vos données seront maintenant synchronisées.",
     });
+  }
+  
+  // Nettoyer l'URL après capture des tokens
+  if (window.location.hash) {
+    window.history.replaceState(null, '', window.location.pathname);
   }
 }
 
