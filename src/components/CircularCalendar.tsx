@@ -593,9 +593,8 @@ export const CircularCalendar: React.FC<Props> = ({
     return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="black" strokeWidth={dividerWidth} />;
   });
 
-  // Couleurs adaptées pour les chiffres des heures
-  const hourNumberColor = isDarkMode ? "#fff" : "#0f766e";
-  const hourNumberStroke = isDarkMode ? "#000" : "#fff";
+  const hourNumberColor = "rgba(255, 255, 255, 0.95)";
+  const hourNumberStroke = isDarkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(13, 148, 136, 0.4)";
 
   const hourNumbers = Array.from({ length: 24 }, (_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
@@ -620,11 +619,11 @@ export const CircularCalendar: React.FC<Props> = ({
           userSelect: "none",
           filter: isCurrent 
             ? (isDarkMode 
-                ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)" 
-                : "drop-shadow(0 0 6px #0d9488cc) drop-shadow(0 1px 2px #0004)")
+                ? "drop-shadow(0 0 8px rgba(191, 219, 254, 0.8)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))" 
+                : "drop-shadow(0 0 8px rgba(13, 148, 136, 0.8)) drop-shadow(0 2px 4px rgba(13, 148, 136, 0.4))")
             : (isDarkMode 
-                ? "drop-shadow(0 1px 0 #0008)" 
-                : "drop-shadow(0 1px 2px #0002)"),
+                ? "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4))" 
+                : "drop-shadow(0 1px 3px rgba(13, 148, 136, 0.3))"),
           opacity: isCurrent ? 1 : 0.92,
           fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",

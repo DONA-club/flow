@@ -115,7 +115,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
 
   if (upcoming.length === 0) return null;
 
-  const cursorColor = isDarkMode ? "#c7d2fe" : "#0d9488";
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#0d9488";
   const nowRef = new Date();
 
   if (!open) {
@@ -218,7 +218,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
                   "w-full flex items-start gap-3 rounded-lg transition-colors px-3 py-2 text-left",
                   isDarkMode 
                     ? "bg-white/6 hover:bg-white/10" 
-                    : "bg-teal-50/50 hover:bg-teal-100/50"
+                    : "bg-white/50 hover:bg-white/70"
                 ].join(" ")}
                 aria-label={`Ouvrir l'événement: ${title}`}
               >
@@ -228,15 +228,15 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
                 <div className="min-w-0">
                   <div className={[
                     "text-sm font-medium truncate",
-                    isDarkMode ? "text-indigo-100" : "text-teal-800"
+                    isDarkMode ? "text-indigo-100" : "text-[#0b3f6b]"
                   ].join(" ")}>{title}</div>
                   <div className={[
                     "text-xs truncate",
-                    isDarkMode ? "text-indigo-200" : "text-teal-600"
+                    isDarkMode ? "text-indigo-200" : "text-[#115e7f]"
                   ].join(" ")}>{place}</div>
                   <div className={[
                     "text-xs mt-0.5",
-                    isDarkMode ? "text-indigo-300" : "text-teal-500"
+                    isDarkMode ? "text-indigo-300" : "text-[#0c6f99]"
                   ].join(" ")}>
                     {dayLabel}{range ? ` - ${range}` : ""}
                   </div>
