@@ -733,8 +733,8 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
-  // Réduire la taille de la div centrale pour ne pas bloquer les arcs
-  const centerDivSize = innerRadius * 1.2;
+  // Taille de la div centrale = même taille que la bulle d'événement
+  const centerDivSize = bubbleDiameter;
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -800,7 +800,7 @@ export const CircularCalendar: React.FC<Props> = ({
             height: centerDivSize, 
             cursor: currentEvent ? "pointer" : "default", 
             pointerEvents: currentEvent ? "auto" : "none",
-            zIndex: 5 
+            zIndex: 2
           }}
           onClick={() => {
             if (currentEvent) {
@@ -815,12 +815,12 @@ export const CircularCalendar: React.FC<Props> = ({
           {currentEvent ? (
             <>
               <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
-              <div className="calendar-center-title font-bold text-base leading-tight px-4 pointer-events-none">{currentEvent.title}</div>
+              <div className="calendar-center-title font-bold text-xl leading-tight px-4 pointer-events-none">{currentEvent.title}</div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
               <div className="text-sm calendar-center-meta pointer-events-none">{formatHour(hourDecimal)}</div>
-              <div className="calendar-center-title font-semibold pointer-events-none">Aucun événement</div>
+              <div className="calendar-center-title font-semibold text-lg pointer-events-none">Aucun événement</div>
             </div>
           )}
         </div>
