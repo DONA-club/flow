@@ -30,6 +30,7 @@ type Props = {
 
 const DEFAULT_SIZE = 320;
 const RING_THICKNESS = 32;
+const SEGMENTS = 1440;
 
 const SEASON_COLORS: Record<string, string> = {
   spring: "#4ade80",
@@ -39,36 +40,35 @@ const SEASON_COLORS: Record<string, string> = {
 };
 
 const NIGHT_COLOR = "#d1d5db";
-const SEGMENTS = 1440;
 
 function getWedgePath(
   cx: number,
   cy: number,
-  r1: number,
-  r2: number,
+  rOuter: number,
+  rInner: number,
   startAngle: number,
-  endAngle: number
+  endAngle: number,
 ) {
   const startRad = (Math.PI / 180) * startAngle;
   const endRad = (Math.PI / 180) * endAngle;
 
-  const x1 = cx + r1 * Math.cos(startRad);
-  const y1 = cy + r1 * Math.sin(startRad);
-  const x2 = cx + r1 * Math.cos(endRad);
-  const y2 = cy + r1 * Math.sin(endRad);
+  const x1 = cx + rOuter * Math.cos(startRad);
+  const y1 = cy + rOuter * Math.sin(startRad);
+  const x2 = cx + rOuter * Math.cos(endRad);
+  const y2 = cy + rOuter * Math.sin(endRad);
 
-  const x3 = cx + r2 * Math.cos(endRad);
-  const y3 = cy + r2 * Math.sin(endRad);
-  const x4 = cx + r2 * Math.cos(startRad);
-  const y4 = cy + r2 * Math.sin(startRad);
+  const x3 = cx + rInner * Math.cos(endRad);
+  const y3 = cy + rInner * Math.sin(endRad);
+  const x4 = cx + rInner * Math.cos(startRad);
+  const y4 = cy + rInner * Math.sin(startRad);
 
   const largeArc = endAngle - startAngle > 180 ? 1 : 0;
 
   return [
     `M ${x1} ${y1}`,
-    `A ${r1} ${r1} 0 ${largeArc} 1 ${x2} ${y2}`,
+    `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${x2} ${y2}`,
     `L ${x3} ${y3}`,
-    `A ${r2} ${r2} 0 ${largeArc} 0 ${x4} ${y4}`,
+    `A ${rInner} ${rInner} 0 ${largeArc} 0 ${x4} ${y4}`,
     "Z",
   ].join(" ");
 }
@@ -76,167 +76,125 @@ function getWedgePath(
 function getArcPath(
   cx: number,
   cy: number,
-  r: number,
+  radius: number,
   startAngle: number,
-  endAngle: number
+  endAngle: number,
 ) {
   const startRad = (Math.PI / 180) * startAngle;
   const endRad = (Math.PI / 180) * endAngle;
-  const x1 = cx + r * Math.cos(startRad);
-  const y1 = cy + r * Math.sin(startRad);
-  const x2 = cx + r * Math.cos(endRad);
-  const y2 = cy + r * Math.sin(endRad);
-  const delta = ((endAngle - startAngle + 360) % 360);
+  const x1 = cx + radius * Math.cos(startRad);
+  const y1 = cy + radius * Math.sin(startRad);
+  const x2 = cx + radius * Math.cos(endRad);
+  const y2 = cy + radius * Math.sin(endRad);
+  const delta = (endAngle - startAngle + 360) % 360;
   const largeArc = delta > 180 ? 1 : 0;
-  const sweep = 1;
-  return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}`;
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-function getEventStartDate(e: any, nowRef: Date): Date | null {
-  const raw = (e as any)?.raw;
+function getEventStartDate(event: Event, reference: Date): Date | null {
+  const raw = event.raw;
   const iso = raw?.start?.dateTime || raw?.start?.date || null;
   if (iso) return new Date(iso);
-  const base = new Date(nowRef);
-  const hours = Math.floor(e.start || 0);
-  const minutes = Math.round(((e.start || 0) % 1) * 60);
+
+  const base = new Date(reference);
+  const hours = Math.floor(event.start || 0);
+  const minutes = Math.round(((event.start || 0) % 1) * 60);
   base.setHours(hours, minutes, 0, 0);
   return base;
 }
 
-function getEventEndDate(e: any, startDate: Date): Date | null {
-  const raw = (e as any)?.raw;
+function getEventEndDate(event: Event, startDate: Date): Date | null {
+  const raw = event.raw;
   const iso = raw?.end?.dateTime || raw?.end?.date || null;
   if (iso) return new Date(iso);
+
   const end = new Date(startDate);
-  const hours = Math.floor(e.end || 0);
-  const minutes = Math.round(((e.end || 0) % 1) * 60);
+  const hours = Math.floor(event.end || 0);
+  const minutes = Math.round(((event.end || 0) % 1) * 60);
   end.setHours(hours, minutes, 0, 0);
   return end;
 }
 
-function getCurrentOrNextEvent(events: Event[], nowDate: Date): Event | undefined {
-  const nowMs = nowDate.getTime();
-  const withDates = events
-    .map((e) => {
-      const start = getEventStartDate(e, nowDate);
-      const end = start ? getEventEndDate(e, start) : null;
-      return { e, start, end };
+function getCurrentOrNextEvent(events: Event[], now: Date) {
+  const nowMs = now.getTime();
+
+  const mapped = events
+    .map((event) => {
+      const start = getEventStartDate(event, now);
+      const end = start ? getEventEndDate(event, start) : null;
+      return { event, start, end };
     })
-    .filter((x) => x.start) as { e: Event; start: Date; end: Date | null }[];
+    .filter((entry): entry is { event: Event; start: Date; end: Date | null } => !!entry.start);
 
-  const current = withDates.find((x) => {
-    const s = x.start.getTime();
-    const e = x.end ? x.end.getTime() : s;
-    return nowMs >= s && nowMs < e;
+  const current = mapped.find((entry) => {
+    const start = entry.start.getTime();
+    const end = entry.end ? entry.end.getTime() : start;
+    return nowMs >= start && nowMs < end;
   });
-  if (current) return current.e;
 
-  const upcoming = withDates
-    .filter((x) => x.start.getTime() >= nowMs)
+  if (current) return current.event;
+
+  const upcoming = mapped
+    .filter((entry) => entry.start.getTime() >= nowMs)
     .sort((a, b) => a.start.getTime() - b.start.getTime());
-  return upcoming.length > 0 ? upcoming[0].e : undefined;
-}
 
-function getSeason(date: Date): "spring" | "summer" | "autumn" | "winter" {
-  const m = date.getMonth() + 1;
-  if (m >= 3 && m < 6) return "spring";
-  if (m >= 6 && m < 9) return "summer";
-  if (m >= 9 && m < 12) return "autumn";
-  return "winter";
-}
-
-function isDayMinute(minute: number, sunrise: number, sunset: number) {
-  const hour = minute / 60;
-  if (sunrise < sunset) {
-    return hour >= sunrise && hour < sunset;
-  } else {
-    return hour >= sunrise || hour < sunset;
-  }
+  return upcoming[0]?.event;
 }
 
 function formatHour(decimal: number) {
-  const h = Math.floor(decimal)
-    .toString()
-    .padStart(2, "0");
-  const m = Math.round((decimal % 1) * 60)
-    .toString()
-    .padStart(2, "0");
+  const h = Math.floor(decimal).toString().padStart(2, "0");
+  const m = Math.round((decimal % 1) * 60).toString().padStart(2, "0");
   return `${h}:${m}`;
 }
 
-function formatEventDate(date: Date): string {
+function formatEventDate(date: Date) {
   const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
   const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-  
-  const dayName = days[date.getDay()];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  
-  return `${dayName} ${day} ${month}, à ${hours}h${minutes}`;
+  return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}, à ${date.getHours().toString().padStart(2, "0")}h${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function formatTimeRemaining(startDate: Date, now: Date): string {
-  const diff = startDate.getTime() - now.getTime();
-  
-  if (diff <= 0) {
-    return "En cours";
-  }
-  
+function formatTimeRemaining(start: Date, reference: Date) {
+  const diff = start.getTime() - reference.getTime();
+  if (diff <= 0) return "En cours";
+
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  
+
   const parts: string[] = [];
-  
-  if (days > 0) {
-    parts.push(`${days} jour${days > 1 ? 's' : ''}`);
-  }
-  if (hours > 0) {
-    parts.push(`${hours}h`);
-  }
-  if (minutes > 0 || parts.length === 0) {
-    parts.push(`${minutes} min`);
-  }
-  
-  return `Dans ${parts.join(', ')}`;
+  if (days > 0) parts.push(`${days} jour${days > 1 ? "s" : ""}`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes} min`);
+
+  return `Dans ${parts.join(", ")}`;
 }
 
-function getDaysDifference(date1: Date, date2: Date): number {
+function getDaysDifference(date1: Date, date2: Date) {
   const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
   const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
-  return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.round((d1.getTime() - d2.getTime()) / 86_400_000);
 }
 
-function getTimeIndicator(date: Date, now: Date): string {
-  const dayDiff = getDaysDifference(date, now);
-  
-  if (dayDiff === 0) return "Aujourd'hui";
-  if (dayDiff === 1) return "Demain";
-  if (dayDiff === 2) return "Dans 2 jours";
-  if (dayDiff === 3) return "Dans 3 jours";
-  return `Dans ${dayDiff} jours`;
+function getTimeIndicator(date: Date, reference: Date) {
+  const diff = getDaysDifference(date, reference);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return "Demain";
+  if (diff === 2) return "Dans 2 jours";
+  if (diff === 3) return "Dans 3 jours";
+  return `Dans ${diff} jours`;
 }
 
-function formatDateLabel(date: Date): string {
+function formatDateLabel(date: Date) {
   const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
   const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-  
-  const dayName = days[date.getDay()];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  
-  return `${dayName} ${day} ${month} ${year}`;
+  return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function extractVideoConferenceLink(event: Event): string | null {
+function extractVideoConferenceLink(event: Event) {
   const raw = event.raw;
-  
   if (!raw) return null;
 
-  const videoPatterns = [
+  const patterns = [
     /https?:\/\/[^\s<>"]*meet\.google\.com[^\s<>"]*/gi,
     /https?:\/\/[^\s<>"]*zoom\.us[^\s<>"]*/gi,
     /https?:\/\/[^\s<>"]*teams\.microsoft\.com[^\s<>"]*/gi,
@@ -246,52 +204,33 @@ function extractVideoConferenceLink(event: Event): string | null {
     /https?:\/\/[^\s<>"]*jitsi[^\s<>"]*/gi,
   ];
 
-  if (event.place) {
-    for (const pattern of videoPatterns) {
-      const match = event.place.match(pattern);
+  const searchStrings: string[] = [];
+  if (typeof event.place === "string") searchStrings.push(event.place);
+  if (raw?.description) searchStrings.push(raw.description);
+  if (raw?.body?.content) searchStrings.push(raw.body.content);
+  if (raw?.location) {
+    if (typeof raw.location === "string") searchStrings.push(raw.location);
+    if (raw.location.displayName) searchStrings.push(raw.location.displayName);
+  }
+  if (raw?.conferenceData?.entryPoints) {
+    for (const entry of raw.conferenceData.entryPoints) {
+      if (entry.entryPointType === "video" && entry.uri) return entry.uri;
+    }
+  }
+  if (raw?.onlineMeeting?.joinUrl) return raw.onlineMeeting.joinUrl;
+  if (raw?.hangoutLink) return raw.hangoutLink;
+
+  for (const str of searchStrings) {
+    for (const pattern of patterns) {
+      const match = str.match(pattern);
       if (match && match[0]) return match[0];
     }
   }
 
-  if (raw.description) {
-    for (const pattern of videoPatterns) {
-      const match = raw.description.match(pattern);
-      if (match && match[0]) return match[0];
-    }
-  }
-
-  if (raw.body?.content) {
-    for (const pattern of videoPatterns) {
-      const match = raw.body.content.match(pattern);
-      if (match && match[0]) return match[0];
-    }
-  }
-
-  if (raw.location) {
-    const locationStr = typeof raw.location === 'string' 
-      ? raw.location 
-      : raw.location.displayName || '';
-    
-    for (const pattern of videoPatterns) {
-      const match = locationStr.match(pattern);
-      if (match && match[0]) return match[0];
-    }
-  }
-
-  if (raw.conferenceData?.entryPoints) {
-    const videoEntry = raw.conferenceData.entryPoints.find(
-      (ep: any) => ep.entryPointType === 'video'
-    );
-    if (videoEntry?.uri) return videoEntry.uri;
-  }
-
-  if (raw.onlineMeeting?.joinUrl) return raw.onlineMeeting.joinUrl;
-  if (raw.hangoutLink) return raw.hangoutLink;
-
-  if (event.place && event.place.toLowerCase().includes("microsoft teams")) {
-    const rawStr = JSON.stringify(raw);
-    for (const pattern of videoPatterns) {
-      const match = rawStr.match(pattern);
+  if (raw && searchStrings.length === 0) {
+    const flat = JSON.stringify(raw);
+    for (const pattern of patterns) {
+      const match = flat.match(pattern);
       if (match && match[0]) return match[0];
     }
   }
@@ -299,7 +238,21 @@ function extractVideoConferenceLink(event: Event): string | null {
   return null;
 }
 
-function easeOutCubic(t: number): number {
+function getSeason(date: Date): Props["season"] {
+  const month = date.getMonth() + 1;
+  if (month >= 3 && month < 6) return "spring";
+  if (month >= 6 && month < 9) return "summer";
+  if (month >= 9 && month < 12) return "autumn";
+  return "winter";
+}
+
+function isDayMinute(minute: number, sunrise: number, sunset: number) {
+  const hour = minute / 60;
+  if (sunrise < sunset) return hour >= sunrise && hour < sunset;
+  return hour >= sunrise || hour < sunset;
+}
+
+function easeOutCubic(t: number) {
   return 1 - Math.pow(1 - t, 3);
 }
 
@@ -310,36 +263,31 @@ export const CircularCalendar: React.FC<Props> = ({
   season,
   onEventClick,
   size = DEFAULT_SIZE,
-  latitude,
-  longitude,
   wakeHour,
   bedHour,
   externalSelectedEvent,
   onEventBubbleClosed,
   onDayChange,
 }) => {
-  const [now, setNow] = React.useState<Date>(() => new Date());
+  const [now, setNow] = React.useState(() => new Date());
+  const [virtualDateTime, setVirtualDateTime] = React.useState(() => new Date());
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<Event | null>(null);
   const [hoveredEventIndex, setHoveredEventIndex] = React.useState<number | null>(null);
   const [cursorEventIndex, setCursorEventIndex] = React.useState<number | null>(null);
-  
   const [isScrolling, setIsScrolling] = React.useState(false);
   const [isReturning, setIsReturning] = React.useState(false);
   const [showTimeLabel, setShowTimeLabel] = React.useState(false);
   const [isLabelFadingOut, setIsLabelFadingOut] = React.useState(false);
-  
-  const [virtualDateTime, setVirtualDateTime] = React.useState<Date>(() => new Date());
   const [showDateLabel, setShowDateLabel] = React.useState(false);
-  const [lastDayNotified, setLastDayNotified] = React.useState<string>("");
+  const [lastDayNotified, setLastDayNotified] = React.useState("");
+  const [hoverRing, setHoverRing] = React.useState(false);
 
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   const nowIntervalRef = React.useRef<number | null>(null);
-
-  // Refs stables pour callbacks/données
-  const upcomingEventsRef = React.useRef<any[]>([]);
+  const upcomingEventsRef = React.useRef<{ event: Event; start: Date; end: Date }[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
 
   React.useEffect(() => {
@@ -353,14 +301,11 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
-  // Mise à jour de l'heure courante, sans perturber le scroll/retour
   React.useEffect(() => {
     const updateNow = () => {
-      const newNow = new Date();
-      setNow(newNow);
-      if (!isScrolling && !isReturning) {
-        setVirtualDateTime(newNow);
-      }
+      const current = new Date();
+      setNow(current);
+      if (!isScrolling && !isReturning) setVirtualDateTime(current);
     };
     updateNow();
     nowIntervalRef.current = window.setInterval(updateNow, 1000);
@@ -370,180 +315,292 @@ export const CircularCalendar: React.FC<Props> = ({
   }, [isScrolling, isReturning]);
 
   React.useEffect(() => {
-    const checkTheme = () => {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setIsDarkMode(isDark);
-    };
-    checkTheme();
+    const updateTheme = () => setIsDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
+    updateTheme();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => checkTheme();
+    const handler = () => updateTheme();
     if (mq.addEventListener) {
       mq.addEventListener("change", handler);
       return () => mq.removeEventListener("change", handler);
     }
+    return undefined;
   }, []);
 
   React.useEffect(() => {
-    const container = document.getElementById('calendar-container');
-    const pageContainer = document.getElementById('calendar-page-container');
-    if (!container || !pageContainer) return;
+    const container = document.getElementById("calendar-container");
+    const pageBackground = document.getElementById("calendar-page-container");
+    if (!container || !pageBackground) return;
 
-    const updateGradientCenter = () => {
+    const updateCenter = () => {
       const rect = container.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      const percentX = (centerX / window.innerWidth) * 100;
-      const percentY = (centerY / window.innerHeight) * 100;
-      pageContainer.style.setProperty('--calendar-center-x', `${percentX}%`);
-      pageContainer.style.setProperty('--calendar-center-y', `${percentY}%`);
+      pageBackground.style.setProperty("--calendar-center-x", `${(centerX / window.innerWidth) * 100}%`);
+      pageBackground.style.setProperty("--calendar-center-y", `${(centerY / window.innerHeight) * 100}%`);
     };
 
-    updateGradientCenter();
-    window.addEventListener('resize', updateGradientCenter);
-    window.addEventListener('scroll', updateGradientCenter);
+    updateCenter();
+    window.addEventListener("resize", updateCenter);
+    window.addEventListener("scroll", updateCenter);
     return () => {
-      window.removeEventListener('resize', updateGradientCenter);
-      window.removeEventListener('scroll', updateGradientCenter);
+      window.removeEventListener("resize", updateCenter);
+      window.removeEventListener("scroll", updateCenter);
     };
   }, [size]);
 
-  // Événements à afficher (journée virtuelle + 3 jours)
   const upcomingEvents = React.useMemo(() => {
-    const virtualDayStart = new Date(virtualDateTime);
-    virtualDayStart.setHours(0, 0, 0, 0);
-    const threeDaysLater = new Date(virtualDayStart);
+    const dayStart = new Date(virtualDateTime);
+    dayStart.setHours(0, 0, 0, 0);
+    const threeDaysLater = new Date(dayStart);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
-    const eventsWithDates = events
-      .map((e) => {
-        const start = getEventStartDate(e, now);
-        const end = start ? getEventEndDate(e, start) : null;
-        return { e, start, end };
+    return events
+      .map((event) => {
+        const start = getEventStartDate(event, now);
+        const end = start ? getEventEndDate(event, start) : null;
+        return { event, start, end };
       })
-      .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
-
-    return eventsWithDates
-      .filter((x) => x.start.getTime() >= virtualDayStart.getTime() && x.start.getTime() < threeDaysLater.getTime())
+      .filter((entry): entry is { event: Event; start: Date; end: Date } => !!entry.start && !!entry.end)
+      .filter((entry) => entry.start.getTime() >= dayStart.getTime() && entry.start.getTime() < threeDaysLater.getTime())
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, virtualDateTime, now]);
 
-  // Ref toujours à jour pour le handler de scroll
   React.useEffect(() => {
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
 
-  const hourDecimal = virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60 + virtualDateTime.getSeconds() / 3600;
-  const hour = virtualDateTime.getHours();
+  React.useEffect(() => {
+    const container = document.getElementById("calendar-container");
+    if (!container) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      setIsReturning(false);
+      setShowTimeLabel(false);
+      setIsLabelFadingOut(false);
+
+      const deltaMinutes = event.deltaY > 0 ? 15 : -15;
+
+      setVirtualDateTime((prev) => {
+        const nextTime = new Date(prev);
+        nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
+
+        const dayChanged = nextTime.getDate() !== prev.getDate();
+        setIsScrolling(true);
+
+        if (dayChanged) {
+          setShowDateLabel(true);
+          const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
+          setLastDayNotified((prevKey) => {
+            if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+            return dayKey;
+          });
+        }
+
+        let matchedIndex: number | null = null;
+        const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+        const dayStart = new Date(nextTime);
+        dayStart.setHours(0, 0, 0, 0);
+        const nextDay = new Date(dayStart);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const dayEvents = upcomingEventsRef.current.filter((entry) => {
+          const startMs = entry.start.getTime();
+          return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
+        });
+
+        for (let i = 0; i < dayEvents.length; i += 1) {
+          const { event: arcEvent, start, end } = dayEvents[i];
+          const startHour = start.getHours() + start.getMinutes() / 60;
+          const endHour = end.getHours() + end.getMinutes() / 60;
+          if (virtualHour >= startHour && virtualHour <= endHour) {
+            matchedIndex = i;
+            setSelectedEvent(arcEvent);
+            break;
+          }
+        }
+
+        if (matchedIndex === null) setSelectedEvent(null);
+        setCursorEventIndex(matchedIndex);
+
+        if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+
+        const randomDelay = 8000 + Math.random() * 2000;
+        const captured = new Date(nextTime);
+
+        scrollTimeoutRef.current = window.setTimeout(() => {
+          setIsScrolling(false);
+          setIsReturning(true);
+
+          const duration = 1500;
+          const startTime = performance.now();
+
+          const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = easeOutCubic(progress);
+
+            const target = new Date();
+            const diff = target.getTime() - captured.getTime();
+            const interpolated = new Date(captured.getTime() + diff * eased);
+            setVirtualDateTime(interpolated);
+
+            if (progress < 1) {
+              animationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              setVirtualDateTime(new Date());
+              setIsReturning(false);
+              setShowTimeLabel(true);
+              setIsLabelFadingOut(false);
+              setCursorEventIndex(null);
+              setShowDateLabel(false);
+
+              if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+              labelTimeoutRef.current = window.setTimeout(() => {
+                setIsLabelFadingOut(true);
+                window.setTimeout(() => {
+                  setShowTimeLabel(false);
+                  setIsLabelFadingOut(false);
+                }, 800);
+              }, 3000);
+            }
+          };
+
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }, randomDelay);
+
+        return nextTime;
+      });
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, []);
+
   const currentSeason = season || getSeason(virtualDateTime);
-
-  const SIZE = size;
-  const RADIUS = SIZE / 2 - 8;
-  const INNER_RADIUS = RADIUS - RING_THICKNESS;
-
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
+  const sizeScale = size / DEFAULT_SIZE;
+  const radius = size / 2 - 8;
+  const innerRadius = radius - RING_THICKNESS;
+  const cx = size / 2;
+  const cy = size / 2;
   const blockAngle = 360 / SEGMENTS;
 
-  const scale = SIZE / (DEFAULT_SIZE || 1);
-  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * scale * 0.72, SIZE * 0.045));
-  const strokeWidthCurrent = Math.max(0.4, 0.7 * scale);
-  const strokeWidthNormal = Math.max(0.3, 0.5 * scale);
-  const metaIconSize = Math.round(Math.max(12, Math.min(16 * scale, 16)));
+  const hourDecimal = virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60 + virtualDateTime.getSeconds() / 3600;
+  const hour = virtualDateTime.getHours();
 
-  const wedges = Array.from({ length: SEGMENTS }).map((_, i) => {
-    const startAngle = -90 + i * blockAngle;
-    const endAngle = startAngle + blockAngle;
+  const hourFontSize = Math.max(8, Math.min(RING_THICKNESS * sizeScale * 0.72, size * 0.045));
+  const strokeWidthCurrent = Math.max(0.4, 0.7 * sizeScale);
+  const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
+  const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
-    if (i % 60 === 0) {
-      return { d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle), fill: "none", key: i };
-    }
-    const isDayBlock = isDayMinute(i, sunrise, sunset);
-    return { d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle), fill: isDayBlock ? SEASON_COLORS[currentSeason] : NIGHT_COLOR, key: i };
-  });
+  const wedges = React.useMemo(
+    () =>
+      Array.from({ length: SEGMENTS }, (_, i) => {
+        const startAngle = -90 + i * blockAngle;
+        const endAngle = startAngle + blockAngle;
 
-  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
+        if (i % 60 === 0) {
+          return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill: "none" };
+        }
+
+        const fill = isDayMinute(i, sunrise, sunset) ? SEASON_COLORS[currentSeason] : NIGHT_COLOR;
+        return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill };
+      }),
+    [blockAngle, cx, cy, currentSeason, innerRadius, radius, sunrise, sunset],
+  );
+
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
   const cursorExtension = RING_THICKNESS * 0.2;
-  const cursorX1 = cx + (INNER_RADIUS - cursorExtension) * Math.cos(cursorRad);
-  const cursorY1 = cy + (INNER_RADIUS - cursorExtension) * Math.sin(cursorRad);
-  const cursorX2 = cx + (RADIUS + cursorExtension) * Math.cos(cursorRad);
-  const cursorY2 = cy + (RADIUS + cursorExtension) * Math.sin(cursorRad);
-
-  const [hoverRing, setHoverRing] = React.useState(false);
+  const cursorX1 = cx + (innerRadius - cursorExtension) * Math.cos(cursorRad);
+  const cursorY1 = cy + (innerRadius - cursorExtension) * Math.sin(cursorRad);
+  const cursorX2 = cx + (radius + cursorExtension) * Math.cos(cursorRad);
+  const cursorY2 = cy + (radius + cursorExtension) * Math.sin(cursorRad);
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
 
   const angleFromHour = (time: number) => (time / 24) * 360 - 90;
   const toPoint = (angleDeg: number, r: number) => {
     const rad = (Math.PI / 180) * angleDeg;
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   };
+
   const sunriseAngle = angleFromHour(sunrise);
   const sunsetAngle = angleFromHour(sunset);
   const iconGap = Math.max(2, Math.round(metaIconSize * 0.12));
-  const iconRadius = Math.max(0, INNER_RADIUS - metaIconSize / 2 - iconGap);
-  const sunrisePt = toPoint(sunriseAngle, iconRadius);
-  const sunsetPt = toPoint(sunsetAngle, iconRadius);
+  const iconRadius = Math.max(0, innerRadius - metaIconSize / 2 - iconGap);
+  const sunrisePoint = toPoint(sunriseAngle, iconRadius);
+  const sunsetPoint = toPoint(sunsetAngle, iconRadius);
   const sunriseRotation = sunriseAngle + 90;
   const sunsetRotation = sunsetAngle + 90;
 
-  const arcStroke = Math.max(2, Math.round(3 * scale));
-  const arcGap = Math.max(1, Math.round(scale));
-  const innerArcRadius = Math.max(arcStroke, INNER_RADIUS - arcGap - arcStroke / 2);
-  const outsideArcRadius = RADIUS + arcGap + arcStroke / 2;
+  const arcStroke = Math.max(2, Math.round(3 * sizeScale));
+  const arcGap = Math.max(1, Math.round(sizeScale));
+  const innerArcRadius = Math.max(arcStroke, innerRadius - arcGap - arcStroke / 2);
+  const outerArcRadius = radius + arcGap + arcStroke / 2;
 
   const nowAngleDeg = angleFromHour(hourDecimal);
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
 
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
-    let w = wakeHour;
-    let b = bedHour;
-    let n = hourDecimal;
-    if (b <= w) b += 24;
-    if (n < w) n += 24;
+    let wake = wakeHour;
+    let bed = bedHour;
+    let current = hourDecimal;
 
-    const wAngle = angleFromHour(wakeHour % 24);
-    const bAngle = angleFromHour(bedHour % 24);
-    const nAngle = angleFromHour(hourDecimal % 24);
+    if (bed <= wake) bed += 24;
+    if (current < wake) current += 24;
 
-    if (n <= w) {
-      futureArc = { start: wAngle, end: bAngle };
-    } else if (n >= b) {
-      pastArc = { start: wAngle, end: bAngle };
+    const wakeAngle = angleFromHour(wakeHour % 24);
+    const bedAngle = angleFromHour(bedHour % 24);
+    const currentAngle = angleFromHour(hourDecimal % 24);
+
+    if (current <= wake) {
+      futureArc = { start: wakeAngle, end: bedAngle };
+    } else if (current >= bed) {
+      pastArc = { start: wakeAngle, end: bedAngle };
     } else {
-      pastArc = { start: wAngle, end: nAngle };
-      futureArc = { start: nAngle, end: bAngle };
+      pastArc = { start: wakeAngle, end: currentAngle };
+      futureArc = { start: currentAngle, end: bedAngle };
     }
-  } else {
-    if (sunrise < sunset) {
-      if (hourDecimal <= sunrise) {
-        futureArc = { start: sunriseAngle, end: sunsetAngle };
-      } else if (hourDecimal >= sunset) {
-        pastArc = { start: sunriseAngle, end: sunsetAngle };
-      } else {
-        pastArc = { start: sunriseAngle, end: nowAngleDeg };
-        futureArc = { start: nowAngleDeg, end: sunsetAngle };
-      }
+  } else if (sunrise < sunset) {
+    if (hourDecimal <= sunrise) {
+      futureArc = { start: sunriseAngle, end: sunsetAngle };
+    } else if (hourDecimal >= sunset) {
+      pastArc = { start: sunriseAngle, end: sunsetAngle };
+    } else {
+      pastArc = { start: sunriseAngle, end: nowAngleDeg };
+      futureArc = { start: nowAngleDeg, end: sunsetAngle };
     }
   }
 
-  const dividerWidth = Math.max(1, Math.round(2 * scale));
-  const hourSlits = Array.from({ length: 24 }).map((_, i) => {
+  const dividerWidth = Math.max(1, Math.round(2 * sizeScale));
+  const hourDividers = Array.from({ length: 24 }, (_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
-    const x1 = cx + INNER_RADIUS * Math.cos(angle);
-    const y1 = cy + INNER_RADIUS * Math.sin(angle);
-    const x2 = cx + RADIUS * Math.cos(angle);
-    const y2 = cy + RADIUS * Math.sin(angle);
+    const x1 = cx + innerRadius * Math.cos(angle);
+    const y1 = cy + innerRadius * Math.sin(angle);
+    const x2 = cx + radius * Math.cos(angle);
+    const y2 = cy + radius * Math.sin(angle);
     return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="black" strokeWidth={dividerWidth} />;
   });
 
-  const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
+  const hourNumbers = Array.from({ length: 24 }, (_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const angleDeg = (i / 24) * 360 - 90;
-    const r = (RADIUS + INNER_RADIUS) / 2;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
+    const radiusForText = (radius + innerRadius) / 2;
+    const x = cx + radiusForText * Math.cos(angle);
+    const y = cy + radiusForText * Math.sin(angle);
     const isCurrent = i === hour;
+
     return (
       <text
         key={i}
@@ -552,7 +609,7 @@ export const CircularCalendar: React.FC<Props> = ({
         textAnchor="middle"
         transform={`rotate(${angleDeg + 90} ${x} ${y})`}
         fontSize={hourFontSize}
-        fontWeight={isCurrent ? "bold" : "600"}
+        fontWeight={isCurrent ? "bold" : 600}
         fill="#fff"
         style={{
           pointerEvents: "none",
@@ -572,7 +629,7 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  const event = getCurrentOrNextEvent(events, virtualDateTime);
+  const currentEvent = getCurrentOrNextEvent(events, virtualDateTime);
 
   const dayColors = [
     isDarkMode ? "#bfdbfe" : "#1d4ed8",
@@ -580,138 +637,8 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // Listener wheel: attaché une seule fois, stable
-  React.useEffect(() => {
-    const container = document.getElementById('calendar-container');
-    if (!container) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      setIsReturning(false);
-      setShowTimeLabel(false);
-      setIsLabelFadingOut(false);
-
-      const deltaMinutes = e.deltaY > 0 ? 15 : -15;
-
-      setVirtualDateTime((prev) => {
-        const newVirtualTime = new Date(prev);
-        newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
-
-        const dayChanged = newVirtualTime.getDate() !== prev.getDate();
-        setIsScrolling(true);
-
-        if (dayChanged) {
-          setShowDateLabel(true);
-          const dayKey = `${newVirtualTime.getFullYear()}-${newVirtualTime.getMonth()}-${newVirtualTime.getDate()}`;
-          setLastDayNotified((prevKey) => {
-            if (dayKey !== prevKey && onDayChangeRef.current) {
-              onDayChangeRef.current(newVirtualTime);
-            }
-            return dayKey;
-          });
-        }
-
-        // Recherche d’événement au curseur virtuel
-        let foundEventIndex: number | null = null;
-        const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
-
-        const virtualDayStart = new Date(newVirtualTime);
-        virtualDayStart.setHours(0, 0, 0, 0);
-        const nextDay = new Date(virtualDayStart);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        const dayEvents = upcomingEventsRef.current.filter((x: any) => {
-          return x.start.getTime() >= virtualDayStart.getTime() && x.start.getTime() < nextDay.getTime();
-        });
-
-        for (let i = 0; i < dayEvents.length; i++) {
-          const { e, start, end } = dayEvents[i];
-          const startHour = start.getHours() + start.getMinutes() / 60;
-          const endHour = end.getHours() + end.getMinutes() / 60;
-          if (virtualHour >= startHour && virtualHour <= endHour) {
-            foundEventIndex = i;
-            setSelectedEvent(e);
-            break;
-          }
-        }
-
-        if (foundEventIndex === null) setSelectedEvent(null);
-        setCursorEventIndex(foundEventIndex);
-
-        // Timeout de retour au présent
-        if (scrollTimeoutRef.current) {
-          window.clearTimeout(scrollTimeoutRef.current);
-        }
-
-        const randomDelay = 8000 + Math.random() * 2000;
-        const capturedVirtualTime = new Date(newVirtualTime);
-
-        scrollTimeoutRef.current = window.setTimeout(() => {
-          setIsScrolling(false);
-          setIsReturning(true);
-
-          const duration = 1500;
-          const startTime = performance.now();
-
-          const animate = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easedProgress = easeOutCubic(progress);
-
-            const targetTime = new Date();
-            const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
-            const interpolatedTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
-
-            setVirtualDateTime(interpolatedTime);
-
-            if (progress < 1) {
-              animationFrameRef.current = requestAnimationFrame(animate);
-            } else {
-              setVirtualDateTime(new Date());
-              setIsReturning(false);
-              setShowTimeLabel(true);
-              setIsLabelFadingOut(false);
-              setCursorEventIndex(null);
-              setShowDateLabel(false);
-
-              if (labelTimeoutRef.current) {
-                window.clearTimeout(labelTimeoutRef.current);
-              }
-              labelTimeoutRef.current = window.setTimeout(() => {
-                setIsLabelFadingOut(true);
-                setTimeout(() => {
-                  setShowTimeLabel(false);
-                  setIsLabelFadingOut(false);
-                }, 800);
-              }, 3000);
-            }
-          };
-
-          animationFrameRef.current = requestAnimationFrame(animate);
-        }, randomDelay);
-
-        return newVirtualTime;
-      });
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
-      if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, []);
-
-  const eventArcs = upcomingEvents.map((item, idx) => {
-    const { e, start, end } = item;
+  const eventArcs = upcomingEvents.map((entry, index) => {
+    const { event, start, end } = entry;
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
 
@@ -720,24 +647,24 @@ export const CircularCalendar: React.FC<Props> = ({
 
     const virtualMs = virtualDateTime.getTime();
     const isCurrent = start.getTime() <= virtualMs && end.getTime() > virtualMs;
-    const isHovered = hoveredEventIndex === idx;
-    const isCursorEvent = cursorEventIndex === idx;
+    const isHovered = hoveredEventIndex === index;
+    const isCursor = cursorEventIndex === index;
 
     const dayDiff = getDaysDifference(start, virtualDateTime);
     const colorIndex = Math.min(Math.abs(dayDiff), dayColors.length - 1);
     const color = dayColors[colorIndex];
 
-    const totalEvents = upcomingEvents.length;
-    const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
-    const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
+    const totalEvents = upcomingEvents.length || 1;
+    const radiusStep = RING_THICKNESS / totalEvents;
+    const eventRadius = innerRadius + radiusStep * index + radiusStep / 2;
 
     const baseOpacity = isCurrent ? 1 : 0.7;
-    const opacity = (isHovered || isCursorEvent) ? 1 : baseOpacity;
-    const strokeWidth = (isHovered || isCursorEvent) ? Math.max(3, radiusStep * 1.2) : Math.max(2, radiusStep * 0.8);
+    const opacity = isHovered || isCursor ? 1 : baseOpacity;
+    const strokeWidth = isHovered || isCursor ? Math.max(3, radiusStep * 1.2) : Math.max(2, radiusStep * 0.8);
 
     return (
-      <g key={`event-${idx}`}>
-        {(isHovered || isCursorEvent) && (
+      <g key={`${event.title}-${index}`}>
+        {(isHovered || isCursor) && (
           <path
             d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
             fill="none"
@@ -757,11 +684,15 @@ export const CircularCalendar: React.FC<Props> = ({
           style={{
             pointerEvents: "stroke",
             cursor: "pointer",
-            filter: (isHovered || isCursorEvent) ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)` : "none",
+            filter: isHovered || isCursor ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)` : "none",
             transition: "all 0.2s ease-out",
           }}
-          onClick={() => handleEventClick(e)}
-          onMouseEnter={() => setHoveredEventIndex(idx)}
+          onClick={() => {
+            setSelectedEvent(event);
+            setCursorEventIndex(null);
+            onEventClick?.(event);
+          }}
+          onMouseEnter={() => setHoveredEventIndex(index)}
           onMouseLeave={() => setHoveredEventIndex(null)}
         />
       </g>
@@ -773,78 +704,56 @@ export const CircularCalendar: React.FC<Props> = ({
     const bedAngle = angleFromHour(bedHour);
     const wakeAngle = angleFromHour(wakeHour);
     sleepOverlays.push(
-      <path key="sleep-main" d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, bedAngle, wakeAngle)} fill="rgba(0, 0, 0, 0.4)" style={{ pointerEvents: "none" }} />
+      <path key="sleep-main" d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} fill="rgba(0, 0, 0, 0.4)" style={{ pointerEvents: "none" }} />,
     );
-    const recommendedSleepStart = (wakeHour - 9 + 24) % 24;
-    const recommendedAngle = angleFromHour(recommendedSleepStart);
+
+    const recommendedStart = (wakeHour - 9 + 24) % 24;
+    const recommendedAngle = angleFromHour(recommendedStart);
     sleepOverlays.push(
-      <path key="sleep-recommended" d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, recommendedAngle, bedAngle)} fill="rgba(0, 0, 0, 0.2)" style={{ pointerEvents: "none" }} />
+      <path key="sleep-recommended" d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, bedAngle)} fill="rgba(0, 0, 0, 0.2)" style={{ pointerEvents: "none" }} />,
     );
   }
 
-  const handleEventClick = (evt: Event) => {
-    setSelectedEvent(evt);
-    setCursorEventIndex(null);
-    if (onEventClick) onEventClick(evt);
-  };
+  const currentEventStart = currentEvent ? getEventStartDate(currentEvent, virtualDateTime) : null;
+  const centerTimeIndicator = currentEventStart ? getTimeIndicator(currentEventStart, virtualDateTime) : "";
 
-  const handleBubbleClose = () => {
-    setSelectedEvent(null);
-    setCursorEventIndex(null);
-    if (onEventBubbleClosed) onEventBubbleClosed();
-  };
+  const selectedStart = selectedEvent ? getEventStartDate(selectedEvent, virtualDateTime) : null;
+  const selectedDateLabel = selectedStart ? formatEventDate(selectedStart) : "";
+  const selectedTimeRemaining = selectedStart ? formatTimeRemaining(selectedStart, virtualDateTime) : "";
+  const selectedOrganizer = selectedEvent?.raw?.organizer?.displayName || selectedEvent?.raw?.organizer?.emailAddress?.name || selectedEvent?.place || "";
+  const selectedUrl = selectedEvent?.url || selectedEvent?.raw?.htmlLink || selectedEvent?.raw?.webLink || "";
+  const videoLink = selectedEvent ? extractVideoConferenceLink(selectedEvent) : null;
 
-  let eventOrganizer = "";
-  let eventDate = "";
-  let timeRemaining = "";
-  let eventUrl = "";
-  let videoLink = "";
-
-  if (selectedEvent) {
-    const startDate = getEventStartDate(selectedEvent, virtualDateTime);
-    if (startDate) {
-      eventDate = formatEventDate(startDate);
-      timeRemaining = formatTimeRemaining(startDate, virtualDateTime);
-    }
-    eventOrganizer = selectedEvent.raw?.organizer?.displayName || selectedEvent.raw?.organizer?.emailAddress?.name || selectedEvent.place || "";
-    eventUrl = selectedEvent.url || selectedEvent.raw?.htmlLink || selectedEvent.raw?.webLink || "";
-    videoLink = extractVideoConferenceLink(selectedEvent) || "";
-  }
-
-  let centerTimeIndicator = "";
-  if (event) {
-    const startDate = getEventStartDate(event, virtualDateTime);
-    if (startDate) centerTimeIndicator = getTimeIndicator(startDate, virtualDateTime);
-  }
-
-  const bubbleDiameter = INNER_RADIUS * 1.8;
+  const bubbleDiameter = innerRadius * 1.8;
 
   const labelOffset = Math.max(8, RING_THICKNESS * 0.25) + 15;
-  const timeLabelRadius = INNER_RADIUS - labelOffset;
-  const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
+  const timeLabelRadius = innerRadius - labelOffset;
+  const timeLabelPoint = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div id="calendar-container" style={{ position: "relative", width: SIZE, height: SIZE }}>
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
+      <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
           <defs>
-            <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (RADIUS + RING_THICKNESS)} y={cy - (RADIUS + RING_THICKNESS)} width={(RADIUS + RING_THICKNESS) * 2} height={(RADIUS + RING_THICKNESS) * 2}>
+            <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
             </filter>
-            <mask id="ringFadeMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={0} y={0} width={SIZE} height={SIZE}>
-              <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
+            <mask id="ringFadeMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
+              <rect x={0} y={0} width={size} height={size} fill="black" />
               <g filter="url(#ringEdgeBlur)">
-                <circle cx={cx} cy={cy} r={(INNER_RADIUS + RADIUS) / 2} stroke="white" strokeWidth={RING_THICKNESS} fill="none" />
+                <circle cx={cx} cy={cy} r={(innerRadius + radius) / 2} stroke="white" strokeWidth={RING_THICKNESS} fill="none" />
               </g>
-              <g>{hourSlits}</g>
+              <g>{hourDividers}</g>
             </mask>
           </defs>
 
           <g mask="url(#ringFadeMask)" onMouseEnter={() => setHoverRing(true)} onMouseLeave={() => setHoverRing(false)}>
-            {wedges.map((w) => <path key={w.key} d={w.d} fill={w.fill} stroke="none" />)}
+            {wedges.map((wedge) => (
+              <path key={wedge.key} d={wedge.path} fill={wedge.fill} stroke="none" />
+            ))}
           </g>
 
           <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
@@ -854,23 +763,14 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
 
           {hoverRing && futureArc && (
-            <path d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+            <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           <g style={{ position: "relative", zIndex: 2 }}>{hoverRing && hourNumbers}</g>
           <g style={{ position: "relative", zIndex: 3 }}>{eventArcs}</g>
 
           {isScrolling && (
-            <line
-              x1={cursorX1}
-              y1={cursorY1}
-              x2={cursorX2}
-              y2={cursorY2}
-              stroke="rgba(255, 255, 255, 0.4)"
-              strokeWidth={8}
-              strokeLinecap="round"
-              style={{ pointerEvents: "none", filter: "blur(3px)" }}
-            />
+            <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" style={{ pointerEvents: "none", filter: "blur(3px)" }} />
           )}
 
           <line
@@ -890,15 +790,21 @@ export const CircularCalendar: React.FC<Props> = ({
 
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
-          style={{ transform: `translate(-50%, -50%)`, width: INNER_RADIUS * 1.6, height: INNER_RADIUS * 1.6, cursor: event ? "pointer" : "default", pointerEvents: "auto", zIndex: 5 }}
-          onClick={() => event && handleEventClick(event)}
-          role={event ? "button" : undefined}
-          aria-label={event ? `Voir les détails: ${event.title}` : undefined}
+          style={{ transform: "translate(-50%, -50%)", width: innerRadius * 1.6, height: innerRadius * 1.6, cursor: currentEvent ? "pointer" : "default", pointerEvents: "auto", zIndex: 5 }}
+          onClick={() => {
+            if (currentEvent) {
+              setSelectedEvent(currentEvent);
+              setCursorEventIndex(null);
+              onEventClick?.(currentEvent);
+            }
+          }}
+          role={currentEvent ? "button" : undefined}
+          aria-label={currentEvent ? `Voir les détails: ${currentEvent.title}` : undefined}
         >
-          {event ? (
+          {currentEvent ? (
             <>
               <div className="text-xs calendar-center-meta opacity-60 mb-2">{centerTimeIndicator}</div>
-              <div className="calendar-center-title font-bold text-base leading-tight px-4">{event.title}</div>
+              <div className="calendar-center-title font-bold text-base leading-tight px-4">{currentEvent.title}</div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
@@ -909,17 +815,20 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
 
         {selectedEvent && (
-          // Important: overlay non bloquant; seule la bulle capte les interactions
-          <div style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }}>
-            <div style={{ position: "absolute", inset: 0, pointerEvents: "auto" }}>
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 6, pointerEvents: "none" }}>
+            <div style={{ pointerEvents: "auto" }}>
               <EventInfoBubble
                 title={selectedEvent.title}
-                organizer={eventOrganizer}
-                date={eventDate}
-                timeRemaining={timeRemaining}
-                url={eventUrl}
-                videoLink={videoLink}
-                onClose={handleBubbleClose}
+                organizer={selectedOrganizer}
+                date={selectedDateLabel}
+                timeRemaining={selectedTimeRemaining}
+                url={selectedUrl}
+                videoLink={videoLink ?? undefined}
+                onClose={() => {
+                  setSelectedEvent(null);
+                  setCursorEventIndex(null);
+                  onEventBubbleClosed?.();
+                }}
                 diameter={bubbleDiameter}
               />
             </div>
@@ -930,11 +839,11 @@ export const CircularCalendar: React.FC<Props> = ({
           <div
             className="absolute pointer-events-none"
             style={{
-              left: timeLabelPt.x,
-              top: timeLabelPt.y,
+              left: timeLabelPoint.x,
+              top: timeLabelPoint.y,
               transform: `translate(-50%, -50%) rotate(${timeLabelRotation}deg)`,
               transformOrigin: "center",
-              animation: "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              animation: isLabelFadingOut ? "quantum-fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards" : "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
               zIndex: 7,
             }}
           >
@@ -955,13 +864,13 @@ export const CircularCalendar: React.FC<Props> = ({
         )}
 
         {showDateLabel && daysDiff !== 0 && (
-          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${INNER_RADIUS * 0.5}px)`, transform: `translateX(-50%)`, zIndex: 8 }}>
+          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.5}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
             <div className="px-3 py-1.5 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
               <div style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
                 {formatDateLabel(virtualDateTime)}
               </div>
               <div style={{ fontSize: 9, lineHeight: 1, color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center", marginTop: "2px" }}>
-                {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? 's' : ''}` : `${daysDiff} jour${daysDiff < -1 ? 's' : ''}`}
+                {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? "s" : ""}` : `${daysDiff} jour${daysDiff < -1 ? "s" : ""}`}
               </div>
             </div>
           </div>
@@ -971,18 +880,14 @@ export const CircularCalendar: React.FC<Props> = ({
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div
-                  className="absolute"
-                  style={{ left: sunrisePt.x - metaIconSize / 2, top: sunrisePt.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
-                  aria-label={`Sunrise at ${formatHour(sunrise)}`}
-                >
+                <div className="absolute" style={{ left: sunrisePoint.x - metaIconSize / 2, top: sunrisePoint.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunrise at ${formatHour(sunrise)}`}>
                   <Sunrise className="text-yellow-400" size={metaIconSize} />
                 </div>
               </TooltipTrigger>
               <TooltipContent
                 side={(() => {
-                  const dx = cx - sunrisePt.x;
-                  const dy = cy - sunrisePt.y;
+                  const dx = cx - sunrisePoint.x;
+                  const dy = cy - sunrisePoint.y;
                   if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
                   return dy > 0 ? "bottom" : "top";
                 })()}
@@ -995,18 +900,14 @@ export const CircularCalendar: React.FC<Props> = ({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div
-                  className="absolute"
-                  style={{ left: sunsetPt.x - metaIconSize / 2, top: sunsetPt.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
-                  aria-label={`Sunset at ${formatHour(sunset)}`}
-                >
+                <div className="absolute" style={{ left: sunsetPoint.x - metaIconSize / 2, top: sunsetPoint.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunset at ${formatHour(sunset)}`}>
                   <Sunset className="text-orange-400" size={metaIconSize} />
                 </div>
               </TooltipTrigger>
               <TooltipContent
                 side={(() => {
-                  const dx = cx - sunsetPt.x;
-                  const dy = cy - sunsetPt.y;
+                  const dx = cx - sunsetPoint.x;
+                  const dy = cy - sunsetPoint.y;
                   if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
                   return dy > 0 ? "bottom" : "top";
                 })()}
