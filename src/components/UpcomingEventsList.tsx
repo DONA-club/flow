@@ -136,7 +136,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
-        style={{ zIndex: 100 }}
+        style={{ zIndex: 1000 }}
         aria-label="Afficher les événements à venir"
       >
         {isAnimating && (
@@ -161,7 +161,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         "relative overflow-hidden",
         className || "",
       ].join(" ").trim()}
-      style={{ zIndex: 100 }}
+      style={{ zIndex: 1000 }}
       aria-label="Événements à venir"
     >
       {isAnimating && (
