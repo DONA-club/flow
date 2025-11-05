@@ -413,6 +413,15 @@ const CircularCalendarDemo = () => {
         <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
 
+      {hasAnyConnection && (
+        <UpcomingEventsList
+          events={combinedEvents}
+          onSelect={(evt) => {
+            setSelectedEventFromList(evt);
+          }}
+        />
+      )}
+
       <div 
         className="flex flex-col items-center justify-center min-h-screen py-8" 
         style={{ position: "relative", zIndex: 10 }}
@@ -439,15 +448,6 @@ const CircularCalendarDemo = () => {
           )}
         </div>
       </div>
-
-      {hasAnyConnection && (
-        <UpcomingEventsList
-          events={combinedEvents}
-          onSelect={(evt) => {
-            setSelectedEventFromList(evt);
-          }}
-        />
-      )}
     </>
   );
 };
