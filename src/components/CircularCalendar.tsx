@@ -331,6 +331,8 @@ export const CircularCalendar: React.FC<Props> = ({
   // Refs pour les interactions tactiles
   const touchStartRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
   const lastAngleRef = React.useRef<number>(0);
+  const lastUpdateTimeRef = React.useRef<number>(0);
+  const accumulatedAngleDeltaRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 640);
@@ -565,7 +567,7 @@ export const CircularCalendar: React.FC<Props> = ({
       handleScroll(event.deltaY, event.deltaX);
     };
 
-    // Gestion du touch (mobile)
+    // Gestion du touch (mobile) - FLUIDIFIÉE
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       
@@ -580,8 +582,9 @@ export const CircularCalendar: React.FC<Props> = ({
         time: Date.now()
       };
       
-      // Calculer l'angle initial
       lastAngleRef.current = getAngleFromCenter(cx, cy, touch.clientX, touch.clientY);
+      lastUpdateTimeRef.current = Date.now();
+      accumulatedAngleDeltaRef.current = 0;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
@@ -597,7 +600,6 @@ export const CircularCalendar: React.FC<Props> = ({
       const totalDeltaX = touch.clientX - touchStartRef.current.x;
       const totalDeltaY = touch.clientY - touchStartRef.current.y;
       
-      // Déterminer la direction dominante
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
       if (isHorizontal) {
@@ -613,7 +615,7 @@ export const CircularCalendar: React.FC<Props> = ({
           };
         }
       } else {
-        // Drag vertical = rotation du curseur (comme tourner une roue)
+        // Drag vertical = rotation fluide du curseur
         setIsDraggingCursor(true);
         setIsScrolling(true);
         
@@ -626,59 +628,73 @@ export const CircularCalendar: React.FC<Props> = ({
         
         lastAngleRef.current = currentAngle;
         
-        // Convertir la rotation en minutes (1 tour = 24h = 1440 minutes)
-        const minutesDelta = (angleDelta / 360) * 1440;
+        // Accumuler les petits deltas pour une rotation fluide
+        accumulatedAngleDeltaRef.current += angleDelta;
         
-        setVirtualDateTime((prev) => {
-          const nextTime = new Date(prev);
-          nextTime.setMinutes(nextTime.getMinutes() + minutesDelta);
+        const currentTime = Date.now();
+        const timeSinceLastUpdate = currentTime - lastUpdateTimeRef.current;
+        
+        // Throttling adaptatif : mise à jour plus fréquente = plus fluide
+        const updateThreshold = 16; // ~60fps
+        
+        if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 5) {
+          const minutesDelta = (accumulatedAngleDeltaRef.current / 360) * 1440;
           
-          const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
-          
-          onVirtualDateTimeChangeRef.current?.(nextTime);
+          setVirtualDateTime((prev) => {
+            const nextTime = new Date(prev);
+            nextTime.setMinutes(nextTime.getMinutes() + minutesDelta);
+            
+            const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
+            
+            onVirtualDateTimeChangeRef.current?.(nextTime);
 
-          if (dayChanged) {
-            setShowDateLabel(true);
-            const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
-            setLastDayNotified((prevKey) => {
-              if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
-              return dayKey;
-            });
-          }
-
-          let matchedIndex: number | null = null;
-          const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
-          const dayStart = new Date(nextTime);
-          dayStart.setHours(0, 0, 0, 0);
-          const nextDay = new Date(dayStart);
-          nextDay.setDate(nextDay.getDate() + 1);
-
-          const dayEvents = upcomingEventsRef.current.filter((entry) => {
-            const startMs = entry.start.getTime();
-            return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
-          });
-
-          for (let i = 0; i < dayEvents.length; i += 1) {
-            const { event: arcEvent, start, end } = dayEvents[i];
-            const startHour = start.getHours() + start.getMinutes() / 60;
-            const endHour = end.getHours() + end.getMinutes() / 60;
-            if (virtualHour >= startHour && virtualHour <= endHour) {
-              matchedIndex = i;
-              setSelectedEvent(arcEvent);
-              break;
+            if (dayChanged) {
+              setShowDateLabel(true);
+              const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
+              setLastDayNotified((prevKey) => {
+                if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+                return dayKey;
+              });
             }
-          }
 
-          if (matchedIndex === null) setSelectedEvent(null);
-          setCursorEventIndex(matchedIndex);
+            let matchedIndex: number | null = null;
+            const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+            const dayStart = new Date(nextTime);
+            dayStart.setHours(0, 0, 0, 0);
+            const nextDay = new Date(dayStart);
+            nextDay.setDate(nextDay.getDate() + 1);
+
+            const dayEvents = upcomingEventsRef.current.filter((entry) => {
+              const startMs = entry.start.getTime();
+              return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
+            });
+
+            for (let i = 0; i < dayEvents.length; i += 1) {
+              const { event: arcEvent, start, end } = dayEvents[i];
+              const startHour = start.getHours() + start.getMinutes() / 60;
+              const endHour = end.getHours() + end.getMinutes() / 60;
+              if (virtualHour >= startHour && virtualHour <= endHour) {
+                matchedIndex = i;
+                setSelectedEvent(arcEvent);
+                break;
+              }
+            }
+
+            if (matchedIndex === null) setSelectedEvent(null);
+            setCursorEventIndex(matchedIndex);
+            
+            return nextTime;
+          });
           
-          return nextTime;
-        });
+          accumulatedAngleDeltaRef.current = 0;
+          lastUpdateTimeRef.current = currentTime;
+        }
       }
     };
 
     const handleTouchEnd = () => {
       touchStartRef.current = null;
+      accumulatedAngleDeltaRef.current = 0;
       
       if (isDraggingCursor) {
         setIsDraggingCursor(false);
@@ -1227,7 +1243,7 @@ export const CircularCalendar: React.FC<Props> = ({
           <div 
             className="absolute left-1/2 pointer-events-none" 
             style={{ 
-              top: `calc(50% - ${innerRadius * 0.375}px)`,
+              top: `calc(50% - ${innerRadius * 0.75}px)`,
               transform: "translateX(-50%)", 
               zIndex: 8 
             }}
