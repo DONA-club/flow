@@ -27,263 +27,126 @@ function detectPlatform(url: string): string {
   return "Vidéoconférence";
 }
 
-const ENTRY_BUFFER = 14;
-const EXIT_BUFFER = 42;
-
-const EventInfoBubble: React.FC<Props> = ({
-  title,
+const EventInfoBubble: React.FC<Props> = ({ 
+  title, 
   organizer,
   date,
   timeRemaining,
   url,
   videoLink,
-  onClose,
-  diameter = 200,
+  onClose, 
+  diameter = 200 
 }) => {
   const [visible, setVisible] = React.useState(true);
-  const [isDarkMode, setIsDarkMode] = React.useState(false);
 
-  const timeoutRef = React.useRef<number | null>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const hasEnteredZoneRef = React.useRef(false);
-
-  const computeDistance = React.useCallback((x: number, y: number) => {
-    const node = containerRef.current;
-    if (!node) return Number.POSITIVE_INFINITY;
-    const rect = node.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    return Math.hypot(x - centerX, y - centerY);
-  }, []);
-
-  const closeBubble = React.useCallback(() => {
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  const handleMouseLeave = () => {
     setVisible(false);
     window.setTimeout(() => {
-      hasEnteredZoneRef.current = false;
-      onClose?.();
-    }, 320);
-  }, [onClose]);
-
-  const resetTimeout = React.useCallback(() => {
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(closeBubble, 10000);
-  }, [closeBubble]);
-
-  React.useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => setIsDarkMode(media.matches);
-    update();
-    if (media.addEventListener) {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-    return undefined;
-  }, []);
-
-  React.useEffect(() => {
-    hasEnteredZoneRef.current = false;
-    setVisible(true);
-    resetTimeout();
-
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [title, date, timeRemaining, resetTimeout]);
-
-  const handlePointerMove = React.useCallback(
-    (event: PointerEvent) => {
-      const distance = computeDistance(event.clientX, event.clientY);
-      if (!Number.isFinite(distance)) return;
-
-      const radius = diameter / 2;
-      const entryRadius = radius + ENTRY_BUFFER;
-      const exitRadius = radius + EXIT_BUFFER;
-
-      if (!hasEnteredZoneRef.current && distance <= entryRadius) {
-        hasEnteredZoneRef.current = true;
-        resetTimeout();
-        return;
-      }
-
-      if (hasEnteredZoneRef.current && distance <= exitRadius) {
-        resetTimeout();
-        return;
-      }
-
-      if (hasEnteredZoneRef.current && distance > exitRadius) {
-        hasEnteredZoneRef.current = false;
-        closeBubble();
-      }
-    },
-    [computeDistance, diameter, resetTimeout, closeBubble],
-  );
-
-  React.useEffect(() => {
-    const listener = (event: PointerEvent) => handlePointerMove(event);
-    document.addEventListener("pointermove", listener, { passive: true });
-    return () => document.removeEventListener("pointermove", listener);
-  }, [handlePointerMove]);
-
-  const handlePointerEnter = React.useCallback(() => {
-    hasEnteredZoneRef.current = true;
-    resetTimeout();
-  }, [resetTimeout]);
-
-  const handlePointerLeave = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const related = event.relatedTarget as Node | null;
-      if (related && containerRef.current?.contains(related)) {
-        return;
-      }
-
-      const distance = computeDistance(event.clientX, event.clientY);
-      const radius = diameter / 2;
-      const exitRadius = radius + EXIT_BUFFER;
-
-      if (hasEnteredZoneRef.current && distance > exitRadius) {
-        hasEnteredZoneRef.current = false;
-        closeBubble();
-      }
-    },
-    [computeDistance, diameter, closeBubble],
-  );
+      onClose && onClose();
+    }, 300);
+  };
 
   const handleCalendarClick = (e: React.MouseEvent) => {
     if (url) {
       e.stopPropagation();
-      window.open(url, "_blank", "noopener,noreferrer");
-      resetTimeout();
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleVideoClick = (e: React.MouseEvent) => {
     if (videoLink) {
       e.stopPropagation();
-      window.open(videoLink, "_blank", "noopener,noreferrer");
-      resetTimeout();
+      window.open(videoLink, '_blank', 'noopener,noreferrer');
     }
   };
 
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
-  const outerGlowGradient = isDarkMode
-    ? "from-blue-600/25 via-indigo-500/20 to-sky-500/20"
-    : "from-emerald-400/18 via-sky-300/16 to-sky-400/18";
-
-  const glassGradient = isDarkMode
-    ? "from-white/12 to-white/6"
-    : "from-white/90 to-white/74";
-
-  const borderColor = isDarkMode ? "border-white/24" : "border-sky-400/35";
-
-  const titleClass = isDarkMode ? "text-white" : "text-[#0b3f6b]";
-  const organizerClass = isDarkMode ? "text-white/70" : "text-[#115e7f]";
-  const dateClass = isDarkMode ? "text-white/82" : "text-[#0b6595]";
-  const timeClass = isDarkMode ? "text-white/75" : "text-[#0f766e]";
-
-  const videoButtonClass = isDarkMode
-    ? "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/12 hover:bg-white/20 transition-all duration-300 cursor-pointer"
-    : "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-400/15 hover:bg-sky-300/25 transition-all duration-300 cursor-pointer";
-
-  const videoIconWrapperClass = isDarkMode
-    ? "relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none"
-    : "relative bg-gradient-to-br from-emerald-500 to-sky-500 text-white p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none";
-
-  const videoIconColor = isDarkMode ? "text-blue-600" : "text-white";
-  const videoTitleClass = isDarkMode ? "text-white text-xs font-semibold" : "text-[#0b3f6b] text-xs font-semibold";
-  const videoSubtitleClass = isDarkMode ? "text-white/65 text-[10px]" : "text-[#0c6f99] text-[10px]";
-
-  const calendarButtonClass = isDarkMode
-    ? "p-2 rounded-full bg-white/12 hover:bg-white/22 transition-colors cursor-pointer"
-    : "p-2 rounded-full bg-emerald-400/12 hover:bg-sky-300/22 transition-colors cursor-pointer";
-
-  const calendarIconColor = isDarkMode ? "text-white/82" : "text-[#0c6f99]";
-
   return (
     <div
-      ref={containerRef}
       className={[
         "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
         "rounded-full z-30",
         "flex items-center justify-center text-center",
-        "transition-opacity duration-320 select-none",
+        "transition-opacity duration-300 select-none",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
-      style={{ width: diameter, height: diameter, pointerEvents: "auto" }}
+      style={{ width: diameter, height: diameter, pointerEvents: "none" }}
       role="dialog"
       aria-live="polite"
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
+      onMouseLeave={handleMouseLeave}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${outerGlowGradient} rounded-full blur-xl opacity-70 pointer-events-none`} />
-      <div className={`absolute inset-0 bg-gradient-to-br ${glassGradient} rounded-full backdrop-blur-xl pointer-events-none`} />
-      <div className={`absolute inset-0 rounded-full border ${borderColor} shadow-[0_18px_48px_-20px_rgba(14,165,233,0.35)] pointer-events-none`} />
-
-      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2">
+      {/* Liquid Glass Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-full backdrop-blur-xl pointer-events-none" />
+      <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl pointer-events-none" />
+      
+      {/* Contenu - Centré verticalement */}
+      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2 pointer-events-none">
+        {/* Organisateur (discret en haut) */}
         {organizer && (
-          <div className={`text-xs truncate w-full font-medium ${organizerClass}`}>
+          <div className="text-xs text-white/60 truncate w-full font-light pointer-events-none">
             {organizer}
           </div>
         )}
 
-        <div className={`${titleClass} font-bold text-base leading-tight px-2`}>
+        {/* Titre de l'événement */}
+        <div className="text-white font-bold text-base leading-tight line-clamp-2 pointer-events-none">
           {title}
         </div>
 
+        {/* Date formatée */}
         {date && (
-          <div className={`${dateClass} text-sm font-semibold`}>
+          <div className="text-white/80 text-sm font-medium pointer-events-none">
             {date}
           </div>
         )}
 
+        {/* Temps restant */}
         {timeRemaining && (
-          <div className={`${timeClass} text-xs font-semibold tracking-wide`}>
+          <div className="text-white/70 text-xs font-semibold pointer-events-none">
             {timeRemaining}
           </div>
         )}
 
-        <div className="flex items-center gap-3 mt-3">
+        {/* Boutons d'action */}
+        <div className="flex items-center gap-3 mt-2 pointer-events-auto">
+          {/* Bouton vidéoconférence */}
           {videoLink && (
             <button
               onClick={handleVideoClick}
-              className={videoButtonClass}
+              className="group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
               aria-label={`Rejoindre ${platform}`}
             >
               <div className="relative pointer-events-none">
-                <div className="absolute inset-0 bg-white/24 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
-                <div className={videoIconWrapperClass}>
-                  <Video className={`w-4 h-4 ${videoIconColor} pointer-events-none`} strokeWidth={2.5} />
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
+                <div className="relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Video className="w-4 h-4 text-blue-600 pointer-events-none" strokeWidth={2.5} />
                 </div>
               </div>
               <div className="flex flex-col items-start pointer-events-none">
-                <span className={videoTitleClass}>Rejoindre</span>
-                <span className={videoSubtitleClass}>{platform}</span>
+                <span className="text-white text-xs font-semibold pointer-events-none">Rejoindre</span>
+                <span className="text-white/60 text-[10px] font-light pointer-events-none">{platform}</span>
               </div>
             </button>
           )}
 
+          {/* Icône calendrier */}
           {url && (
             <button
               onClick={handleCalendarClick}
-              className={calendarButtonClass}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Ouvrir dans le calendrier"
             >
-              <ExternalLink className={`w-4 h-4 ${calendarIconColor} pointer-events-none`} />
+              <ExternalLink className="w-4 h-4 text-white/80 pointer-events-none" />
             </button>
           )}
         </div>
       </div>
 
+      {/* Effet de brillance animé */}
       <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1100 ease-in-out pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
       </div>
     </div>
   );

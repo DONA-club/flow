@@ -9,136 +9,97 @@ body, html, #root, .font-sans, .font-sans * {
   font-family: 'Inter', 'Montserrat', Arial, Helvetica, sans-serif !important;
 }
 
-/* Fond par défaut (sombre) - dégradé radial harmonieux */
+/* Fond par défaut (sombre) - dégradé radial, clair au centre → sombre aux angles */
 body, html, #root {
   min-height: 100vh;
   min-width: 100vw;
-  background: radial-gradient(circle at 50% 50%, #5b21b6 0%, #312e81 55%, #1e1b4b 100%);
+  background: radial-gradient(circle at 50% 50%, #6d28d9 0%, #312e81 55%, #181c2a 100%);
   background-attachment: fixed;
-  transition: background 0.6s ease;
+  transition: background 0.6s;
 }
 
 /* Dégradé turquoise et bleu ciel pour la page calendar en mode clair */
 .calendar-light-bg {
   background: transparent;
 }
-
 @media (prefers-color-scheme: light) {
   .calendar-light-bg {
+    /* Le dégradé sera centré dynamiquement via JS sur le centre de l'anneau */
     background: radial-gradient(
       circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), 
-      #f0fdfa 0%,
-      #ccfbf1 25%,
-      #99f6e4 45%,
-      #5eead4 65%,
-      #38bdf8 82%,
-      #2563eb 100%
+      #e0f7fa 0%,      /* Turquoise très clair au centre */
+      #80deea 25%,     /* Turquoise clair */
+      #4dd0e1 45%,     /* Turquoise moyen */
+      #26c6da 65%,     /* Turquoise vif */
+      #00acc1 80%,     /* Bleu cyan profond */
+      #0097a7 100%     /* Bleu cyan très profond */
     ) !important;
     background-attachment: fixed;
   }
 }
 
-/* Glassmorphism adaptatif - effet liquid glass unifié */
+/* Glassmorphism pour les éléments centraux */
 .glass {
-  background: rgba(30, 27, 75, 0.35);
-  box-shadow: 0 8px 32px 0 rgba(91, 33, 182, 0.15);
+  background: rgba(24,28,42,0.45);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-radius: 1.5rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  transition: all 0.3s ease;
+  border: 1.5px solid rgba(255,255,255,0.10);
 }
 
-@media (prefers-color-scheme: light) {
-  .glass {
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 20px 45px -12px rgba(45, 212, 191, 0.22);
-    border: 1.5px solid rgba(56, 189, 248, 0.28);
-  }
-}
-
-/* Point blanc moderne - reste blanc dans les deux thèmes */
+/* Point blanc moderne */
 .point-blanc {
   width: 5.5rem;
   height: 5.5rem;
   border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 0 0 0 rgba(255, 255, 255, 1), 0 4px 32px 0 rgba(255, 255, 255, 0.22);
-  border: 4px solid rgba(255, 255, 255, 0.7);
+  background: #fff;
+  box-shadow: 0 0 0 0 #fff, 0 4px 32px 0 rgba(255,255,255,0.18);
+  border: 4px solid rgba(255,255,255,0.7);
   outline: none;
-  transition: box-shadow 0.3s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: 
+    box-shadow 0.3s, 
+    transform 0.2s, 
+    border-color 0.2s;
   display: block;
 }
-
-@media (prefers-color-scheme: light) {
-  .point-blanc {
-    background: #ffffff;
-    border: 4px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 1), 0 12px 42px 0 rgba(6, 182, 212, 0.28);
-  }
-}
-
-.point-blanc:hover,
-.point-blanc:focus {
-  box-shadow: 0 0 0 12px rgba(255, 255, 255, 0.12), 0 14px 45px 0 rgba(255, 255, 255, 0.32);
+.point-blanc:hover, .point-blanc:focus {
+  box-shadow: 0 0 0 12px rgba(255,255,255,0.10), 0 8px 40px 0 rgba(255,255,255,0.25);
   border-color: #fff;
   transform: scale(1.08);
 }
 
-@media (prefers-color-scheme: light) {
-  .point-blanc:hover,
-  .point-blanc:focus {
-    box-shadow: 0 0 0 14px rgba(56, 189, 248, 0.22), 0 22px 46px 0 rgba(13, 148, 136, 0.32);
-    border-color: rgba(13, 148, 136, 0.85);
-  }
-}
+/* Texte central du calendrier: couleurs adaptatives */
 
-/* Texte central du calendrier - blanc liquid glass dans les deux thèmes */
-.calendar-center-title,
-.calendar-center-sub,
-.calendar-center-meta {
-  transition: color 0.25s ease, text-shadow 0.25s ease;
-}
-
+/* Par défaut (fond sombre) */
 .calendar-center-title {
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.2);
+  color: #bfdbfe; /* blue-200 */
+  text-shadow: 0 1px 1px rgba(0,0,0,0.35);
 }
-
 .calendar-center-title:hover {
-  color: rgba(255, 255, 255, 1);
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 24px rgba(255, 255, 255, 0.3);
+  color: #93c5fd; /* blue-300 */
 }
-
 .calendar-center-sub {
-  color: rgba(255, 255, 255, 0.85);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  color: #94a3b8; /* slate-400 */
 }
-
 .calendar-center-meta {
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  color: #cbd5e1; /* slate-300 */
 }
 
+/* En mode clair sur la page calendar seulement */
 @media (prefers-color-scheme: light) {
-  .calendar-center-title {
-    color: rgba(255, 255, 255, 0.98);
-    text-shadow: 0 2px 8px rgba(13, 148, 136, 0.3), 0 0 20px rgba(255, 255, 255, 0.4);
+  .calendar-light-bg .calendar-center-title {
+    color: #0e7490; /* cyan-700 - s'harmonise avec le turquoise */
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
   }
-  
-  .calendar-center-title:hover {
-    color: rgba(255, 255, 255, 1);
-    text-shadow: 0 2px 12px rgba(13, 148, 136, 0.4), 0 0 24px rgba(255, 255, 255, 0.5);
+  .calendar-light-bg .calendar-center-title:hover {
+    color: #155e75; /* cyan-800 */
   }
-  
-  .calendar-center-sub {
-    color: rgba(255, 255, 255, 0.92);
-    text-shadow: 0 1px 6px rgba(13, 148, 136, 0.25);
+  .calendar-light-bg .calendar-center-sub {
+    color: #0e7490; /* cyan-700 */
   }
-  
-  .calendar-center-meta {
-    color: rgba(255, 255, 255, 0.88);
-    text-shadow: 0 1px 6px rgba(13, 148, 136, 0.25);
+  .calendar-light-bg .calendar-center-meta {
+    color: #0891b2; /* cyan-600 */
   }
 }
 
@@ -149,91 +110,67 @@ body, html, #root {
     padding: 1.5rem;
   }
   .point-blanc {
-    width: 3.7rem;
-    height: 3.7rem;
+    width: 3.5rem;
+    height: 3.5rem;
   }
 }
 
-/* Typographie globale adaptative */
+/* Typographie globale */
 body {
   font-family: 'Inter', 'Montserrat', Arial, Helvetica, sans-serif;
   font-size: 18px;
   line-height: 1.7;
-  color: #e0e7ff;
+  color: #e0e7ef; /* lisible en mode sombre */
   letter-spacing: 0.01em;
 }
 
-@media (prefers-color-scheme: light) {
-  body {
-    color: #0f172a;
-  }
-}
-
-/* Animations d'arrivée et départ des logos */
+/* Animations d'arrivée et départ des logos (fondu sur place avec légère réduction de taille) */
 @keyframes logo-enter {
-  0% {
-    opacity: 0;
-    transform: scale(0.85);
-    filter: blur(6px);
+  0% { 
+    opacity: 0; 
+    transform: scale(0.85); 
+    filter: blur(6px); 
   }
-  50% {
-    opacity: 1;
-    filter: blur(2px);
+  50% { 
+    opacity: 1; 
+    filter: blur(2px); 
   }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
+  100% { 
+    opacity: 1; 
+    transform: scale(1); 
+    filter: blur(0); 
   }
 }
 
 @keyframes logo-exit {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0);
+  0% { 
+    opacity: 1; 
+    transform: scale(1); 
+    filter: blur(0); 
   }
-  100% {
-    opacity: 0;
-    transform: scale(0.85);
-    filter: blur(5px);
+  100% { 
+    opacity: 0; 
+    transform: scale(0.85); 
+    filter: blur(5px); 
   }
 }
 
-.logo-enter {
-  animation: logo-enter 420ms ease-out both;
+.logo-enter { 
+  animation: logo-enter 420ms ease-out both; 
 }
 
-.logo-exit {
-  animation: logo-exit 420ms ease-in both;
+.logo-exit { 
+  animation: logo-exit 420ms ease-in both; 
 }
 
-/* Pulse du point blanc synchronisé */
+/* Pulse du point blanc synchronisé au changement de logo */
 @keyframes point-pulse-anim {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-  }
-  100% {
-    box-shadow: 0 0 0 18px rgba(255, 255, 255, 0);
-  }
+  0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.35); }
+  100% { box-shadow: 0 0 0 18px rgba(255,255,255,0); }
 }
+.point-pulse { animation: point-pulse-anim 650ms ease-out; }
 
-@media (prefers-color-scheme: light) {
-  @keyframes point-pulse-anim {
-    0% {
-      box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.35);
-    }
-    100% {
-      box-shadow: 0 0 0 18px rgba(45, 212, 191, 0);
-    }
-  }
-}
-
-.point-pulse {
-  animation: point-pulse-anim 650ms ease-out;
-}
-
-/* Étincelles adaptatives */
+/* Étincelles centrées sur le logo (explosion subtile et aléatoire) */
 .spark {
   position: absolute;
   left: 50%;
@@ -241,37 +178,18 @@ body {
   width: var(--size, 6px);
   height: var(--size, 6px);
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+  background: rgba(255,255,255,0.85);
+  box-shadow: 0 0 8px rgba(255,255,255,0.7);
   transform-origin: center center;
   transform: translate(-50%, -50%) rotate(var(--angle)) translate(0rem) scale(0.7);
   animation: spark-explode var(--dur, 650ms) cubic-bezier(0.22, 0.7, 0.3, 1) forwards;
   animation-delay: var(--delay, 0ms);
 }
-
-@media (prefers-color-scheme: light) {
-  .spark {
-    background: rgba(14, 165, 233, 0.9);
-    box-shadow: 0 0 8px rgba(14, 165, 233, 0.45);
-  }
-}
-
 @keyframes spark-explode {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translate(0rem) scale(0.6);
-  }
-  15% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translate(calc(var(--dist, 1.6rem) * 0.75)) scale(0.9);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--dist, 1.6rem)) scale(0.3);
-  }
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translate(0rem) scale(0.6); }
+  15% { opacity: 1; }
+  60% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) translate(calc(var(--dist, 1.6rem) * 0.75)) scale(0.9); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--dist, 1.6rem)) scale(0.3); }
 }
 
 /* Animation quantique pour l'apparition de l'étiquette d'heure */
@@ -298,7 +216,7 @@ body {
   }
 }
 
-/* Animation quantique pour la disparition */
+/* Animation quantique pour la disparition de l'étiquette d'heure (miroir de l'apparition) */
 @keyframes quantum-fade-out {
   0% {
     opacity: 1;
@@ -322,13 +240,15 @@ body {
   }
 }
 
-/* Styles Sonner Toaster - Centrage avec espacement */
+/* Styles personnalisés pour Sonner Toaster - Centrage avec espacement calculé */
 [data-sonner-toaster] {
   position: fixed !important;
   bottom: 0 !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   width: auto !important;
+  /* Hauteur approximative du toast: 60px (py-3 * 2 + contenu ~54px) */
+  /* Espacement = 1/4 de la hauteur = 15px */
   padding-bottom: 15px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -342,6 +262,7 @@ body {
   box-sizing: border-box !important;
 }
 
+/* Assurer que les toasts custom sont bien centrés */
 [data-sonner-toaster][data-y-position="bottom"] {
   bottom: 0 !important;
   left: 50% !important;

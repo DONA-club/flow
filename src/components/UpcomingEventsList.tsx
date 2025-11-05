@@ -115,7 +115,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
 
   if (upcoming.length === 0) return null;
 
-  const cursorColor = isDarkMode ? "#bfdbfe" : "#0d9488";
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const nowRef = new Date();
 
   if (!open) {
@@ -125,15 +125,14 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         onClick={() => setOpen(true)}
         className={[
           "fixed top-4 left-4 glass px-3 py-2 backdrop-blur-md rounded-lg",
-          "flex items-center gap-2 hover:bg-white/20 transition-colors",
-          isDarkMode ? "text-indigo-100" : "text-teal-700",
+          "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
           className || "",
         ].join(" ").trim()}
         style={{ zIndex: 100 }}
         aria-label="Afficher les événements à venir"
       >
         <Calendar className="w-4 h-4" />
-        <span className="text-sm font-semibold tracking-tight">À venir</span>
+        <span className="text-sm font-semibold tracking-tight">A venir</span>
       </button>
     );
   }
@@ -149,20 +148,14 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       aria-label="Événements à venir"
     >
       <div className="flex items-center justify-between mb-2">
-        <div className={[
-          "flex items-center gap-2",
-          isDarkMode ? "text-indigo-100" : "text-teal-700"
-        ].join(" ")}>
+        <div className="flex items-center gap-2 text-slate-200">
           <Calendar className="w-4 h-4" />
-          <span className="text-sm font-semibold tracking-tight">À venir</span>
+          <span className="text-sm font-semibold tracking-tight">A venir</span>
         </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className={[
-            "p-1 rounded-md hover:bg-white/10 transition-transform",
-            isDarkMode ? "text-indigo-200" : "text-teal-600"
-          ].join(" ")}
+          className="p-1 rounded-md hover:bg-white/10 text-slate-300 transition-transform"
           aria-label="Fermer la liste des événements"
         >
           <ChevronDown className="w-4 h-4" />
@@ -195,6 +188,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           const dayLabel = start ? getDayLabel(start, nowRef) : "";
           const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
 
+          // Choisir l'icône selon le jour
           let EventIcon = Clock;
           let iconColor = cursorColor;
           
@@ -214,30 +208,16 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
               <button
                 type="button"
                 onClick={() => handleEventClick(e)}
-                className={[
-                  "w-full flex items-start gap-3 rounded-lg transition-colors px-3 py-2 text-left",
-                  isDarkMode 
-                    ? "bg-white/6 hover:bg-white/10" 
-                    : "bg-white/50 hover:bg-white/70"
-                ].join(" ")}
+                className="w-full flex items-start gap-3 rounded-lg bg-white/6 hover:bg-white/10 transition-colors px-3 py-2 text-left"
                 aria-label={`Ouvrir l'événement: ${title}`}
               >
                 <div className="shrink-0 mt-0.5">
                   <EventIcon className="w-4 h-4" style={{ color: iconColor }} />
                 </div>
                 <div className="min-w-0">
-                  <div className={[
-                    "text-sm font-medium truncate",
-                    isDarkMode ? "text-indigo-100" : "text-[#0b3f6b]"
-                  ].join(" ")}>{title}</div>
-                  <div className={[
-                    "text-xs truncate",
-                    isDarkMode ? "text-indigo-200" : "text-[#115e7f]"
-                  ].join(" ")}>{place}</div>
-                  <div className={[
-                    "text-xs mt-0.5",
-                    isDarkMode ? "text-indigo-300" : "text-[#0c6f99]"
-                  ].join(" ")}>
+                  <div className="text-slate-100 text-sm font-medium truncate">{title}</div>
+                  <div className="text-slate-300 text-xs truncate">{place}</div>
+                  <div className="text-slate-400 text-xs mt-0.5">
                     {dayLabel}{range ? ` - ${range}` : ""}
                   </div>
                 </div>

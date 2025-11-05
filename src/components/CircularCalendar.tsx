@@ -526,7 +526,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const cursorY1 = cy + (innerRadius - cursorExtension) * Math.sin(cursorRad);
   const cursorX2 = cx + (radius + cursorExtension) * Math.cos(cursorRad);
   const cursorY2 = cy + (radius + cursorExtension) * Math.sin(cursorRad);
-  const cursorColor = isDarkMode ? "#bfdbfe" : "#0d9488";
+  const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
 
   const angleFromHour = (time: number) => (time / 24) * 360 - 90;
   const toPoint = (angleDeg: number, r: number) => {
@@ -593,9 +593,6 @@ export const CircularCalendar: React.FC<Props> = ({
     return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="black" strokeWidth={dividerWidth} />;
   });
 
-  const hourNumberColor = "rgba(255, 255, 255, 0.95)";
-  const hourNumberStroke = isDarkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(13, 148, 136, 0.4)";
-
   const hourNumbers = Array.from({ length: 24 }, (_, i) => {
     const angle = ((i / 24) * 2 * Math.PI) - Math.PI / 2;
     const angleDeg = (i / 24) * 360 - 90;
@@ -613,21 +610,15 @@ export const CircularCalendar: React.FC<Props> = ({
         transform={`rotate(${angleDeg + 90} ${x} ${y})`}
         fontSize={hourFontSize}
         fontWeight={isCurrent ? "bold" : 600}
-        fill={hourNumberColor}
+        fill="#fff"
         style={{
           pointerEvents: "none",
           userSelect: "none",
-          filter: isCurrent 
-            ? (isDarkMode 
-                ? "drop-shadow(0 0 8px rgba(191, 219, 254, 0.8)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))" 
-                : "drop-shadow(0 0 8px rgba(13, 148, 136, 0.8)) drop-shadow(0 2px 4px rgba(13, 148, 136, 0.4))")
-            : (isDarkMode 
-                ? "drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4))" 
-                : "drop-shadow(0 1px 3px rgba(13, 148, 136, 0.3))"),
+          filter: isCurrent ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)" : "drop-shadow(0 1px 0 #0008)",
           opacity: isCurrent ? 1 : 0.92,
           fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",
-          stroke: hourNumberStroke,
+          stroke: "#000",
           strokeWidth: isCurrent ? strokeWidthCurrent : strokeWidthNormal,
         }}
         alignmentBaseline="middle"
@@ -641,9 +632,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const currentEvent = getCurrentOrNextEvent(events, virtualDateTime);
 
   const dayColors = [
-    isDarkMode ? "#bfdbfe" : "#0d9488",
-    isDarkMode ? "#93c5fd" : "#14b8a6",
-    isDarkMode ? "#60a5fa" : "#2dd4bf",
+    isDarkMode ? "#bfdbfe" : "#1d4ed8",
+    isDarkMode ? "#93c5fd" : "#3b82f6",
+    isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
   const eventArcs = upcomingEvents.map((entry, index) => {
@@ -742,6 +733,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
+  // Réduire la taille de la div centrale pour ne pas bloquer les arcs
   const centerDivSize = innerRadius * 1.2;
 
   return (
