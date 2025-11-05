@@ -338,6 +338,18 @@ export const CircularCalendar: React.FC<Props> = ({
   const animationFrameRef = React.useRef<number | null>(null);
   const nowIntervalRef = React.useRef<number | null>(null);
   const lastLogTimeRef = React.useRef<number>(0);
+  
+  // Refs stables pour les callbacks
+  const upcomingEventsRef = React.useRef<any[]>([]);
+  const onDayChangeRef = React.useRef(onDayChange);
+
+  React.useEffect(() => {
+    upcomingEventsRef.current = upcomingEvents;
+  }, [upcomingEvents]);
+
+  React.useEffect(() => {
+    onDayChangeRef.current = onDayChange;
+  }, [onDayChange]);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -607,7 +619,7 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // useEffect pour le listener wheel
+  // useEffect pour le listener wheel - SANS DÉPENDANCES pour éviter les re-attachements
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
@@ -645,10 +657,12 @@ export const CircularCalendar: React.FC<Props> = ({
           
           // Notifier le changement de jour pour précharger les événements
           const dayKey = `${newVirtualTime.getFullYear()}-${newVirtualTime.getMonth()}-${newVirtualTime.getDate()}`;
-          if (dayKey !== lastDayNotified && onDayChange) {
-            setLastDayNotified(dayKey);
-            onDayChange(newVirtualTime);
-          }
+          setLastDayNotified((prevKey) => {
+            if (dayKey !== prevKey && onDayChangeRef.current) {
+              onDayChangeRef.current(newVirtualTime);
+            }
+            return dayKey;
+          });
         }
         
         // Recherche d'événement
@@ -660,7 +674,7 @@ export const CircularCalendar: React.FC<Props> = ({
         const nextDay = new Date(virtualDayStart);
         nextDay.setDate(nextDay.getDate() + 1);
         
-        const dayEvents = upcomingEvents.filter((x) => {
+        const dayEvents = upcomingEventsRef.current.filter((x: any) => {
           return x.start.getTime() >= virtualDayStart.getTime() && 
                  x.start.getTime() < nextDay.getTime();
         });
@@ -769,7 +783,7 @@ export const CircularCalendar: React.FC<Props> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [upcomingEvents, lastDayNotified, onDayChange]);
+  }, []); // AUCUNE DÉPENDANCE - le listener est attaché une seule fois
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
