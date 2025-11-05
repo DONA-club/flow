@@ -332,14 +332,13 @@ export const CircularCalendar: React.FC<Props> = ({
   const [virtualDateTime, setVirtualDateTime] = React.useState<Date>(() => new Date());
   const [showDateLabel, setShowDateLabel] = React.useState(false);
   const [lastDayNotified, setLastDayNotified] = React.useState<string>("");
-  
+
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   const nowIntervalRef = React.useRef<number | null>(null);
-  const lastLogTimeRef = React.useRef<number>(0);
-  
-  // Refs stables pour les callbacks et données
+
+  // Refs stables pour callbacks/données
   const upcomingEventsRef = React.useRef<any[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
 
@@ -354,7 +353,7 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
-  // Interval 'now'
+  // Mise à jour de l'heure courante, sans perturber le scroll/retour
   React.useEffect(() => {
     const updateNow = () => {
       const newNow = new Date();
@@ -408,7 +407,7 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [size]);
 
-  // Filtrer les événements pour 3 jours depuis virtualDateTime
+  // Événements à afficher (journée virtuelle + 3 jours)
   const upcomingEvents = React.useMemo(() => {
     const virtualDayStart = new Date(virtualDateTime);
     virtualDayStart.setHours(0, 0, 0, 0);
@@ -428,7 +427,7 @@ export const CircularCalendar: React.FC<Props> = ({
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, virtualDateTime, now]);
 
-  // IMPORTANT: mettre à jour la ref APRÈS la déclaration de upcomingEvents
+  // Ref toujours à jour pour le handler de scroll
   React.useEffect(() => {
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
@@ -581,17 +580,15 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // Listener wheel: attaché une seule fois, utilise des refs stables
+  // Listener wheel: attaché une seule fois, stable
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      console.log("🖱️ Wheel event détecté");
 
       if (animationFrameRef.current) {
-        console.log("❌ Annulation animation en cours");
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
@@ -605,7 +602,6 @@ export const CircularCalendar: React.FC<Props> = ({
       setVirtualDateTime((prev) => {
         const newVirtualTime = new Date(prev);
         newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
-        console.log(`📅 Nouveau virtualDateTime: ${newVirtualTime.toLocaleTimeString()}`);
 
         const dayChanged = newVirtualTime.getDate() !== prev.getDate();
         setIsScrolling(true);
@@ -621,7 +617,7 @@ export const CircularCalendar: React.FC<Props> = ({
           });
         }
 
-        // Chercher un événement au curseur virtuel
+        // Recherche d’événement au curseur virtuel
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
 
@@ -650,16 +646,13 @@ export const CircularCalendar: React.FC<Props> = ({
 
         // Timeout de retour au présent
         if (scrollTimeoutRef.current) {
-          console.log("⏱️ Annulation timeout précédent");
           window.clearTimeout(scrollTimeoutRef.current);
         }
 
         const randomDelay = 8000 + Math.random() * 2000;
-        console.log(`⏰ Timeout programmé dans ${Math.round(randomDelay)}ms`);
         const capturedVirtualTime = new Date(newVirtualTime);
 
         scrollTimeoutRef.current = window.setTimeout(() => {
-          console.log("🔄 Début retour au présent");
           setIsScrolling(false);
           setIsReturning(true);
 
@@ -675,18 +668,11 @@ export const CircularCalendar: React.FC<Props> = ({
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
             const interpolatedTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
 
-            const nowMs = performance.now();
-            if (nowMs - lastLogTimeRef.current > 200) {
-              console.log(`⏱️ Animation: ${Math.round(progress * 100)}% | virtualDateTime: ${interpolatedTime.toLocaleTimeString()}`);
-              lastLogTimeRef.current = nowMs;
-            }
-
             setVirtualDateTime(interpolatedTime);
 
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-              console.log("✅ Retour terminé");
               setVirtualDateTime(new Date());
               setIsReturning(false);
               setShowTimeLabel(true);
@@ -722,7 +708,7 @@ export const CircularCalendar: React.FC<Props> = ({
       if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, []); // attaché une seule fois
+  }, []);
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
@@ -923,17 +909,20 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
 
         {selectedEvent && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 6 }}>
-            <EventInfoBubble
-              title={selectedEvent.title}
-              organizer={eventOrganizer}
-              date={eventDate}
-              timeRemaining={timeRemaining}
-              url={eventUrl}
-              videoLink={videoLink}
-              onClose={handleBubbleClose}
-              diameter={bubbleDiameter}
-            />
+          // Important: overlay non bloquant; seule la bulle capte les interactions
+          <div style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }}>
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "auto" }}>
+              <EventInfoBubble
+                title={selectedEvent.title}
+                organizer={eventOrganizer}
+                date={eventDate}
+                timeRemaining={timeRemaining}
+                url={eventUrl}
+                videoLink={videoLink}
+                onClose={handleBubbleClose}
+                diameter={bubbleDiameter}
+              />
+            </div>
           </div>
         )}
 
@@ -945,7 +934,7 @@ export const CircularCalendar: React.FC<Props> = ({
               top: timeLabelPt.y,
               transform: `translate(-50%, -50%) rotate(${timeLabelRotation}deg)`,
               transformOrigin: "center",
-              animation: isLabelFadingOut ? "quantum-fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards" : "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              animation: "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
               zIndex: 7,
             }}
           >
