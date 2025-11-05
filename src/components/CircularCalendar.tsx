@@ -797,6 +797,52 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
+        {/* Div centrale - z-index: 0 pour être sous tout le reste */}
+        <div
+          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
+          style={{ 
+            transform: "translate(-50%, -50%)", 
+            width: centerDivSize, 
+            height: centerDivSize, 
+            cursor: currentEvent ? "pointer" : "default", 
+            pointerEvents: currentEvent ? "auto" : "none",
+            zIndex: 0
+          }}
+          onClick={() => {
+            if (currentEvent) {
+              setSelectedEvent(currentEvent);
+              setCursorEventIndex(null);
+              onEventClick?.(currentEvent);
+            }
+          }}
+          onMouseEnter={() => setHoverCenterEvent(true)}
+          onMouseLeave={() => setHoverCenterEvent(false)}
+          role={currentEvent ? "button" : undefined}
+          aria-label={currentEvent ? `Voir les détails: ${currentEvent.title}` : undefined}
+        >
+          {currentEvent ? (
+            <>
+              <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
+              <div 
+                className="font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
+                style={{
+                  color: hoverCenterEvent 
+                    ? (isDarkMode ? "#93c5fd" : "#1e40af")
+                    : (isDarkMode ? "#bfdbfe" : "#1d4ed8")
+                }}
+              >
+                {currentEvent.title}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
+              <div className="text-sm calendar-center-meta pointer-events-none">{formatHour(hourDecimal)}</div>
+              <div className="calendar-center-title font-semibold text-lg pointer-events-none">Aucun événement</div>
+            </div>
+          )}
+        </div>
+
+        {/* SVG avec l'anneau - z-index: 1 */}
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
@@ -850,50 +896,52 @@ export const CircularCalendar: React.FC<Props> = ({
           />
         </svg>
 
-        <div
-          className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
-          style={{ 
-            transform: "translate(-50%, -50%)", 
-            width: centerDivSize, 
-            height: centerDivSize, 
-            cursor: currentEvent ? "pointer" : "default", 
-            pointerEvents: currentEvent ? "auto" : "none",
-            zIndex: 2
-          }}
-          onClick={() => {
-            if (currentEvent) {
-              setSelectedEvent(currentEvent);
-              setCursorEventIndex(null);
-              onEventClick?.(currentEvent);
-            }
-          }}
-          onMouseEnter={() => setHoverCenterEvent(true)}
-          onMouseLeave={() => setHoverCenterEvent(false)}
-          role={currentEvent ? "button" : undefined}
-          aria-label={currentEvent ? `Voir les détails: ${currentEvent.title}` : undefined}
-        >
-          {currentEvent ? (
-            <>
-              <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
-              <div 
-                className="font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
-                style={{
-                  color: hoverCenterEvent 
-                    ? (isDarkMode ? "#93c5fd" : "#1e40af")
-                    : (isDarkMode ? "#bfdbfe" : "#1d4ed8")
-                }}
+        {/* Icônes sunrise/sunset - z-index: 3 */}
+        {!hoverRing && (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="absolute pointer-events-auto" style={{ left: sunrisePoint.x - metaIconSize / 2, top: sunrisePoint.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 3 }} aria-label={`Sunrise at ${formatHour(sunrise)}`}>
+                  <Sunrise className="text-yellow-400 pointer-events-none" size={metaIconSize} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent
+                side={(() => {
+                  const dx = cx - sunrisePoint.x;
+                  const dy = cy - sunrisePoint.y;
+                  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+                  return dy > 0 ? "bottom" : "top";
+                })()}
+                sideOffset={6}
+                className="bg-transparent border-0 shadow-none p-0 font-light"
               >
-                {currentEvent.title}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
-              <div className="text-sm calendar-center-meta pointer-events-none">{formatHour(hourDecimal)}</div>
-              <div className="calendar-center-title font-semibold text-lg pointer-events-none">Aucun événement</div>
-            </div>
-          )}
-        </div>
+                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#facc15" }}>{formatHour(sunrise)}</span>
+              </TooltipContent>
+            </Tooltip>
 
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="absolute pointer-events-auto" style={{ left: sunsetPoint.x - metaIconSize / 2, top: sunsetPoint.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 3 }} aria-label={`Sunset at ${formatHour(sunset)}`}>
+                  <Sunset className="text-orange-400 pointer-events-none" size={metaIconSize} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent
+                side={(() => {
+                  const dx = cx - sunsetPoint.x;
+                  const dy = cy - sunsetPoint.y;
+                  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+                  return dy > 0 ? "bottom" : "top";
+                })()}
+                sideOffset={6}
+                className="bg-transparent border-0 shadow-none p-0 font-light"
+              >
+                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#fb923c" }}>{formatHour(sunset)}</span>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
+
+        {/* EventInfoBubble - z-index: 6 */}
         {selectedEvent && (
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 6, pointerEvents: "none" }}>
             <div style={{ pointerEvents: "auto" }}>
@@ -915,6 +963,7 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Time label - z-index: 7 */}
         {showTimeLabel && !isScrolling && !isReturning && (
           <div
             className="absolute pointer-events-none"
@@ -943,6 +992,7 @@ export const CircularCalendar: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Date label - z-index: 8 */}
         {showDateLabel && daysDiff !== 0 && (
           <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.5}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
             <div className="px-3 py-1.5 rounded-lg pointer-events-none" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
@@ -954,50 +1004,6 @@ export const CircularCalendar: React.FC<Props> = ({
               </div>
             </div>
           </div>
-        )}
-
-        {!hoverRing && (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="absolute pointer-events-auto" style={{ left: sunrisePoint.x - metaIconSize / 2, top: sunrisePoint.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunrise at ${formatHour(sunrise)}`}>
-                  <Sunrise className="text-yellow-400 pointer-events-none" size={metaIconSize} />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent
-                side={(() => {
-                  const dx = cx - sunrisePoint.x;
-                  const dy = cy - sunrisePoint.y;
-                  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
-                  return dy > 0 ? "bottom" : "top";
-                })()}
-                sideOffset={6}
-                className="bg-transparent border-0 shadow-none p-0 font-light"
-              >
-                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#facc15" }}>{formatHour(sunrise)}</span>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="absolute pointer-events-auto" style={{ left: sunsetPoint.x - metaIconSize / 2, top: sunsetPoint.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunset at ${formatHour(sunset)}`}>
-                  <Sunset className="text-orange-400 pointer-events-none" size={metaIconSize} />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent
-                side={(() => {
-                  const dx = cx - sunsetPoint.x;
-                  const dy = cy - sunsetPoint.y;
-                  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
-                  return dy > 0 ? "bottom" : "top";
-                })()}
-                sideOffset={6}
-                className="bg-transparent border-0 shadow-none p-0 font-light"
-              >
-                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#fb923c" }}>{formatHour(sunset)}</span>
-              </TooltipContent>
-            </Tooltip>
-          </>
         )}
       </div>
     </div>
