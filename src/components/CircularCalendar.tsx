@@ -26,6 +26,7 @@ type Props = {
   externalSelectedEvent?: Event | null;
   onEventBubbleClosed?: () => void;
   onDayChange?: (date: Date) => void;
+  onVirtualDateTimeChange?: (date: Date | null) => void;
 };
 
 const DEFAULT_SIZE = 320;
@@ -276,6 +277,7 @@ export const CircularCalendar: React.FC<Props> = ({
   externalSelectedEvent,
   onEventBubbleClosed,
   onDayChange,
+  onVirtualDateTimeChange,
 }) => {
   const [now, setNow] = React.useState(() => new Date());
   const [virtualDateTime, setVirtualDateTime] = React.useState(() => new Date());
@@ -298,11 +300,16 @@ export const CircularCalendar: React.FC<Props> = ({
   const nowIntervalRef = React.useRef<number | null>(null);
   const upcomingEventsRef = React.useRef<{ event: Event; start: Date; end: Date }[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
+  const onVirtualDateTimeChangeRef = React.useRef(onVirtualDateTimeChange);
   const horizontalScrollAccumulator = React.useRef<number>(0);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
   }, [onDayChange]);
+
+  React.useEffect(() => {
+    onVirtualDateTimeChangeRef.current = onVirtualDateTimeChange;
+  }, [onVirtualDateTimeChange]);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -315,7 +322,10 @@ export const CircularCalendar: React.FC<Props> = ({
     const updateNow = () => {
       const current = new Date();
       setNow(current);
-      if (!isScrolling && !isReturning) setVirtualDateTime(current);
+      if (!isScrolling && !isReturning) {
+        setVirtualDateTime(current);
+        onVirtualDateTimeChangeRef.current?.(null); // null = temps réel
+      }
     };
     updateNow();
     nowIntervalRef.current = window.setInterval(updateNow, 1000);
@@ -425,6 +435,9 @@ export const CircularCalendar: React.FC<Props> = ({
 
         const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
         setIsScrolling(true);
+        
+        // Notifier le changement de virtualDateTime
+        onVirtualDateTimeChangeRef.current?.(nextTime);
 
         if (dayChanged) {
           setShowDateLabel(true);
@@ -482,6 +495,9 @@ export const CircularCalendar: React.FC<Props> = ({
             const diff = target.getTime() - captured.getTime();
             const interpolated = new Date(captured.getTime() + diff * eased);
             setVirtualDateTime(interpolated);
+            
+            // Notifier pendant l'animation de retour
+            onVirtualDateTimeChangeRef.current?.(interpolated);
 
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
@@ -493,6 +509,9 @@ export const CircularCalendar: React.FC<Props> = ({
               setCursorEventIndex(null);
               setShowDateLabel(false);
               horizontalScrollAccumulator.current = 0; // Réinitialiser lors du retour
+              
+              // Retour au temps réel
+              onVirtualDateTimeChangeRef.current?.(null);
 
               if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
               labelTimeoutRef.current = window.setTimeout(() => {
@@ -857,7 +876,7 @@ export const CircularCalendar: React.FC<Props> = ({
             <>
               <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
               <div 
-                className="calendar-center-title font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
+                className="font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
                 style={{
                   color: hoverCenterEvent 
                     ? (isDarkMode ? "#93c5fd" : "#1e40af")

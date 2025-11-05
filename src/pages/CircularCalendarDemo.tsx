@@ -315,6 +315,7 @@ const Visualiser = () => {
   const [loadingDays, setLoadingDays] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [backgroundGradient, setBackgroundGradient] = useState("");
+  const [virtualDateTime, setVirtualDateTime] = useState<Date | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -341,7 +342,7 @@ const Visualiser = () => {
     }
   }, [sunrise, sunset, sunLoading, sunError]);
 
-  // Détection du thème et mise à jour du gradient
+  // Détection du thème
   useEffect(() => {
     const updateTheme = () => {
       const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -358,21 +359,28 @@ const Visualiser = () => {
     }
   }, []);
 
-  // Mise à jour du gradient basé sur l'heure actuelle et le cycle circadien
+  // Mise à jour du gradient basé sur virtualDateTime (curseur) ou l'heure actuelle
   useEffect(() => {
     const updateGradient = () => {
-      const now = new Date();
-      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const referenceTime = virtualDateTime || new Date();
+      const currentHour = referenceTime.getHours() + referenceTime.getMinutes() / 60;
       const gradient = getCircadianGradient(currentHour, effectiveWake, effectiveBed, isDarkMode);
       setBackgroundGradient(gradient);
     };
 
     updateGradient();
-    // Mettre à jour toutes les minutes
-    const interval = setInterval(updateGradient, 60000);
     
-    return () => clearInterval(interval);
-  }, [effectiveWake, effectiveBed, isDarkMode]);
+    // Si pas de virtualDateTime, mettre à jour toutes les minutes
+    if (!virtualDateTime) {
+      const interval = setInterval(updateGradient, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [effectiveWake, effectiveBed, isDarkMode, virtualDateTime]);
+
+  // Callback pour recevoir les changements de virtualDateTime depuis CircularCalendar
+  const handleVirtualDateTimeChange = useCallback((newDateTime: Date | null) => {
+    setVirtualDateTime(newDateTime);
+  }, []);
 
   // Gestion des logs de localisation - remplacer "..." par résultat final
   useEffect(() => {
@@ -577,6 +585,7 @@ const Visualiser = () => {
             externalSelectedEvent={selectedEventFromList}
             onEventBubbleClosed={() => setSelectedEventFromList(null)}
             onDayChange={handleDayChange}
+            onVirtualDateTimeChange={handleVirtualDateTimeChange}
           />
           {sunError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">
