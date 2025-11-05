@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
@@ -8,7 +9,6 @@ import { useGoogleFitSleep } from "@/hooks/use-google-fit";
 import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_SUNRISE = 6.0;
@@ -53,6 +53,24 @@ function toHourDecimal(iso: string): number {
 
 function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatDateForLog(date: Date): string {
+  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  
+  const currentYear = new Date().getFullYear();
+  const dateYear = date.getFullYear();
+  
+  const dayName = days[date.getDay()];
+  const dayNumber = date.getDate();
+  const monthName = months[date.getMonth()];
+  
+  if (dateYear !== currentYear) {
+    return `${dayName} ${dayNumber} ${monthName} ${dateYear}`;
+  }
+  
+  return `${dayName} ${dayNumber} ${monthName}`;
 }
 
 async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
@@ -352,9 +370,8 @@ const CircularCalendarDemo = () => {
 
       // Log uniquement si des événements sont trouvés
       if (allEvents.length > 0) {
-        const dateObj = new Date(date);
-        const dayName = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"][dateObj.getDay()];
-        setLogs([{ message: `${dayName} ${dateObj.getDate()}: ${allEvents.length} événement${allEvents.length > 1 ? 's' : ''}`, type: "success" }]);
+        const formattedDate = formatDateForLog(date);
+        setLogs([{ message: `${formattedDate} : ${allEvents.length} événement${allEvents.length > 1 ? 's' : ''}`, type: "success" }]);
       }
     } catch (err) {
       // Pas de log d'erreur pour ne pas surcharger
