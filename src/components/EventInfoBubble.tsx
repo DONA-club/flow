@@ -71,46 +71,46 @@ const EventInfoBubble: React.FC<Props> = ({
         "transition-opacity duration-300 select-none",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
-      style={{ width: diameter, height: diameter }}
+      style={{ width: diameter, height: diameter, pointerEvents: "none" }}
       role="dialog"
       aria-live="polite"
       onMouseLeave={handleMouseLeave}
     >
       {/* Liquid Glass Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60" />
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-full backdrop-blur-xl" />
-      <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-full backdrop-blur-xl pointer-events-none" />
+      <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl pointer-events-none" />
       
       {/* Contenu - Centré verticalement */}
-      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2">
+      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2 pointer-events-none">
         {/* Organisateur (discret en haut) */}
         {organizer && (
-          <div className="text-xs text-white/60 truncate w-full font-light">
+          <div className="text-xs text-white/60 truncate w-full font-light pointer-events-none">
             {organizer}
           </div>
         )}
 
         {/* Titre de l'événement */}
-        <div className="text-white font-bold text-base leading-tight line-clamp-2">
+        <div className="text-white font-bold text-base leading-tight line-clamp-2 pointer-events-none">
           {title}
         </div>
 
         {/* Date formatée */}
         {date && (
-          <div className="text-white/80 text-sm font-medium">
+          <div className="text-white/80 text-sm font-medium pointer-events-none">
             {date}
           </div>
         )}
 
         {/* Temps restant */}
         {timeRemaining && (
-          <div className="text-white/70 text-xs font-semibold">
+          <div className="text-white/70 text-xs font-semibold pointer-events-none">
             {timeRemaining}
           </div>
         )}
 
         {/* Boutons d'action */}
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex items-center gap-3 mt-2 pointer-events-auto">
           {/* Bouton vidéoconférence */}
           {videoLink && (
             <button
@@ -118,15 +118,15 @@ const EventInfoBubble: React.FC<Props> = ({
               className="group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
               aria-label={`Rejoindre ${platform}`}
             >
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300" />
-                <div className="relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300">
-                  <Video className="w-4 h-4 text-blue-600" strokeWidth={2.5} />
+              <div className="relative pointer-events-none">
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
+                <div className="relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Video className="w-4 h-4 text-blue-600 pointer-events-none" strokeWidth={2.5} />
                 </div>
               </div>
-              <div className="flex flex-col items-start">
-                <span className="text-white text-xs font-semibold">Rejoindre</span>
-                <span className="text-white/60 text-[10px] font-light">{platform}</span>
+              <div className="flex flex-col items-start pointer-events-none">
+                <span className="text-white text-xs font-semibold pointer-events-none">Rejoindre</span>
+                <span className="text-white/60 text-[10px] font-light pointer-events-none">{platform}</span>
               </div>
             </button>
           )}
@@ -138,7 +138,7 @@ const EventInfoBubble: React.FC<Props> = ({
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Ouvrir dans le calendrier"
             >
-              <ExternalLink className="w-4 h-4 text-white/80" />
+              <ExternalLink className="w-4 h-4 text-white/80 pointer-events-none" />
             </button>
           )}
         </div>
@@ -146,7 +146,7 @@ const EventInfoBubble: React.FC<Props> = ({
 
       {/* Effet de brillance animé */}
       <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
       </div>
     </div>
   );
