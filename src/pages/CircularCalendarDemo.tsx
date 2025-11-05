@@ -224,6 +224,10 @@ const CircularCalendarDemo = () => {
   const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
 
   useEffect(() => {
+    document.title = "DONA.club Visualiser";
+  }, []);
+
+  useEffect(() => {
     if (authLoading) return;
     const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
     if (!hasAnyConnection) {
