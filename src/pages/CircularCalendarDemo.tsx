@@ -192,28 +192,15 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
     .filter(Boolean) as CalendarEvent[];
 }
 
-// Fonction pour calculer la variation quotidienne moyenne de sunrise/sunset
-function calculateDailyVariation(latitude: number): { sunriseChange: number; sunsetChange: number } {
-  // Variation approximative en minutes par jour selon la latitude
-  // Plus on est proche des pôles, plus la variation est importante
-  const latFactor = Math.abs(latitude) / 90;
-  
-  // En novembre (automne dans l'hémisphère nord), les jours raccourcissent
-  // Variation typique : ~2-3 minutes par jour
-  const baseVariation = 2.5 / 60; // 2.5 minutes en heures décimales
-  const variation = baseVariation * (1 + latFactor * 0.5);
-  
-  // Dans l'hémisphère nord en novembre : sunrise plus tard, sunset plus tôt
-  // Dans l'hémisphère sud : inverse
-  const direction = latitude >= 0 ? 1 : -1;
-  
-  return {
-    sunriseChange: variation * direction,  // Plus tard chaque jour (nord) ou plus tôt (sud)
-    sunsetChange: -variation * direction,  // Plus tôt chaque jour (nord) ou plus tard (sud)
-  };
+// Fonction pour calculer le jour de l'année (1-366)
+function getDayOfYear(date: Date): number {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.floor(diff / oneDay);
 }
 
-// Fonction pour calculer sunrise/sunset pour une date basée sur les valeurs API d'aujourd'hui
+// Fonction pour calculer sunrise/sunset basée sur le cycle annuel
 function calculateSunTimesFromBase(
   targetDate: Date,
   todayDate: Date,
@@ -221,23 +208,62 @@ function calculateSunTimesFromBase(
   todaySunset: number,
   latitude: number
 ): { sunrise: number; sunset: number } {
-  // Calculer le nombre de jours de différence
-  const daysDiff = Math.round((targetDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Si c'est aujourd'hui, retourner les valeurs de l'API
+  const targetDay = new Date(targetDate);
+  targetDay.setHours(0, 0, 0, 0);
+  const today = new Date(todayDate);
+  today.setHours(0, 0, 0, 0);
   
-  if (daysDiff === 0) {
+  if (targetDay.getTime() === today.getTime()) {
     return { sunrise: todaySunrise, sunset: todaySunset };
   }
+
+  // Calculer le jour de l'année pour les deux dates
+  const todayDayOfYear = getDayOfYear(todayDate);
+  const targetDayOfYear = getDayOfYear(targetDate);
   
-  // Obtenir la variation quotidienne
-  const { sunriseChange, sunsetChange } = calculateDailyVariation(latitude);
+  // Paramètres du cycle annuel (basés sur l'hémisphère)
+  const isNorthern = latitude >= 0;
   
-  // Appliquer la variation progressive
-  const sunrise = todaySunrise + (sunriseChange * daysDiff);
-  const sunset = todaySunset + (sunsetChange * daysDiff);
+  // Solstice d'été (jour le plus long) et d'hiver (jour le plus court)
+  const summerSolstice = isNorthern ? 172 : 355; // ~21 juin (nord) ou ~21 décembre (sud)
+  const winterSolstice = isNorthern ? 355 : 172; // ~21 décembre (nord) ou ~21 juin (sud)
+  
+  // Amplitude de variation (en heures) selon la latitude
+  const latFactor = Math.abs(latitude) / 90;
+  const maxVariation = 6 * latFactor; // Jusqu'à 6h de variation aux pôles
+  
+  // Fonction pour calculer la durée du jour selon le jour de l'année
+  const calculateDayLength = (dayOfYear: number) => {
+    // Utiliser une fonction sinusoïdale pour modéliser le cycle annuel
+    const angle = ((dayOfYear - summerSolstice) / 365.25) * 2 * Math.PI;
+    const variation = Math.cos(angle) * maxVariation;
+    return 12 + variation; // 12h de base ± variation
+  };
+  
+  // Calculer la durée du jour pour aujourd'hui et la date cible
+  const todayDayLength = calculateDayLength(todayDayOfYear);
+  const targetDayLength = calculateDayLength(targetDayOfYear);
+  
+  // Calculer la durée actuelle du jour d'après l'API
+  const currentDayLength = todaySunset - todaySunrise;
+  
+  // Ratio entre la durée calculée et la durée réelle (pour calibrer)
+  const calibrationRatio = currentDayLength / todayDayLength;
+  
+  // Appliquer le ratio à la durée cible
+  const targetDayLengthCalibrated = targetDayLength * calibrationRatio;
+  
+  // Calculer le point milieu du jour (midi solaire)
+  const todayMidpoint = (todaySunrise + todaySunset) / 2;
+  
+  // Calculer sunrise et sunset pour la date cible
+  const targetSunrise = todayMidpoint - targetDayLengthCalibrated / 2;
+  const targetSunset = todayMidpoint + targetDayLengthCalibrated / 2;
   
   return {
-    sunrise: Math.max(0, Math.min(24, sunrise)),
-    sunset: Math.max(0, Math.min(24, sunset))
+    sunrise: Math.max(0, Math.min(24, targetSunrise)),
+    sunset: Math.max(0, Math.min(24, targetSunset))
   };
 }
 
@@ -408,7 +434,7 @@ const Visualiser = () => {
       return;
     }
 
-    // Sinon, calculer basé sur les valeurs API d'aujourd'hui
+    // Sinon, calculer basé sur le cycle annuel
     const { sunrise, sunset } = calculateSunTimesFromBase(
       virtualDay,
       today,
