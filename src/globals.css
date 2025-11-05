@@ -299,7 +299,8 @@ body {
   bottom: clamp(4rem, 32vh, 8rem) !important;
   left: 50% !important;
   transform: translate(-50%, 0) !important;
-  width: min(calc(100vw - 2.5rem), 360px) !important;
+  width: auto !important;
+  max-width: min(calc(100vw - 2.5rem), 360px) !important;
   padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -320,6 +321,7 @@ body {
   backdrop-filter: blur(12px);
   padding: 1rem 1.25rem !important;
   max-width: 360px !important;
+  width: auto !important;
 }
 
 [data-sonner-toaster][data-y-position="bottom"] {
@@ -327,7 +329,6 @@ body {
   left: 50% !important;
   right: auto !important;
   transform: translate(-50%, 0) !important;
-  width: inherit !important;
 }
 
 [data-sonner-toaster][data-x-position="center"] {
@@ -340,12 +341,13 @@ body {
 @media (max-width: 640px) {
   [data-sonner-toaster] {
     bottom: clamp(3.5rem, 28vh, 6rem) !important;
-    width: calc(100vw - 1.75rem) !important;
+    max-width: calc(100vw - 1.75rem) !important;
   }
 
   [data-sonner-toaster] [data-sonner-toast] {
     border-radius: 14px !important;
     padding: 0.875rem 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
   }
 }
 
