@@ -159,12 +159,12 @@ const EventInfoBubble: React.FC<Props> = ({
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 rounded-full backdrop-blur-xl pointer-events-none" />
       <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl pointer-events-none" />
       
-      {/* Contenu - Centré verticalement */}
-      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2.5 pointer-events-none">
-        {/* Organisateur (discret en haut) */}
+      {/* Contenu - Centré sur le titre */}
+      <div className="relative flex flex-col items-center px-6 w-full h-full pointer-events-none" style={{ paddingTop: '35%' }}>
+        {/* Organisateur (au-dessus du titre) */}
         {organizer && (
           <div 
-            className="text-xs truncate w-full font-light pointer-events-none"
+            className="text-xs truncate w-full font-light pointer-events-none mb-2"
             style={{ 
               color: textTertiaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -174,9 +174,9 @@ const EventInfoBubble: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Titre de l'événement */}
+        {/* Titre de l'événement - CENTRE VERTICAL */}
         <div 
-          className="font-bold text-lg leading-tight line-clamp-2 pointer-events-none"
+          className="font-bold text-lg leading-tight line-clamp-2 pointer-events-none mb-2.5"
           style={{ 
             color: textColor,
             fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -188,7 +188,7 @@ const EventInfoBubble: React.FC<Props> = ({
         {/* Date formatée */}
         {date && (
           <div 
-            className="text-sm font-medium pointer-events-none"
+            className="text-sm font-medium pointer-events-none mb-2"
             style={{ 
               color: textSecondaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -201,7 +201,7 @@ const EventInfoBubble: React.FC<Props> = ({
         {/* Temps restant */}
         {timeRemaining && (
           <div 
-            className="text-xs font-semibold pointer-events-none"
+            className="text-xs font-semibold pointer-events-none mb-3"
             style={{ 
               color: textTertiaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -212,7 +212,7 @@ const EventInfoBubble: React.FC<Props> = ({
         )}
 
         {/* Boutons d'action */}
-        <div className="flex items-center gap-3 mt-2 pointer-events-auto">
+        <div className="flex items-center gap-3 pointer-events-auto">
           {/* Bouton vidéoconférence */}
           {videoLink && (
             <button

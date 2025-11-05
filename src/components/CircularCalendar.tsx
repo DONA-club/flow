@@ -290,6 +290,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const [showDateLabel, setShowDateLabel] = React.useState(false);
   const [lastDayNotified, setLastDayNotified] = React.useState("");
   const [hoverRing, setHoverRing] = React.useState(false);
+  const [hoverCenterEvent, setHoverCenterEvent] = React.useState(false);
 
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
@@ -847,13 +848,24 @@ export const CircularCalendar: React.FC<Props> = ({
               onEventClick?.(currentEvent);
             }
           }}
+          onMouseEnter={() => setHoverCenterEvent(true)}
+          onMouseLeave={() => setHoverCenterEvent(false)}
           role={currentEvent ? "button" : undefined}
           aria-label={currentEvent ? `Voir les détails: ${currentEvent.title}` : undefined}
         >
           {currentEvent ? (
             <>
               <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
-              <div className="calendar-center-title font-bold text-xl leading-tight px-4 pointer-events-none">{currentEvent.title}</div>
+              <div 
+                className="calendar-center-title font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
+                style={{
+                  color: hoverCenterEvent 
+                    ? (isDarkMode ? "#93c5fd" : "#1e40af")
+                    : (isDarkMode ? "#bfdbfe" : "#1d4ed8")
+                }}
+              >
+                {currentEvent.title}
+              </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
