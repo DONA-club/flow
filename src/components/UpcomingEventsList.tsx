@@ -107,14 +107,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-    console.log("🔍 UpcomingEventsList Debug:", {
-      totalEvents: events.length,
-      mappedEvents: mapped.length,
-      filteredEvents: filtered.length,
-      now: now.toISOString(),
-      threeDaysLater: threeDaysLater.toISOString(),
-    });
-
     return filtered;
   }, [events, maxItems]);
 
@@ -130,14 +122,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     setTimeout(() => setIsAnimating(false), 400);
   };
 
-  console.log("📋 UpcomingEventsList Render:", {
-    upcomingCount: upcoming.length,
-    open,
-    willRender: upcoming.length > 0,
-  });
-
   if (upcoming.length === 0) {
-    console.log("⚠️ UpcomingEventsList: Pas d'événements à venir, composant non affiché");
     return null;
   }
 
@@ -155,7 +140,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
-        style={{ zIndex: 100 }}
+        style={{ zIndex: 9999 }}
         aria-label="Afficher les événements à venir"
       >
         {isAnimating && (
@@ -180,7 +165,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         "relative overflow-hidden",
         className || "",
       ].join(" ").trim()}
-      style={{ zIndex: 100 }}
+      style={{ zIndex: 9999, pointerEvents: "auto" }}
       aria-label="Événements à venir"
     >
       {isAnimating && (
