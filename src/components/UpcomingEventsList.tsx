@@ -160,9 +160,10 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   return (
     <div
       className={[
-        "fixed top-4 left-4 w-[88vw] sm:w-[320px] md:w-[360px]",
+        "fixed top-4 left-4",
         "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
         "relative overflow-hidden",
+        "w-auto max-w-[360px]",
         className || "",
       ].join(" ").trim()}
       style={{ zIndex: 9999, pointerEvents: "auto" }}
@@ -179,7 +180,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-200">
           <Calendar className="w-4 h-4" />
-          <span className="text-sm font-semibold tracking-tight">A venir</span>
+          <span className="text-sm font-semibold tracking-tight whitespace-nowrap">A venir</span>
         </div>
         <button
           type="button"
@@ -217,7 +218,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           const dayLabel = start ? getDayLabel(start, nowRef) : "";
           const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
 
-          // Choisir l'icône selon le jour
           let EventIcon = Clock;
           let iconColor = cursorColor;
           
