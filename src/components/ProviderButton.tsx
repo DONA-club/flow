@@ -36,6 +36,11 @@ async function saveCurrentSessionTokens() {
   const accessToken: string | null = session?.provider_token ?? null;
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
+  console.log("🔑 saveCurrentSessionTokens - Tokens:", {
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken
+  });
+
   if (!accessToken) return;
 
   // Valider le token avant de le sauvegarder
@@ -49,6 +54,8 @@ async function saveCurrentSessionTokens() {
 
   for (const identity of identities) {
     const provider = identity.provider?.toLowerCase();
+    console.log("🔍 Identity provider:", provider);
+    
     if (provider === "google" || provider === "azure" || provider === "microsoft" || 
         provider === "apple" || provider === "facebook" || provider === "amazon") {
       
@@ -57,6 +64,8 @@ async function saveCurrentSessionTokens() {
       } else {
         currentProvider = provider;
       }
+      
+      console.log("✅ Provider détecté:", currentProvider);
       
       const { data: existing } = await supabase
         .from("oauth_tokens")
@@ -69,7 +78,9 @@ async function saveCurrentSessionTokens() {
         const expiresAtUnix: number | null = session?.expires_at ?? null;
         const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
 
-        await supabase
+        console.log("💾 Sauvegarde des tokens pour:", currentProvider);
+
+        const { error } = await supabase
           .from("oauth_tokens")
           .upsert({
             user_id: user.id,
@@ -81,6 +92,12 @@ async function saveCurrentSessionTokens() {
           }, {
             onConflict: "user_id,provider"
           });
+
+        if (error) {
+          console.error("❌ Erreur sauvegarde:", error);
+        } else {
+          console.log("✅ Tokens sauvegardés avec succès");
+        }
 
         break;
       }
@@ -99,6 +116,7 @@ const ProviderButton: React.FC<Props> = ({ provider, className }) => {
     if (loading) return;
     setLoading(true);
 
+    console.log("🔘 Clic sur provider:", provider);
     await saveCurrentSessionTokens();
     await connectProvider(provider);
   };

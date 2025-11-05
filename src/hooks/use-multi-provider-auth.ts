@@ -54,11 +54,14 @@ export function useMultiProviderAuth() {
   });
 
   const checkConnectedProviders = useCallback(async () => {
+    console.log("🔍 Vérification des providers connectés...");
+    
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
     const currentUser = session?.user;
 
     if (!currentUser) {
+      console.log("❌ Pas d'utilisateur connecté");
       setUser(null);
       setConnectedProviders({
         google: false,
@@ -71,6 +74,7 @@ export function useMultiProviderAuth() {
       return;
     }
 
+    console.log("✅ Utilisateur connecté:", currentUser.id);
     setUser(currentUser);
 
     const { data: tokens, error } = await supabase
@@ -82,6 +86,8 @@ export function useMultiProviderAuth() {
       console.error("❌ Erreur lecture oauth_tokens:", error);
     }
 
+    console.log("📋 Tokens trouvés:", tokens?.map(t => t.provider) || []);
+
     const tokenProviders = new Set(tokens?.map(t => t.provider) || []);
 
     const connected: ConnectedProviders = {
@@ -91,6 +97,8 @@ export function useMultiProviderAuth() {
       facebook: tokenProviders.has("facebook"),
       amazon: tokenProviders.has("amazon"),
     };
+
+    console.log("✅ Providers connectés:", connected);
 
     setConnectedProviders(connected);
     setLoading(false);
@@ -103,10 +111,13 @@ export function useMultiProviderAuth() {
       checkConnectedProviders();
     }, 3000);
 
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      setTimeout(() => {
-        checkConnectedProviders();
-      }, 1500);
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      console.log("🔄 Auth state changed:", event);
+      if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
+        setTimeout(() => {
+          checkConnectedProviders();
+        }, 1500);
+      }
     });
 
     return () => {
@@ -116,6 +127,8 @@ export function useMultiProviderAuth() {
   }, [checkConnectedProviders]);
 
   const connectProvider = useCallback(async (provider: Provider) => {
+    console.log("🔗 Connexion au provider:", provider);
+    
     const config = PROVIDER_CONFIGS[provider];
     
     localStorage.setItem("pending_provider_connection", provider);
@@ -139,15 +152,19 @@ export function useMultiProviderAuth() {
     const { data: sessionData } = await supabase.auth.getSession();
     const hasExistingUser = !!sessionData?.session?.user;
 
+    console.log("👤 Utilisateur existant:", hasExistingUser);
+
     let error: any = null;
 
     if (hasExistingUser) {
+      console.log("🔗 Utilisation de linkIdentity");
       const result = await supabase.auth.linkIdentity({
         provider: config.supabaseProvider as any,
         options
       } as any);
       error = result.error;
     } else {
+      console.log("🔗 Utilisation de signInWithOAuth");
       const result = await supabase.auth.signInWithOAuth({ 
         provider: config.supabaseProvider as any, 
         options 
@@ -164,6 +181,7 @@ export function useMultiProviderAuth() {
       return false;
     }
 
+    console.log(`✅ Redirection vers ${provider} réussie`);
     return true;
   }, []);
 
