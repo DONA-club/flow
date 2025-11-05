@@ -30,6 +30,7 @@ type Result = {
     totalSleepHours: number | null;
     sleepSessions: SleepSession[] | null;
   }>;
+  getDebtOrCapitalForDate: (date: Date) => Promise<SleepDebtOrCapital | null>;
 };
 
 type Options = {
@@ -165,12 +166,20 @@ function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): {
   };
 }
 
-function calculateSleepDebtOrCapital(sessions: RawSleepSession[], referenceDate: Date): SleepDebtOrCapital | null {
-  // Calculer pour les 7 derniers jours (ou moins si pas assez de données)
+function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referenceDate: Date): SleepDebtOrCapital | null {
+  // Calculer pour les jours disponibles dans le passé (max 7 jours)
   const daysData: number[] = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  
+  const refDay = new Date(referenceDate);
+  refDay.setHours(0, 0, 0, 0);
+  
+  // Ne considérer que les jours jusqu'à aujourd'hui (pas le futur)
+  const maxDate = refDay.getTime() > now.getTime() ? now : refDay;
   
   for (let i = 0; i < 7; i++) {
-    const date = new Date(referenceDate);
+    const date = new Date(maxDate);
     date.setDate(date.getDate() - i);
     
     const dayData = calculateSleepForDay(sessions, date);
@@ -266,8 +275,8 @@ export function useGoogleFitSleep(options?: Options): Result {
     setTotalSleepHours(todaySleep.totalSleepHours);
     setSleepSessions(todaySleep.sleepSessions);
 
-    // Calculer capital/dette
-    const debtOrCapital = calculateSleepDebtOrCapital(sessions, today);
+    // Calculer capital/dette pour aujourd'hui
+    const debtOrCapital = calculateSleepDebtOrCapitalForDate(sessions, today);
     setSleepDebtOrCapital(debtOrCapital);
 
     // Calculer heure de coucher idéale
@@ -308,6 +317,31 @@ export function useGoogleFitSleep(options?: Options): Result {
     return calculateSleepForDay(allSessions, date);
   }, [enabled, allSessions]);
 
+  const getDebtOrCapitalForDate = React.useCallback(async (date: Date) => {
+    if (!enabled || allSessions.length === 0) {
+      // Si pas de sessions en cache, essayer de les récupérer
+      const tokens = await getGoogleTokens();
+      let accessToken = tokens?.access_token;
+
+      if (!accessToken && tokens?.refresh_token) {
+        accessToken = await refreshGoogleToken(tokens.refresh_token);
+      }
+
+      if (!accessToken) {
+        return null;
+      }
+
+      // Récupérer les sessions des 7 derniers jours avant la date de référence
+      const end = new Date(date);
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const sessions = await fetchSleepSessions(accessToken, start, end);
+      return calculateSleepDebtOrCapitalForDate(sessions, date);
+    }
+
+    return calculateSleepDebtOrCapitalForDate(allSessions, date);
+  }, [enabled, allSessions]);
+
   React.useEffect(() => {
     if (!enabled) return;
     fetchSleep();
@@ -325,5 +359,6 @@ export function useGoogleFitSleep(options?: Options): Result {
     connected, 
     refresh: fetchSleep,
     getSleepForDate,
+    getDebtOrCapitalForDate,
   };
 }

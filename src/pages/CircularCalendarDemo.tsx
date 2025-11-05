@@ -51,6 +51,11 @@ type SleepSession = {
   wakeHour: number;
 };
 
+type SleepDebtOrCapital = {
+  type: "capital" | "debt";
+  hours: number;
+};
+
 function toHourDecimal(iso: string): number {
   const d = new Date(iso);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
@@ -385,6 +390,7 @@ const Visualiser = () => {
     connected: fitConnected,
     refresh: refreshFit,
     getSleepForDate,
+    getDebtOrCapitalForDate,
   } = useGoogleFitSleep({ enabled: googleEnabled });
 
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
@@ -404,6 +410,7 @@ const Visualiser = () => {
   const [currentDayBed, setCurrentDayBed] = useState<number | null>(null);
   const [currentDayTotalSleep, setCurrentDayTotalSleep] = useState<number | null>(null);
   const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
+  const [currentDayDebtOrCapital, setCurrentDayDebtOrCapital] = useState<SleepDebtOrCapital | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -419,6 +426,7 @@ const Visualiser = () => {
   let effectiveBed: number | null = null;
   let effectiveTotalSleep: number | null = null;
   let effectiveSleepSessions: SleepSession[] | null = null;
+  let effectiveDebtOrCapital: SleepDebtOrCapital | null = null;
 
   if (isToday) {
     // Aujourd'hui : afficher les données du jour si disponibles, sinon rien
@@ -427,11 +435,13 @@ const Visualiser = () => {
       effectiveBed = currentDayBed;
       effectiveTotalSleep = currentDayTotalSleep;
       effectiveSleepSessions = currentDaySleepSessions;
+      effectiveDebtOrCapital = currentDayDebtOrCapital;
     } else if (fitConnected && wakeHour !== null && bedHour !== null) {
       effectiveWake = wakeHour;
       effectiveBed = bedHour;
       effectiveTotalSleep = totalSleepHours;
       effectiveSleepSessions = sleepSessions;
+      effectiveDebtOrCapital = sleepDebtOrCapital;
     }
   } else if (isTomorrowDay) {
     // Demain : afficher les données d'aujourd'hui
@@ -440,6 +450,7 @@ const Visualiser = () => {
       effectiveBed = bedHour;
       effectiveTotalSleep = totalSleepHours;
       effectiveSleepSessions = sleepSessions;
+      effectiveDebtOrCapital = sleepDebtOrCapital;
     }
   } else {
     // Autre jour : afficher les données du jour si disponibles, sinon rien
@@ -448,6 +459,7 @@ const Visualiser = () => {
       effectiveBed = currentDayBed;
       effectiveTotalSleep = currentDayTotalSleep;
       effectiveSleepSessions = currentDaySleepSessions;
+      effectiveDebtOrCapital = currentDayDebtOrCapital;
     }
   }
 
@@ -542,19 +554,23 @@ const Visualiser = () => {
   const handleVirtualDateTimeChange = useCallback(async (newDateTime: Date | null) => {
     setVirtualDateTime(newDateTime);
     
-    if (newDateTime && fitConnected && getSleepForDate) {
+    if (newDateTime && fitConnected && getSleepForDate && getDebtOrCapitalForDate) {
       const sleepData = await getSleepForDate(newDateTime);
+      const debtOrCapital = await getDebtOrCapitalForDate(newDateTime);
+      
       setCurrentDayWake(sleepData.wakeHour);
       setCurrentDayBed(sleepData.bedHour);
       setCurrentDayTotalSleep(sleepData.totalSleepHours);
       setCurrentDaySleepSessions(sleepData.sleepSessions);
+      setCurrentDayDebtOrCapital(debtOrCapital);
     } else {
       setCurrentDayWake(null);
       setCurrentDayBed(null);
       setCurrentDayTotalSleep(null);
       setCurrentDaySleepSessions(null);
+      setCurrentDayDebtOrCapital(null);
     }
-  }, [fitConnected, getSleepForDate]);
+  }, [fitConnected, getSleepForDate, getDebtOrCapitalForDate]);
 
   useEffect(() => {
     if (sunLoading) {
@@ -594,7 +610,7 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Log de sommeil basé sur le jour pointé (effectiveWake/Bed/TotalSleep)
+  // Log de sommeil basé sur le jour pointé (effectiveWake/Bed/TotalSleep/DebtOrCapital)
   useEffect(() => {
     if (fitLoading) {
       return;
@@ -611,10 +627,10 @@ const Visualiser = () => {
       // Partie sommeil
       parts.push(`Sommeil : ${formatHourMinute(effectiveTotalSleep)}`);
       
-      // Partie capital/dette (toujours basé sur aujourd'hui)
-      if (sleepDebtOrCapital) {
-        const label = sleepDebtOrCapital.type === "capital" ? "Capital" : "Dette";
-        parts.push(`${label} : ${formatHourMinute(sleepDebtOrCapital.hours)}`);
+      // Partie capital/dette (basé sur le jour pointé)
+      if (effectiveDebtOrCapital) {
+        const label = effectiveDebtOrCapital.type === "capital" ? "Capital" : "Dette";
+        parts.push(`${label} : ${formatHourMinute(effectiveDebtOrCapital.hours)}`);
       }
       
       // Partie coucher (seulement pour aujourd'hui ou demain)
@@ -624,7 +640,7 @@ const Visualiser = () => {
       
       setLogs([{ message: parts.join("｜"), type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, sleepDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
+  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
 
   useEffect(() => {
     const today = new Date();
