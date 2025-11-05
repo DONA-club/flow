@@ -192,7 +192,71 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
     .filter(Boolean) as CalendarEvent[];
 }
 
-// Fonction pour calculer la couleur du fond basée sur le cycle circadien
+// Fonction pour calculer sunrise/sunset pour une date et position données
+function calculateSunTimes(date: Date, latitude: number, longitude: number): { sunrise: number; sunset: number } {
+  // Formule simplifiée basée sur l'approximation de l'équation du temps
+  const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
+  
+  // Déclinaison solaire
+  const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180);
+  
+  // Angle horaire au lever/coucher
+  const latRad = latitude * Math.PI / 180;
+  const declRad = declination * Math.PI / 180;
+  const cosH = -Math.tan(latRad) * Math.tan(declRad);
+  
+  // Si le soleil ne se lève/couche pas (régions polaires)
+  if (cosH > 1) return { sunrise: 0, sunset: 0 }; // Nuit polaire
+  if (cosH < -1) return { sunrise: 0, sunset: 24 }; // Jour polaire
+  
+  const H = Math.acos(cosH) * 180 / Math.PI;
+  
+  // Équation du temps (approximation)
+  const B = (360 / 365) * (dayOfYear - 81) * Math.PI / 180;
+  const E = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  
+  // Correction de longitude
+  const LSTM = 15 * Math.round(longitude / 15); // Fuseau horaire standard
+  const TC = 4 * (longitude - LSTM) + E;
+  
+  // Heures locales
+  const sunrise = 12 - H / 15 - TC / 60;
+  const sunset = 12 + H / 15 - TC / 60;
+  
+  return {
+    sunrise: Math.max(0, Math.min(24, sunrise)),
+    sunset: Math.max(0, Math.min(24, sunset))
+  };
+}
+
+// Fonction pour obtenir les dates de changement d'heure en France pour une année donnée
+function getDSTDates(year: number): { spring: Date; autumn: Date } {
+  // Dernier dimanche de mars à 2h (passage à 3h)
+  const march = new Date(year, 2, 31); // 31 mars
+  const springDay = 31 - ((march.getDay() || 7) - 1); // Dernier dimanche
+  const spring = new Date(year, 2, springDay, 2, 0, 0);
+  
+  // Dernier dimanche d'octobre à 3h (passage à 2h)
+  const october = new Date(year, 9, 31); // 31 octobre
+  const autumnDay = 31 - ((october.getDay() || 7) - 1); // Dernier dimanche
+  const autumn = new Date(year, 9, autumnDay, 3, 0, 0);
+  
+  return { spring, autumn };
+}
+
+// Fonction pour ajuster l'heure selon le fuseau horaire et le DST
+function adjustForDST(date: Date, hour: number): number {
+  const year = date.getFullYear();
+  const { spring, autumn } = getDSTDates(year);
+  
+  // Vérifier si on est en heure d'été (DST)
+  const isDST = date >= spring && date < autumn;
+  
+  // En heure d'été, ajouter 1h (UTC+2), sinon UTC+1
+  return isDST ? hour + 2 : hour + 1;
+}
+
+// Fonction pour calculer la couleur du fond basée sur le cycle circadien avec ondes de 2h
 function getCircadianGradient(
   currentHour: number,
   wakeHour: number,
@@ -214,66 +278,59 @@ function getCircadianGradient(
   const cycleLength = normalizedBed - wakeHour;
   const progress = Math.max(0, Math.min(1, (normalizedCurrent - wakeHour) / cycleLength));
 
+  // Créer des oscillations sinusoïdales avec période de 2h
+  const hoursFromWake = normalizedCurrent - wakeHour;
+  const waveFrequency = Math.PI / 2; // Période de 2h (π/2 rad/h)
+  const wave = Math.sin(hoursFromWake * waveFrequency) * 0.15; // Amplitude de 15%
+
   if (isDarkMode) {
-    // Mode sombre : variations de violet/bleu profond
-    // Réveil (0) -> Milieu de journée (0.5) -> Coucher (1)
-    
-    if (progress < 0.5) {
-      // Matin -> Midi : du violet profond vers le bleu-violet
-      const t = progress * 2; // 0 -> 1
-      const color1 = { h: 270, s: 60, l: 15 }; // Violet profond
-      const color2 = { h: 260, s: 55, l: 20 }; // Bleu-violet
-      
-      const h = color1.h + (color2.h - color1.h) * t;
-      const s = color1.s + (color2.s - color1.s) * t;
-      const l = color1.l + (color2.l - color1.l) * t;
-      
-      return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
-    } else {
-      // Midi -> Soir : du bleu-violet vers le violet-indigo
-      const t = (progress - 0.5) * 2; // 0 -> 1
-      const color1 = { h: 260, s: 55, l: 20 }; // Bleu-violet
-      const color2 = { h: 250, s: 50, l: 18 }; // Violet-indigo
-      
-      const h = color1.h + (color2.h - color1.h) * t;
-      const s = color1.s + (color2.s - color1.s) * t;
-      const l = color1.l + (color2.l - color1.l) * t;
-      
-      return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
-    }
+    // Mode sombre : variations de violet/bleu profond avec oscillations
+    const baseColors = [
+      { h: 270, s: 60, l: 15 }, // Réveil - Violet profond
+      { h: 265, s: 58, l: 17 }, // +25% - Violet-bleu
+      { h: 260, s: 55, l: 20 }, // +50% - Bleu-violet (midi)
+      { h: 255, s: 53, l: 19 }, // +75% - Bleu-indigo
+      { h: 250, s: 50, l: 18 }, // Coucher - Violet-indigo
+    ];
+
+    // Interpolation entre les couleurs de base
+    const segmentIndex = Math.floor(progress * (baseColors.length - 1));
+    const segmentProgress = (progress * (baseColors.length - 1)) % 1;
+    const color1 = baseColors[Math.min(segmentIndex, baseColors.length - 1)];
+    const color2 = baseColors[Math.min(segmentIndex + 1, baseColors.length - 1)];
+
+    const h = color1.h + (color2.h - color1.h) * segmentProgress;
+    const s = color1.s + (color2.s - color1.s) * segmentProgress;
+    const l = (color1.l + (color2.l - color1.l) * segmentProgress) * (1 + wave);
+
+    return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
   } else {
-    // Mode clair : variations de turquoise/cyan
-    // Réveil (0) -> Milieu de journée (0.5) -> Coucher (1)
-    
-    if (progress < 0.5) {
-      // Matin -> Midi : du turquoise clair vers le cyan vif
-      const t = progress * 2; // 0 -> 1
-      const color1 = { h: 180, s: 70, l: 85 }; // Turquoise très clair
-      const color2 = { h: 185, s: 75, l: 70 }; // Cyan moyen
-      
-      const h = color1.h + (color2.h - color1.h) * t;
-      const s = color1.s + (color2.s - color1.s) * t;
-      const l = color1.l + (color2.l - color1.l) * t;
-      
-      return `radial-gradient(circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), hsl(${h}, ${s}%, ${l + 10}%) 0%, hsl(${h}, ${s}%, ${l + 5}%) 25%, hsl(${h}, ${s}%, ${l}%) 45%, hsl(${h}, ${s}%, ${l - 5}%) 65%, hsl(${h}, ${s}%, ${l - 10}%) 80%, hsl(${h}, ${s}%, ${l - 15}%) 100%)`;
-    } else {
-      // Midi -> Soir : du cyan vif vers le bleu cyan profond
-      const t = (progress - 0.5) * 2; // 0 -> 1
-      const color1 = { h: 185, s: 75, l: 70 }; // Cyan moyen
-      const color2 = { h: 190, s: 80, l: 60 }; // Bleu cyan
-      
-      const h = color1.h + (color2.h - color1.h) * t;
-      const s = color1.s + (color2.s - color1.s) * t;
-      const l = color1.l + (color2.l - color1.l) * t;
-      
-      return `radial-gradient(circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), hsl(${h}, ${s}%, ${l + 10}%) 0%, hsl(${h}, ${s}%, ${l + 5}%) 25%, hsl(${h}, ${s}%, ${l}%) 45%, hsl(${h}, ${s}%, ${l - 5}%) 65%, hsl(${h}, ${s}%, ${l - 10}%) 80%, hsl(${h}, ${s}%, ${l - 15}%) 100%)`;
-    }
+    // Mode clair : variations de turquoise/cyan avec oscillations
+    const baseColors = [
+      { h: 180, s: 70, l: 85 }, // Réveil - Turquoise très clair
+      { h: 182, s: 72, l: 78 }, // +25% - Turquoise-cyan
+      { h: 185, s: 75, l: 70 }, // +50% - Cyan moyen (midi)
+      { h: 188, s: 77, l: 65 }, // +75% - Cyan-bleu
+      { h: 190, s: 80, l: 60 }, // Coucher - Bleu cyan
+    ];
+
+    // Interpolation entre les couleurs de base
+    const segmentIndex = Math.floor(progress * (baseColors.length - 1));
+    const segmentProgress = (progress * (baseColors.length - 1)) % 1;
+    const color1 = baseColors[Math.min(segmentIndex, baseColors.length - 1)];
+    const color2 = baseColors[Math.min(segmentIndex + 1, baseColors.length - 1)];
+
+    const h = color1.h + (color2.h - color1.h) * segmentProgress;
+    const s = color1.s + (color2.s - color1.s) * segmentProgress;
+    const l = (color1.l + (color2.l - color1.l) * segmentProgress) * (1 + wave);
+
+    return `radial-gradient(circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), hsl(${h}, ${s}%, ${l + 10}%) 0%, hsl(${h}, ${s}%, ${l + 5}%) 25%, hsl(${h}, ${s}%, ${l}%) 45%, hsl(${h}, ${s}%, ${l - 5}%) 65%, hsl(${h}, ${s}%, ${l - 10}%) 80%, hsl(${h}, ${s}%, ${l - 15}%) 100%)`;
   }
 }
 
 const Visualiser = () => {
   const navigate = useNavigate();
-  const { sunrise, sunset, loading: sunLoading, error: sunError } = useSunTimes();
+  const { sunrise: todaySunrise, sunset: todaySunset, loading: sunLoading, error: sunError, latitude, longitude } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
   const googleEnabled = connectedProviders?.google ?? false;
@@ -335,12 +392,41 @@ const Visualiser = () => {
     }
   }, [authLoading, connectedProviders, navigate]);
 
+  // Mise à jour des heures de lever/coucher pour aujourd'hui
   useEffect(() => {
-    if (sunrise !== null && sunset !== null && !sunLoading && !sunError) {
-      setDisplaySunrise(sunrise);
-      setDisplaySunset(sunset);
+    if (todaySunrise !== null && todaySunset !== null && !sunLoading && !sunError) {
+      setDisplaySunrise(todaySunrise);
+      setDisplaySunset(todaySunset);
     }
-  }, [sunrise, sunset, sunLoading, sunError]);
+  }, [todaySunrise, todaySunset, sunLoading, sunError]);
+
+  // Mise à jour dynamique des heures de lever/coucher selon la date virtuelle
+  useEffect(() => {
+    if (!virtualDateTime || !latitude || !longitude) return;
+
+    const today = new Date();
+    const isToday = 
+      virtualDateTime.getDate() === today.getDate() &&
+      virtualDateTime.getMonth() === today.getMonth() &&
+      virtualDateTime.getFullYear() === today.getFullYear();
+
+    // Si c'est aujourd'hui, utiliser les valeurs actuelles
+    if (isToday) {
+      if (todaySunrise !== null && todaySunset !== null) {
+        setDisplaySunrise(todaySunrise);
+        setDisplaySunset(todaySunset);
+      }
+      return;
+    }
+
+    // Sinon, calculer pour la date virtuelle
+    const { sunrise, sunset } = calculateSunTimes(virtualDateTime, latitude, longitude);
+    const adjustedSunrise = adjustForDST(virtualDateTime, sunrise);
+    const adjustedSunset = adjustForDST(virtualDateTime, sunset);
+    
+    setDisplaySunrise(adjustedSunrise);
+    setDisplaySunset(adjustedSunset);
+  }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset]);
 
   // Détection du thème
   useEffect(() => {
@@ -389,10 +475,10 @@ const Visualiser = () => {
       return;
     } else if (sunError) {
       setLogs([{ message: "Position approximative", type: "info" }]);
-    } else if (sunrise !== null && sunset !== null) {
+    } else if (todaySunrise !== null && todaySunset !== null) {
       setLogs([{ message: "Position détectée", type: "success" }]);
     }
-  }, [sunLoading, sunError, sunrise, sunset]);
+  }, [sunLoading, sunError, todaySunrise, todaySunset]);
 
   // Gestion des logs Google Calendar - remplacer "..." par résultat final
   useEffect(() => {

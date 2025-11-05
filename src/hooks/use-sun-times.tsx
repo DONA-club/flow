@@ -38,7 +38,7 @@ export function useSunTimes(): SunTimes {
       setLongitude(lon);
       applyCalc(lat);
       setLoading(false);
-      setError("La géolocalisation n’est pas disponible sur cet appareil. Utilisation de Paris par défaut.");
+      setError("La géolocalisation n'est pas disponible sur cet appareil. Utilisation de Paris par défaut.");
       return;
     }
 
