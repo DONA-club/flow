@@ -19,6 +19,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   fadeOutDuration,
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const idRef = useRef(0);
 
   const timersRef = useRef<
@@ -27,6 +28,20 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
 
   const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const prevPositions = useRef<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const checkTheme = () => {
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(isDark);
+    };
+    checkTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => checkTheme();
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   useEffect(() => {
     if (logs.length === 0) return;
@@ -149,7 +164,6 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
     else nodeRefs.current.delete(id);
   };
 
-  // Remplacer les caractères spéciaux par ASCII
   const sanitizeMessage = (msg: string) => {
     return msg
       .replace(/✔️/g, "[OK]")
@@ -163,8 +177,9 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   const baseTextClass =
     "text-xs leading-tight tracking-tight select-none transition-all italic";
   
-  // Couleur adaptée au fond (proche mais lisible)
-  const textColor = "rgba(255, 255, 255, 0.35)";
+  const textColor = isDarkMode 
+    ? "rgba(224, 231, 255, 0.4)" 
+    : "rgba(15, 118, 110, 0.5)";
 
   return (
     <div
