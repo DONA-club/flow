@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import CircularCalendarDemo from "./pages/CircularCalendarDemo";
+import Visualiser from "./pages/CircularCalendarDemo";
 import SystemThemeWatcher from "@/components/SystemThemeWatcher";
 import AuthTokensWatcher from "@/components/AuthTokensWatcher";
 
@@ -21,7 +21,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/calendar" element={<CircularCalendarDemo />} />
+          <Route path="/visualiser" element={<Visualiser />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

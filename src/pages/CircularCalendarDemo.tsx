@@ -192,7 +192,86 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
     .filter(Boolean) as CalendarEvent[];
 }
 
-const CircularCalendarDemo = () => {
+// Fonction pour calculer la couleur du fond basée sur le cycle circadien
+function getCircadianGradient(
+  currentHour: number,
+  wakeHour: number,
+  bedHour: number,
+  isDarkMode: boolean
+): string {
+  // Normaliser les heures pour gérer le cycle qui traverse minuit
+  let normalizedCurrent = currentHour;
+  let normalizedBed = bedHour;
+  
+  if (bedHour < wakeHour) {
+    normalizedBed += 24;
+    if (currentHour < wakeHour) {
+      normalizedCurrent += 24;
+    }
+  }
+
+  // Calculer la progression dans le cycle (0 = réveil, 1 = coucher)
+  const cycleLength = normalizedBed - wakeHour;
+  const progress = Math.max(0, Math.min(1, (normalizedCurrent - wakeHour) / cycleLength));
+
+  if (isDarkMode) {
+    // Mode sombre : variations de violet/bleu profond
+    // Réveil (0) -> Milieu de journée (0.5) -> Coucher (1)
+    
+    if (progress < 0.5) {
+      // Matin -> Midi : du violet profond vers le bleu-violet
+      const t = progress * 2; // 0 -> 1
+      const color1 = { h: 270, s: 60, l: 15 }; // Violet profond
+      const color2 = { h: 260, s: 55, l: 20 }; // Bleu-violet
+      
+      const h = color1.h + (color2.h - color1.h) * t;
+      const s = color1.s + (color2.s - color1.s) * t;
+      const l = color1.l + (color2.l - color1.l) * t;
+      
+      return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
+    } else {
+      // Midi -> Soir : du bleu-violet vers le violet-indigo
+      const t = (progress - 0.5) * 2; // 0 -> 1
+      const color1 = { h: 260, s: 55, l: 20 }; // Bleu-violet
+      const color2 = { h: 250, s: 50, l: 18 }; // Violet-indigo
+      
+      const h = color1.h + (color2.h - color1.h) * t;
+      const s = color1.s + (color2.s - color1.s) * t;
+      const l = color1.l + (color2.l - color1.l) * t;
+      
+      return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
+    }
+  } else {
+    // Mode clair : variations de turquoise/cyan
+    // Réveil (0) -> Milieu de journée (0.5) -> Coucher (1)
+    
+    if (progress < 0.5) {
+      // Matin -> Midi : du turquoise clair vers le cyan vif
+      const t = progress * 2; // 0 -> 1
+      const color1 = { h: 180, s: 70, l: 85 }; // Turquoise très clair
+      const color2 = { h: 185, s: 75, l: 70 }; // Cyan moyen
+      
+      const h = color1.h + (color2.h - color1.h) * t;
+      const s = color1.s + (color2.s - color1.s) * t;
+      const l = color1.l + (color2.l - color1.l) * t;
+      
+      return `radial-gradient(circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), hsl(${h}, ${s}%, ${l + 10}%) 0%, hsl(${h}, ${s}%, ${l + 5}%) 25%, hsl(${h}, ${s}%, ${l}%) 45%, hsl(${h}, ${s}%, ${l - 5}%) 65%, hsl(${h}, ${s}%, ${l - 10}%) 80%, hsl(${h}, ${s}%, ${l - 15}%) 100%)`;
+    } else {
+      // Midi -> Soir : du cyan vif vers le bleu cyan profond
+      const t = (progress - 0.5) * 2; // 0 -> 1
+      const color1 = { h: 185, s: 75, l: 70 }; // Cyan moyen
+      const color2 = { h: 190, s: 80, l: 60 }; // Bleu cyan
+      
+      const h = color1.h + (color2.h - color1.h) * t;
+      const s = color1.s + (color2.s - color1.s) * t;
+      const l = color1.l + (color2.l - color1.l) * t;
+      
+      return `radial-gradient(circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), hsl(${h}, ${s}%, ${l + 10}%) 0%, hsl(${h}, ${s}%, ${l + 5}%) 25%, hsl(${h}, ${s}%, ${l}%) 45%, hsl(${h}, ${s}%, ${l - 5}%) 65%, hsl(${h}, ${s}%, ${l - 10}%) 80%, hsl(${h}, ${s}%, ${l - 15}%) 100%)`;
+    }
+  }
+}
+
+const Visualiser = () => {
   const navigate = useNavigate();
   const { sunrise, sunset, loading: sunLoading, error: sunError } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
@@ -234,6 +313,8 @@ const CircularCalendarDemo = () => {
 
   const [eventsByDay, setEventsByDay] = useState<Map<string, CalendarEvent[]>>(new Map());
   const [loadingDays, setLoadingDays] = useState<Set<string>>(new Set());
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [backgroundGradient, setBackgroundGradient] = useState("");
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -259,6 +340,39 @@ const CircularCalendarDemo = () => {
       setDisplaySunset(sunset);
     }
   }, [sunrise, sunset, sunLoading, sunError]);
+
+  // Détection du thème et mise à jour du gradient
+  useEffect(() => {
+    const updateTheme = () => {
+      const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(dark);
+    };
+    
+    updateTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => updateTheme();
+    
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
+
+  // Mise à jour du gradient basé sur l'heure actuelle et le cycle circadien
+  useEffect(() => {
+    const updateGradient = () => {
+      const now = new Date();
+      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const gradient = getCircadianGradient(currentHour, effectiveWake, effectiveBed, isDarkMode);
+      setBackgroundGradient(gradient);
+    };
+
+    updateGradient();
+    // Mettre à jour toutes les minutes
+    const interval = setInterval(updateGradient, 60000);
+    
+    return () => clearInterval(interval);
+  }, [effectiveWake, effectiveBed, isDarkMode]);
 
   // Gestion des logs de localisation - remplacer "..." par résultat final
   useEffect(() => {
@@ -421,8 +535,14 @@ const CircularCalendarDemo = () => {
       <FontLoader />
 
       <div 
-        className="fixed inset-0 calendar-light-bg" 
-        style={{ zIndex: 0 }}
+        className="fixed inset-0 transition-all duration-[2000ms] ease-in-out" 
+        style={{ 
+          zIndex: 0,
+          background: backgroundGradient || (isDarkMode 
+            ? 'radial-gradient(circle at 50% 50%, #6d28d9 0%, #312e81 55%, #181c2a 100%)'
+            : 'radial-gradient(circle at 50% 50%, #e0f7fa 0%, #80deea 25%, #4dd0e1 45%, #26c6da 65%, #00acc1 80%, #0097a7 100%)'
+          )
+        }}
         id="calendar-page-container"
       />
 
@@ -469,4 +589,4 @@ const CircularCalendarDemo = () => {
   );
 };
 
-export default CircularCalendarDemo;
+export default Visualiser;

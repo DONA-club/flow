@@ -27,7 +27,7 @@ const Index = () => {
       setTimeout(() => setBurstActive(false), 500);
       return;
     }
-    navigate("/calendar");
+    navigate("/visualiser");
   };
 
   // Rayon des particules légèrement augmenté

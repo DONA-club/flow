@@ -18,27 +18,6 @@ body, html, #root {
   transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dégradé turquoise et bleu ciel pour la page calendar en mode clair */
-.calendar-light-bg {
-  background: transparent;
-}
-@media (prefers-color-scheme: light) {
-  .calendar-light-bg {
-    /* Le dégradé sera centré dynamiquement via JS sur le centre de l'anneau */
-    background: radial-gradient(
-      circle at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), 
-      #e0f7fa 0%,      /* Turquoise très clair au centre */
-      #80deea 25%,     /* Turquoise clair */
-      #4dd0e1 45%,     /* Turquoise moyen */
-      #26c6da 65%,     /* Turquoise vif */
-      #00acc1 80%,     /* Bleu cyan profond */
-      #0097a7 100%     /* Bleu cyan très profond */
-    ) !important;
-    background-attachment: fixed;
-    transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-}
-
 /* Glassmorphism pour les éléments centraux avec effet liquid glass */
 .glass {
   background: rgba(24,28,42,0.45);
