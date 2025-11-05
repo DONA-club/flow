@@ -99,13 +99,23 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       })
       .filter(Boolean) as { e: EventLike; start: Date; end: Date | null }[];
 
-    return mapped
+    const filtered = mapped
       .filter(
         (x) =>
           x.start.getTime() >= now.getTime() &&
           x.start.getTime() <= threeDaysLater.getTime()
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    console.log("🔍 UpcomingEventsList Debug:", {
+      totalEvents: events.length,
+      mappedEvents: mapped.length,
+      filteredEvents: filtered.length,
+      now: now.toISOString(),
+      threeDaysLater: threeDaysLater.toISOString(),
+    });
+
+    return filtered;
   }, [events, maxItems]);
 
   const handleEventClick = (evt: EventLike) => {
@@ -120,7 +130,16 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     setTimeout(() => setIsAnimating(false), 400);
   };
 
-  if (upcoming.length === 0) return null;
+  console.log("📋 UpcomingEventsList Render:", {
+    upcomingCount: upcoming.length,
+    open,
+    willRender: upcoming.length > 0,
+  });
+
+  if (upcoming.length === 0) {
+    console.log("⚠️ UpcomingEventsList: Pas d'événements à venir, composant non affiché");
+    return null;
+  }
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const nowRef = new Date();
