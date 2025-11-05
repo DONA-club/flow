@@ -192,68 +192,53 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
     .filter(Boolean) as CalendarEvent[];
 }
 
-// Fonction pour calculer sunrise/sunset pour une date et position données
-function calculateSunTimes(date: Date, latitude: number, longitude: number): { sunrise: number; sunset: number } {
-  // Formule simplifiée basée sur l'approximation de l'équation du temps
-  const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
+// Fonction pour calculer la variation quotidienne moyenne de sunrise/sunset
+function calculateDailyVariation(latitude: number): { sunriseChange: number; sunsetChange: number } {
+  // Variation approximative en minutes par jour selon la latitude
+  // Plus on est proche des pôles, plus la variation est importante
+  const latFactor = Math.abs(latitude) / 90;
   
-  // Déclinaison solaire
-  const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180);
+  // En novembre (automne dans l'hémisphère nord), les jours raccourcissent
+  // Variation typique : ~2-3 minutes par jour
+  const baseVariation = 2.5 / 60; // 2.5 minutes en heures décimales
+  const variation = baseVariation * (1 + latFactor * 0.5);
   
-  // Angle horaire au lever/coucher
-  const latRad = latitude * Math.PI / 180;
-  const declRad = declination * Math.PI / 180;
-  const cosH = -Math.tan(latRad) * Math.tan(declRad);
+  // Dans l'hémisphère nord en novembre : sunrise plus tard, sunset plus tôt
+  // Dans l'hémisphère sud : inverse
+  const direction = latitude >= 0 ? 1 : -1;
   
-  // Si le soleil ne se lève/couche pas (régions polaires)
-  if (cosH > 1) return { sunrise: 0, sunset: 0 }; // Nuit polaire
-  if (cosH < -1) return { sunrise: 0, sunset: 24 }; // Jour polaire
+  return {
+    sunriseChange: variation * direction,  // Plus tard chaque jour (nord) ou plus tôt (sud)
+    sunsetChange: -variation * direction,  // Plus tôt chaque jour (nord) ou plus tard (sud)
+  };
+}
+
+// Fonction pour calculer sunrise/sunset pour une date basée sur les valeurs API d'aujourd'hui
+function calculateSunTimesFromBase(
+  targetDate: Date,
+  todayDate: Date,
+  todaySunrise: number,
+  todaySunset: number,
+  latitude: number
+): { sunrise: number; sunset: number } {
+  // Calculer le nombre de jours de différence
+  const daysDiff = Math.round((targetDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
   
-  const H = Math.acos(cosH) * 180 / Math.PI;
+  if (daysDiff === 0) {
+    return { sunrise: todaySunrise, sunset: todaySunset };
+  }
   
-  // Équation du temps (approximation)
-  const B = (360 / 365) * (dayOfYear - 81) * Math.PI / 180;
-  const E = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  // Obtenir la variation quotidienne
+  const { sunriseChange, sunsetChange } = calculateDailyVariation(latitude);
   
-  // Correction de longitude
-  const LSTM = 15 * Math.round(longitude / 15); // Fuseau horaire standard
-  const TC = 4 * (longitude - LSTM) + E;
-  
-  // Heures locales
-  const sunrise = 12 - H / 15 - TC / 60;
-  const sunset = 12 + H / 15 - TC / 60;
+  // Appliquer la variation progressive
+  const sunrise = todaySunrise + (sunriseChange * daysDiff);
+  const sunset = todaySunset + (sunsetChange * daysDiff);
   
   return {
     sunrise: Math.max(0, Math.min(24, sunrise)),
     sunset: Math.max(0, Math.min(24, sunset))
   };
-}
-
-// Fonction pour obtenir les dates de changement d'heure en France pour une année donnée
-function getDSTDates(year: number): { spring: Date; autumn: Date } {
-  // Dernier dimanche de mars à 2h (passage à 3h)
-  const march = new Date(year, 2, 31); // 31 mars
-  const springDay = 31 - ((march.getDay() || 7) - 1); // Dernier dimanche
-  const spring = new Date(year, 2, springDay, 2, 0, 0);
-  
-  // Dernier dimanche d'octobre à 3h (passage à 2h)
-  const october = new Date(year, 9, 31); // 31 octobre
-  const autumnDay = 31 - ((october.getDay() || 7) - 1); // Dernier dimanche
-  const autumn = new Date(year, 9, autumnDay, 3, 0, 0);
-  
-  return { spring, autumn };
-}
-
-// Fonction pour ajuster l'heure selon le fuseau horaire et le DST
-function adjustForDST(date: Date, hour: number): number {
-  const year = date.getFullYear();
-  const { spring, autumn } = getDSTDates(year);
-  
-  // Vérifier si on est en heure d'été (DST)
-  const isDST = date >= spring && date < autumn;
-  
-  // En heure d'été, ajouter 1h (UTC+2), sinon UTC+1
-  return isDST ? hour + 2 : hour + 1;
 }
 
 // Fonction pour calculer la couleur du fond basée sur le cycle circadien avec ondes de 2h
@@ -397,7 +382,6 @@ const Visualiser = () => {
     if (todaySunrise !== null && todaySunset !== null && !sunLoading && !sunError) {
       // Si on est en temps réel (pas de virtualDateTime), utiliser les valeurs de l'API
       if (!virtualDateTime) {
-        console.log(`🌅 Aujourd'hui (API): Sunrise ${todaySunrise.toFixed(2)}h, Sunset ${todaySunset.toFixed(2)}h`);
         setDisplaySunrise(todaySunrise);
         setDisplaySunset(todaySunset);
       }
@@ -407,35 +391,34 @@ const Visualiser = () => {
   // Mise à jour dynamique des heures de lever/coucher selon la date virtuelle
   useEffect(() => {
     // Ne rien faire si on n'a pas de virtualDateTime (temps réel géré par l'effet précédent)
-    if (!virtualDateTime || !latitude || !longitude) return;
+    if (!virtualDateTime || !latitude || !longitude || todaySunrise === null || todaySunset === null) return;
 
     const today = new Date();
-    const isToday = 
-      virtualDateTime.getDate() === today.getDate() &&
-      virtualDateTime.getMonth() === today.getMonth() &&
-      virtualDateTime.getFullYear() === today.getFullYear();
+    today.setHours(0, 0, 0, 0);
+    
+    const virtualDay = new Date(virtualDateTime);
+    virtualDay.setHours(0, 0, 0, 0);
+    
+    const isToday = virtualDay.getTime() === today.getTime();
 
     // Si c'est aujourd'hui, utiliser les valeurs actuelles de l'API
     if (isToday) {
-      if (todaySunrise !== null && todaySunset !== null) {
-        console.log(`🌅 Aujourd'hui (retour temps réel): Sunrise ${todaySunrise.toFixed(2)}h, Sunset ${todaySunset.toFixed(2)}h`);
-        setDisplaySunrise(todaySunrise);
-        setDisplaySunset(todaySunset);
-      }
+      setDisplaySunrise(todaySunrise);
+      setDisplaySunset(todaySunset);
       return;
     }
 
-    // Sinon, calculer pour la date virtuelle
-    const { sunrise, sunset } = calculateSunTimes(virtualDateTime, latitude, longitude);
-    const adjustedSunrise = adjustForDST(virtualDateTime, sunrise);
-    const adjustedSunset = adjustForDST(virtualDateTime, sunset);
+    // Sinon, calculer basé sur les valeurs API d'aujourd'hui
+    const { sunrise, sunset } = calculateSunTimesFromBase(
+      virtualDay,
+      today,
+      todaySunrise,
+      todaySunset,
+      latitude
+    );
     
-    console.log(`📅 Date virtuelle: ${virtualDateTime.toLocaleDateString()}`);
-    console.log(`🌅 Sunrise calculé: ${adjustedSunrise.toFixed(2)}h`);
-    console.log(`🌇 Sunset calculé: ${adjustedSunset.toFixed(2)}h`);
-    
-    setDisplaySunrise(adjustedSunrise);
-    setDisplaySunset(adjustedSunset);
+    setDisplaySunrise(Number(sunrise.toFixed(2)));
+    setDisplaySunset(Number(sunset.toFixed(2)));
   }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset]);
 
   // Détection du thème
@@ -481,7 +464,6 @@ const Visualiser = () => {
   // Gestion des logs de localisation - remplacer "..." par résultat final
   useEffect(() => {
     if (sunLoading) {
-      // Ne pas afficher de log pendant le chargement
       return;
     } else if (sunError) {
       setLogs([{ message: "Position approximative", type: "info" }]);
@@ -493,7 +475,6 @@ const Visualiser = () => {
   // Gestion des logs Google Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (gLoading) {
-      // Ne pas afficher de log pendant le chargement
       return;
     } else if (gError && gError.includes("non connecté")) {
       return;
@@ -509,7 +490,6 @@ const Visualiser = () => {
   // Gestion des logs Outlook Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (oLoading) {
-      // Ne pas afficher de log pendant le chargement
       return;
     } else if (oError && oError.includes("non connecté")) {
       return;
@@ -525,7 +505,6 @@ const Visualiser = () => {
   // Gestion des logs Google Fit - remplacer "..." par résultat final
   useEffect(() => {
     if (fitLoading) {
-      // Ne pas afficher de log pendant le chargement
       return;
     } else if (fitError && fitError.includes("non connecté")) {
       return;
