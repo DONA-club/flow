@@ -99,58 +99,15 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   };
 }
 
-// Nouvelle fonction pour forcer la récupération des tokens via une nouvelle connexion
-async function forceTokenRefresh(provider: Provider) {
-  const config: Record<Provider, { supabaseProvider: string; scopes?: string; queryParams?: Record<string, string> }> = {
-    google: {
-      supabaseProvider: "google",
-      scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
-      queryParams: {
-        prompt: "consent",
-        access_type: "offline",
-        include_granted_scopes: "true",
-      },
-    },
-    microsoft: {
-      supabaseProvider: "azure",
-      scopes: "https://graph.microsoft.com/Calendars.Read offline_access openid profile email",
-      queryParams: { prompt: "consent" },
-    },
-    apple: { supabaseProvider: "apple" },
-    facebook: { supabaseProvider: "facebook" },
-    amazon: { supabaseProvider: "amazon" },
-  };
-
-  const providerConfig = config[provider];
-  if (!providerConfig) return;
-
-  localStorage.setItem("pending_provider_connection", provider);
-
-  const options: any = {
-    redirectTo: window.location.origin,
-    skipBrowserRedirect: false,
-  };
-
-  if (providerConfig.scopes) {
-    options.scopes = providerConfig.scopes;
-  }
-
-  if (providerConfig.queryParams) {
-    options.queryParams = providerConfig.queryParams;
-  }
-
-  await supabase.auth.linkIdentity({
-    provider: providerConfig.supabaseProvider as any,
-    options
-  } as any);
-}
-
 async function saveProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
   
   if (!user) return;
+
+  // Récupérer le provider en attente
+  const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
 
   let accessToken: string | null = session?.provider_token ?? null;
   let refreshToken: string | null = session?.provider_refresh_token ?? null;
@@ -179,7 +136,6 @@ async function saveProviderTokens() {
 
     // Si Google est connecté mais n'a pas de token, forcer la reconnexion
     if (googleIdentity && !existingProviders.has("google")) {
-      const pendingProvider = localStorage.getItem("pending_provider_connection");
       if (pendingProvider !== "google") {
         toast.info("Reconnexion Google nécessaire", {
           description: "Cliquez sur le logo Google pour obtenir les permissions.",
@@ -189,7 +145,6 @@ async function saveProviderTokens() {
 
     // Si Microsoft est connecté mais n'a pas de token, forcer la reconnexion
     if (microsoftIdentity && !existingProviders.has("microsoft")) {
-      const pendingProvider = localStorage.getItem("pending_provider_connection");
       if (pendingProvider !== "microsoft") {
         toast.info("Reconnexion Microsoft nécessaire", {
           description: "Cliquez sur le logo Microsoft pour obtenir les permissions.",
@@ -200,28 +155,33 @@ async function saveProviderTokens() {
     return;
   }
 
-  const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   let providerToSave: Provider | null = null;
 
+  // IMPORTANT : Utiliser UNIQUEMENT le provider en attente si disponible
   if (pendingProvider) {
     providerToSave = pendingProvider;
-  }
-
-  if (!providerToSave) {
+  } else {
+    // Sinon, détecter depuis le token
     const detected = detectProviderFromToken(accessToken);
     if (detected) {
       providerToSave = detected;
-    }
-  }
-
-  if (!providerToSave) {
-    const identityProvider = await detectProviderFromIdentities(user);
-    if (identityProvider) {
-      providerToSave = identityProvider;
+    } else {
+      const identityProvider = await detectProviderFromIdentities(user);
+      if (identityProvider) {
+        providerToSave = identityProvider;
+      }
     }
   }
 
   if (!providerToSave) return;
+
+  // Vérifier que le token correspond bien au provider attendu
+  const tokenProvider = detectProviderFromToken(accessToken);
+  if (pendingProvider && tokenProvider && tokenProvider !== pendingProvider) {
+    console.warn(`⚠️ Token provider mismatch: expected ${pendingProvider}, got ${tokenProvider}`);
+    // Ne pas sauvegarder si le provider ne correspond pas
+    return;
+  }
 
   const { data: existingToken } = await supabase
     .from("oauth_tokens")
@@ -248,7 +208,10 @@ async function saveProviderTokens() {
       onConflict: "user_id,provider"
     });
 
-  if (error) return;
+  if (error) {
+    console.error(`❌ Erreur sauvegarde token ${providerToSave}:`, error);
+    return;
+  }
   
   if (pendingProvider === providerToSave) {
     localStorage.removeItem("pending_provider_connection");

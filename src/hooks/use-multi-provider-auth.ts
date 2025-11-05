@@ -135,22 +135,33 @@ export function useMultiProviderAuth() {
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
-    const hasExistingUser = !!sessionData?.session?.user;
+    const currentUser = sessionData?.session?.user;
 
     let error: any = null;
 
-    // TOUJOURS utiliser linkIdentity pour forcer la récupération des tokens
-    if (hasExistingUser) {
-      const result = await supabase.auth.linkIdentity({
-        provider: config.supabaseProvider as any,
-        options
-      } as any);
-      error = result.error;
-    } else {
+    // Si l'utilisateur n'est pas connecté, utiliser signInWithOAuth
+    if (!currentUser) {
       const result = await supabase.auth.signInWithOAuth({ 
         provider: config.supabaseProvider as any, 
         options 
       });
+      error = result.error;
+    } else {
+      // Si l'utilisateur est déjà connecté, vérifier s'il a déjà cette identity
+      const identities = currentUser.identities || [];
+      const hasIdentity = identities.some((i: any) => {
+        if (provider === "microsoft") {
+          return ["azure", "azure-oidc", "azuread", "microsoft", "outlook"].includes(i.provider);
+        }
+        return i.provider === provider;
+      });
+
+      // Si l'identity existe déjà, utiliser linkIdentity pour forcer le refresh des tokens
+      // Sinon, utiliser linkIdentity pour ajouter une nouvelle identity
+      const result = await supabase.auth.linkIdentity({
+        provider: config.supabaseProvider as any,
+        options
+      } as any);
       error = result.error;
     }
 
