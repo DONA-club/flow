@@ -23,9 +23,9 @@ function useGoldenCircleSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
       
-      // Sur mobile, utiliser 85% de la largeur de l'écran
+      // Sur mobile, utiliser 92% de la largeur de l'écran (augmenté de 85% à 92%)
       if (w <= 640) {
-        setSize(Math.floor(w * 0.85));
+        setSize(Math.floor(w * 0.92));
         return;
       }
       
@@ -808,7 +808,7 @@ const Visualiser = () => {
       )}
 
       <div 
-        className="flex flex-col items-center justify-center min-h-screen py-8" 
+        className="flex flex-col items-center justify-center min-h-screen"
         style={{ position: "relative", zIndex: 10 }}
       >
         <div

@@ -87,6 +87,18 @@ async function refreshGoogleToken(refreshToken: string) {
   return data.access_token;
 }
 
+async function clearInvalidGoogleTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return;
+
+  await supabase
+    .from("oauth_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "google");
+}
+
 type RawSleepSession = {
   startMs: number;
   endMs: number;
@@ -125,15 +137,13 @@ function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): {
     return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
   }
 
-  // Définir les limites de la journée cible (de 12h la veille à 12h le jour même)
   const dayStart = new Date(targetDate);
   dayStart.setHours(12, 0, 0, 0);
-  dayStart.setDate(dayStart.getDate() - 1); // 12h la veille
+  dayStart.setDate(dayStart.getDate() - 1);
   
   const dayEnd = new Date(targetDate);
-  dayEnd.setHours(12, 0, 0, 0); // 12h le jour même
+  dayEnd.setHours(12, 0, 0, 0);
 
-  // Filtrer les sessions qui se terminent dans cette période
   const daySessions = sessions.filter(s => {
     const endTime = s.endMs;
     return endTime >= dayStart.getTime() && endTime < dayEnd.getTime();
@@ -143,17 +153,11 @@ function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): {
     return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
   }
 
-  // Première heure de coucher (début de la première session)
   const firstBedHour = toLocalDecimalHourFromMillis(daySessions[0].startMs);
-  
-  // Dernière heure de réveil (fin de la dernière session)
   const lastWakeHour = toLocalDecimalHourFromMillis(daySessions[daySessions.length - 1].endMs);
-  
-  // Calculer la somme totale des heures de sommeil
   const totalSleepMs = daySessions.reduce((sum, s) => sum + (s.endMs - s.startMs), 0);
   const totalSleepHours = totalSleepMs / (1000 * 60 * 60);
 
-  // Créer les sessions individuelles
   const sleepSessions: SleepSession[] = daySessions.map(s => ({
     bedHour: Number(toLocalDecimalHourFromMillis(s.startMs).toFixed(4)),
     wakeHour: Number(toLocalDecimalHourFromMillis(s.endMs).toFixed(4)),
@@ -168,7 +172,6 @@ function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): {
 }
 
 function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referenceDate: Date): SleepDebtOrCapital | null {
-  // Calculer pour les jours disponibles dans le passé (max 7 jours)
   const daysData: number[] = [];
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -176,7 +179,6 @@ function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referen
   const refDay = new Date(referenceDate);
   refDay.setHours(0, 0, 0, 0);
   
-  // Ne considérer que les jours jusqu'à aujourd'hui (pas le futur)
   const maxDate = refDay.getTime() > now.getTime() ? now : refDay;
   
   for (let i = 0; i < 7; i++) {
@@ -191,15 +193,12 @@ function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referen
 
   if (daysData.length === 0) return null;
 
-  // Calculer la moyenne
   const average = daysData.reduce((sum, h) => sum + h, 0) / daysData.length;
 
   if (average >= RECOMMENDED_SLEEP_HOURS) {
-    // Capital : somme des heures au-dessus de 9h par jour
     const capital = daysData.reduce((sum, h) => sum + Math.max(0, h - RECOMMENDED_SLEEP_HOURS), 0);
     return { type: "capital", hours: Number(capital.toFixed(2)), daysCount: daysData.length };
   } else {
-    // Dette : somme des écarts à 9h par jour
     const debt = daysData.reduce((sum, h) => sum + Math.max(0, RECOMMENDED_SLEEP_HOURS - h), 0);
     return { type: "debt", hours: Number(debt.toFixed(2)), daysCount: daysData.length };
   }
@@ -230,6 +229,19 @@ export function useGoogleFitSleep(options?: Options): Result {
 
     if (!accessToken && tokens?.refresh_token) {
       accessToken = await refreshGoogleToken(tokens.refresh_token);
+      if (!accessToken) {
+        await clearInvalidGoogleTokens();
+        setWakeHour(null);
+        setBedHour(null);
+        setTotalSleepHours(null);
+        setSleepSessions(null);
+        setSleepDebtOrCapital(null);
+        setIdealBedHour(null);
+        setLoading(false);
+        setConnected(false);
+        setError("Google non connecté. Veuillez reconnecter votre compte Google.");
+        return;
+      }
     }
 
     if (!accessToken) {
@@ -245,7 +257,6 @@ export function useGoogleFitSleep(options?: Options): Result {
       return;
     }
 
-    // Récupérer les sessions des 7 derniers jours
     const end = new Date();
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -267,7 +278,6 @@ export function useGoogleFitSleep(options?: Options): Result {
     setConnected(true);
     setAllSessions(sessions);
 
-    // Calculer pour aujourd'hui
     const today = new Date();
     const todaySleep = calculateSleepForDay(sessions, today);
     
@@ -276,11 +286,9 @@ export function useGoogleFitSleep(options?: Options): Result {
     setTotalSleepHours(todaySleep.totalSleepHours);
     setSleepSessions(todaySleep.sleepSessions);
 
-    // Calculer capital/dette pour aujourd'hui
     const debtOrCapital = calculateSleepDebtOrCapitalForDate(sessions, today);
     setSleepDebtOrCapital(debtOrCapital);
 
-    // Calculer heure de coucher idéale
     if (todaySleep.wakeHour !== null) {
       const ideal = (todaySleep.wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
       setIdealBedHour(Number(ideal.toFixed(4)));
@@ -293,7 +301,6 @@ export function useGoogleFitSleep(options?: Options): Result {
 
   const getSleepForDate = React.useCallback(async (date: Date) => {
     if (!enabled || allSessions.length === 0) {
-      // Si pas de sessions en cache, essayer de les récupérer
       const tokens = await getGoogleTokens();
       let accessToken = tokens?.access_token;
 
@@ -305,7 +312,6 @@ export function useGoogleFitSleep(options?: Options): Result {
         return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
       }
 
-      // Récupérer les sessions autour de la date demandée (±3 jours)
       const start = new Date(date);
       start.setDate(start.getDate() - 3);
       const end = new Date(date);
@@ -320,7 +326,6 @@ export function useGoogleFitSleep(options?: Options): Result {
 
   const getDebtOrCapitalForDate = React.useCallback(async (date: Date) => {
     if (!enabled || allSessions.length === 0) {
-      // Si pas de sessions en cache, essayer de les récupérer
       const tokens = await getGoogleTokens();
       let accessToken = tokens?.access_token;
 
@@ -332,7 +337,6 @@ export function useGoogleFitSleep(options?: Options): Result {
         return null;
       }
 
-      // Récupérer les sessions des 7 derniers jours avant la date de référence
       const end = new Date(date);
       const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 

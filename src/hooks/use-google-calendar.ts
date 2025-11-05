@@ -47,11 +47,7 @@ async function getGoogleTokens(): Promise<GoogleTokens | null> {
     .eq("provider", "google")
     .maybeSingle();
 
-  if (error) {
-    console.error("❌ Google Calendar: Erreur lecture tokens:", error);
-    return null;
-  }
-  
+  if (error) return null;
   if (!data) return null;
   
   return {
@@ -86,7 +82,6 @@ async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse
   });
 
   if (error || !data) {
-    console.error("❌ Google Calendar: Erreur refresh token:", error);
     return null;
   }
   
@@ -111,6 +106,18 @@ async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse
   return payload;
 }
 
+async function clearInvalidGoogleTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return;
+
+  await supabase
+    .from("oauth_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "google");
+}
+
 export function useGoogleCalendar(options?: Options): Result {
   const enabled = options?.enabled ?? true;
 
@@ -133,6 +140,14 @@ export function useGoogleCalendar(options?: Options): Result {
       const refreshed = await refreshGoogleToken(refreshToken);
       if (refreshed?.access_token) {
         accessToken = refreshed.access_token;
+      } else {
+        // Refresh token invalide, nettoyer
+        await clearInvalidGoogleTokens();
+        setConnected(false);
+        setEvents([]);
+        setLoading(false);
+        setError("Google non connecté. Veuillez reconnecter votre compte Google.");
+        return;
       }
     }
 
@@ -165,6 +180,9 @@ export function useGoogleCalendar(options?: Options): Result {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           return retryRes;
+        } else {
+          // Refresh token invalide
+          await clearInvalidGoogleTokens();
         }
       }
 
@@ -177,9 +195,13 @@ export function useGoogleCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setConnected(false);
-      const errorMsg = `Erreur Google Calendar (${res.status})`;
-      setError(errorMsg);
-      console.error("❌ Google Calendar:", errorMsg);
+      
+      if (res.status === 401) {
+        await clearInvalidGoogleTokens();
+        setError("Google non connecté. Veuillez reconnecter votre compte Google.");
+      } else {
+        setError(`Erreur Google Calendar (${res.status})`);
+      }
       return;
     }
 

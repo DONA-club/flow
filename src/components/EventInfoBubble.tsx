@@ -40,23 +40,37 @@ const EventInfoBubble: React.FC<Props> = ({
   const [visible, setVisible] = React.useState(true);
   const [isInteracting, setIsInteracting] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
   const timeoutRef = React.useRef<number | null>(null);
 
-  // Détection du thème
+  // Détection du thème et mobile
   React.useEffect(() => {
     const updateTheme = () => {
       const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDarkMode(dark);
     };
     
+    const updateMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    
     updateTheme();
+    updateMobile();
+    
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => updateTheme();
     
+    window.addEventListener("resize", updateMobile);
+    
     if (mq.addEventListener) {
       mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
+      return () => {
+        mq.removeEventListener("change", handler);
+        window.removeEventListener("resize", updateMobile);
+      };
     }
+    
+    return () => window.removeEventListener("resize", updateMobile);
   }, []);
 
   // Fonction pour démarrer le timer d'estompe
@@ -131,12 +145,20 @@ const EventInfoBubble: React.FC<Props> = ({
 
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
-  // Couleurs adaptées au thème - utilisation des couleurs du calendrier
-  // Mode sombre: #bfdbfe (blue-200) pour titre, #93c5fd (blue-300) pour hover
-  // Mode clair: #1e40af (blue-800) pour titre (hover de calendar-center-title), #2563eb (blue-600) pour secondaire
-  const textColor = isDarkMode ? "#bfdbfe" : "#1e40af"; // blue-200 / blue-800
-  const textSecondaryColor = isDarkMode ? "#93c5fd" : "#2563eb"; // blue-300 / blue-600
-  const textTertiaryColor = isDarkMode ? "#60a5fa" : "#3b82f6"; // blue-400 / blue-500
+  // Couleurs adaptées au thème
+  const textColor = isDarkMode ? "#bfdbfe" : "#1e40af";
+  const textSecondaryColor = isDarkMode ? "#93c5fd" : "#2563eb";
+  const textTertiaryColor = isDarkMode ? "#60a5fa" : "#3b82f6";
+
+  // Tailles adaptées mobile/desktop
+  const titleSize = isMobile ? "text-sm" : "text-lg";
+  const organizerSize = isMobile ? "text-[10px]" : "text-xs";
+  const dateSize = isMobile ? "text-xs" : "text-sm";
+  const timeSize = isMobile ? "text-[10px]" : "text-xs";
+  const buttonTextSize = isMobile ? "text-[10px]" : "text-xs";
+  const buttonPadding = isMobile ? "px-2 py-1" : "px-4 py-2";
+  const iconSize = isMobile ? "w-3 h-3" : "w-4 h-4";
+  const horizontalPadding = isMobile ? "px-3" : "px-6";
 
   return (
     <div
@@ -160,11 +182,11 @@ const EventInfoBubble: React.FC<Props> = ({
       <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl pointer-events-none" />
       
       {/* Contenu - Centré sur le titre */}
-      <div className="relative flex flex-col items-center px-6 w-full h-full pointer-events-none" style={{ paddingTop: '35%' }}>
+      <div className={`relative flex flex-col items-center ${horizontalPadding} w-full h-full pointer-events-none`} style={{ paddingTop: '35%' }}>
         {/* Organisateur (au-dessus du titre) */}
         {organizer && (
           <div 
-            className="text-xs truncate w-full font-light pointer-events-none mb-2"
+            className={`${organizerSize} truncate w-full font-light pointer-events-none mb-1`}
             style={{ 
               color: textTertiaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -176,7 +198,7 @@ const EventInfoBubble: React.FC<Props> = ({
 
         {/* Titre de l'événement - CENTRE VERTICAL */}
         <div 
-          className="font-bold text-lg leading-tight line-clamp-2 pointer-events-none mb-2.5"
+          className={`font-bold ${titleSize} leading-tight line-clamp-2 pointer-events-none mb-1.5`}
           style={{ 
             color: textColor,
             fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -188,7 +210,7 @@ const EventInfoBubble: React.FC<Props> = ({
         {/* Date formatée */}
         {date && (
           <div 
-            className="text-sm font-medium pointer-events-none mb-2"
+            className={`${dateSize} font-medium pointer-events-none mb-1`}
             style={{ 
               color: textSecondaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -201,7 +223,7 @@ const EventInfoBubble: React.FC<Props> = ({
         {/* Temps restant */}
         {timeRemaining && (
           <div 
-            className="text-xs font-semibold pointer-events-none mb-3"
+            className={`${timeSize} font-semibold pointer-events-none mb-2`}
             style={{ 
               color: textTertiaryColor,
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -212,23 +234,23 @@ const EventInfoBubble: React.FC<Props> = ({
         )}
 
         {/* Boutons d'action */}
-        <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="flex items-center gap-2 pointer-events-auto">
           {/* Bouton vidéoconférence */}
           {videoLink && (
             <button
               onClick={handleVideoClick}
-              className="group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
+              className={`group/video flex items-center gap-1.5 ${buttonPadding} rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer`}
               aria-label={`Rejoindre ${platform}`}
             >
               <div className="relative pointer-events-none">
                 <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
-                <div className="relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none">
-                  <Video className="w-4 h-4 text-blue-600 pointer-events-none" strokeWidth={2.5} />
+                <div className="relative bg-white/90 p-1 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none">
+                  <Video className={`${iconSize} text-blue-600 pointer-events-none`} strokeWidth={2.5} />
                 </div>
               </div>
               <div className="flex flex-col items-start pointer-events-none">
                 <span 
-                  className="text-xs font-semibold pointer-events-none"
+                  className={`${buttonTextSize} font-semibold pointer-events-none`}
                   style={{ 
                     color: textColor,
                     fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -237,7 +259,7 @@ const EventInfoBubble: React.FC<Props> = ({
                   Rejoindre
                 </span>
                 <span 
-                  className="text-[10px] font-light pointer-events-none"
+                  className="text-[9px] font-light pointer-events-none"
                   style={{ 
                     color: textTertiaryColor,
                     fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
@@ -253,11 +275,11 @@ const EventInfoBubble: React.FC<Props> = ({
           {url && (
             <button
               onClick={handleCalendarClick}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Ouvrir dans le calendrier"
             >
               <ExternalLink 
-                className="w-4 h-4 pointer-events-none" 
+                className={`${iconSize} pointer-events-none`}
                 style={{ color: textSecondaryColor }}
               />
             </button>
