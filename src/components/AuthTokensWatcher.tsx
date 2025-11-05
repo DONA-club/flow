@@ -31,10 +31,7 @@ function isValidJWT(token: string): boolean {
 }
 
 function detectProviderFromToken(accessToken: string): Provider | null {
-  if (!isValidJWT(accessToken)) {
-    console.warn("⚠️ Token invalide détecté dans detectProviderFromToken");
-    return null;
-  }
+  if (!isValidJWT(accessToken)) return null;
 
   if (accessToken.startsWith("ya29.")) return "google";
 
@@ -66,7 +63,6 @@ async function detectProviderFromIdentities(user: any): Promise<Provider | null>
   
   for (const identity of identities) {
     const provider = identity.provider?.toLowerCase();
-    console.log("🔍 Identity provider détecté:", provider);
     
     if (provider === "azure" || provider === "microsoft" || provider === "azure-oidc") {
       return "microsoft";
@@ -80,7 +76,6 @@ async function detectProviderFromIdentities(user: any): Promise<Provider | null>
   return null;
 }
 
-// Nouvelle fonction pour capturer les tokens depuis l'URL
 function captureTokensFromUrl(): { accessToken: string | null; refreshToken: string | null; provider: Provider | null } {
   const hash = window.location.hash.substring(1);
   const params = new URLSearchParams(hash);
@@ -89,13 +84,6 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   const refreshToken = params.get('refresh_token');
   const providerToken = params.get('provider_token');
   const providerRefreshToken = params.get('provider_refresh_token');
-  
-  console.log("🔗 Tokens depuis URL:", {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-    hasProviderToken: !!providerToken,
-    hasProviderRefreshToken: !!providerRefreshToken
-  });
   
   const finalAccessToken = providerToken || accessToken;
   const finalRefreshToken = providerRefreshToken || refreshToken;
@@ -116,56 +104,32 @@ async function saveProviderTokens() {
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
   
-  if (!user) {
-    console.log("❌ Pas d'utilisateur connecté");
-    return;
-  }
+  if (!user) return;
 
   let accessToken: string | null = session?.provider_token ?? null;
   let refreshToken: string | null = session?.provider_refresh_token ?? null;
 
-  console.log("🔑 Tokens depuis session:", {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-    accessTokenPreview: accessToken ? accessToken.substring(0, 20) + "..." : null
-  });
-
-  // Si pas de tokens dans la session, essayer de les capturer depuis l'URL
   if (!accessToken) {
     const urlTokens = captureTokensFromUrl();
     if (urlTokens.accessToken) {
       accessToken = urlTokens.accessToken;
       refreshToken = urlTokens.refreshToken;
-      console.log("✅ Tokens capturés depuis l'URL");
     }
   }
 
-  if (!accessToken) {
-    console.log("❌ Pas de provider_token disponible");
-    return;
-  }
-
-  // Valider le token avant de continuer
-  if (!isValidJWT(accessToken)) {
-    console.warn("⚠️ Token invalide détecté, ignoré:", accessToken.substring(0, 20) + "...");
-    return;
-  }
+  if (!accessToken || !isValidJWT(accessToken)) return;
 
   const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   let providerToSave: Provider | null = null;
 
-  console.log("📋 Pending provider:", pendingProvider);
-
   if (pendingProvider) {
     providerToSave = pendingProvider;
-    console.log("✅ Utilisation du pending provider:", providerToSave);
   }
 
   if (!providerToSave) {
     const detected = detectProviderFromToken(accessToken);
     if (detected) {
       providerToSave = detected;
-      console.log("✅ Provider détecté depuis le token:", providerToSave);
     }
   }
 
@@ -173,16 +137,10 @@ async function saveProviderTokens() {
     const identityProvider = await detectProviderFromIdentities(user);
     if (identityProvider) {
       providerToSave = identityProvider;
-      console.log("✅ Provider détecté depuis les identities:", providerToSave);
     }
   }
 
-  if (!providerToSave) {
-    console.log("❌ Impossible de détecter le provider");
-    return;
-  }
-
-  console.log("💾 Tentative de sauvegarde pour:", providerToSave);
+  if (!providerToSave) return;
 
   const { data: existingToken } = await supabase
     .from("oauth_tokens")
@@ -191,20 +149,10 @@ async function saveProviderTokens() {
     .eq("provider", providerToSave)
     .maybeSingle();
 
-  if (existingToken && !pendingProvider) {
-    console.log("ℹ️ Token déjà existant, pas de mise à jour nécessaire");
-    return;
-  }
+  if (existingToken && !pendingProvider) return;
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
-
-  console.log("💾 Sauvegarde des tokens:", {
-    provider: providerToSave,
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-    expiresAt: expiresAtIso
-  });
 
   const { error } = await supabase
     .from("oauth_tokens")
@@ -219,12 +167,7 @@ async function saveProviderTokens() {
       onConflict: "user_id,provider"
     });
 
-  if (error) {
-    console.error(`❌ Erreur sauvegarde tokens ${providerToSave}:`, error);
-    return;
-  }
-  
-  console.log(`✅ Tokens ${providerToSave} sauvegardés avec succès`);
+  if (error) return;
   
   if (pendingProvider === providerToSave) {
     localStorage.removeItem("pending_provider_connection");
@@ -233,7 +176,6 @@ async function saveProviderTokens() {
     });
   }
   
-  // Nettoyer l'URL après capture des tokens
   if (window.location.hash) {
     window.history.replaceState(null, '', window.location.pathname);
   }
@@ -245,15 +187,12 @@ const AuthTokensWatcher: React.FC = () => {
   React.useEffect(() => {
     if (!hasRunInitialSave.current) {
       hasRunInitialSave.current = true;
-      console.log("🚀 AuthTokensWatcher: Sauvegarde initiale");
       saveProviderTokens();
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-      console.log("🔄 Auth state changed:", event);
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
         setTimeout(() => {
-          console.log("🚀 AuthTokensWatcher: Sauvegarde après", event);
           saveProviderTokens();
         }, 800);
       }

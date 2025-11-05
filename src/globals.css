@@ -30,6 +30,14 @@ body.no-scroll {
   height: 100%;
 }
 
+/* Empêcher le scroll de déplacer le fond sur la page visualiser */
+body.visualiser-page {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
 /* Glassmorphism pour les éléments centraux avec effet liquid glass */
 .glass {
   background: rgba(24,28,42,0.45);

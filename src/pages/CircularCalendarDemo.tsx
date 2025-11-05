@@ -22,6 +22,13 @@ function useGoldenCircleSize() {
     function updateSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
+      
+      // Sur mobile, utiliser 85% de la largeur de l'écran
+      if (w <= 640) {
+        setSize(Math.floor(w * 0.85));
+        return;
+      }
+      
       const minDim = Math.min(w, h);
       const available = minDim - 32;
       const golden = Math.floor(available / GOLDEN_RATIO);
@@ -420,13 +427,11 @@ const Visualiser = () => {
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
-  // Déterminer si on doit afficher les données de sommeil
   const now = new Date();
   const displayDate = virtualDateTime || now;
   const isToday = isSameDay(displayDate, now);
   const isTomorrowDay = isTomorrow(displayDate, now);
 
-  // Logique d'affichage des heures de sommeil
   let effectiveWake: number | null = null;
   let effectiveBed: number | null = null;
   let effectiveTotalSleep: number | null = null;
@@ -434,7 +439,6 @@ const Visualiser = () => {
   let effectiveDebtOrCapital: SleepDebtOrCapital | null = null;
 
   if (isToday) {
-    // Aujourd'hui : afficher les données du jour si disponibles, sinon rien
     if (currentDayWake !== null && currentDayBed !== null) {
       effectiveWake = currentDayWake;
       effectiveBed = currentDayBed;
@@ -449,7 +453,6 @@ const Visualiser = () => {
       effectiveDebtOrCapital = sleepDebtOrCapital;
     }
   } else if (isTomorrowDay) {
-    // Demain : afficher les données d'aujourd'hui
     if (fitConnected && wakeHour !== null && bedHour !== null) {
       effectiveWake = wakeHour;
       effectiveBed = bedHour;
@@ -458,7 +461,6 @@ const Visualiser = () => {
       effectiveDebtOrCapital = sleepDebtOrCapital;
     }
   } else {
-    // Autre jour : afficher les données du jour si disponibles, sinon rien
     if (currentDayWake !== null && currentDayBed !== null) {
       effectiveWake = currentDayWake;
       effectiveBed = currentDayBed;
@@ -470,6 +472,11 @@ const Visualiser = () => {
 
   useEffect(() => {
     document.title = "DONA.club Visualiser";
+    document.body.classList.add("visualiser-page");
+    
+    return () => {
+      document.body.classList.remove("visualiser-page");
+    };
   }, []);
 
   useEffect(() => {
@@ -540,7 +547,6 @@ const Visualiser = () => {
       const referenceTime = virtualDateTime || new Date();
       const currentHour = referenceTime.getHours() + referenceTime.getMinutes() / 60;
       
-      // Utiliser les valeurs effectives pour le gradient
       const gradientWake = effectiveWake ?? SIM_WAKE;
       const gradientBed = effectiveBed ?? SIM_BED;
       
@@ -615,7 +621,6 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Fonction pour afficher le log de sommeil
   const showSleepLog = useCallback(() => {
     if (fitLoading) {
       return;
@@ -650,16 +655,13 @@ const Visualiser = () => {
     }
   }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
 
-  // Gérer le survol de l'anneau avec timer de 6 secondes
   useEffect(() => {
     if (isHoveringRing) {
-      // Afficher immédiatement si plus de 6 secondes se sont écoulées
       const timeSinceLastLog = Date.now() - lastSleepLogTimeRef.current;
       if (timeSinceLastLog >= 6000) {
         showSleepLog();
       }
 
-      // Configurer un timer pour réafficher toutes les 6 secondes
       if (sleepLogTimerRef.current) {
         window.clearInterval(sleepLogTimerRef.current);
       }
@@ -668,7 +670,6 @@ const Visualiser = () => {
         showSleepLog();
       }, 6000);
     } else {
-      // Nettoyer le timer quand on quitte le survol
       if (sleepLogTimerRef.current) {
         window.clearInterval(sleepLogTimerRef.current);
         sleepLogTimerRef.current = null;
