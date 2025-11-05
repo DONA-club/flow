@@ -2,7 +2,6 @@
 
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 type Provider = "google" | "microsoft" | "apple" | "facebook" | "amazon";
 
@@ -31,15 +30,12 @@ function isValidJWT(token: string): boolean {
 }
 
 function isValidGoogleToken(token: string): boolean {
-  // Les tokens Google commencent par ya29. et ne sont pas des JWT
   return token && typeof token === 'string' && token.startsWith('ya29.');
 }
 
 function detectProviderFromToken(accessToken: string): Provider | null {
-  // Google tokens commencent par ya29.
   if (accessToken.startsWith("ya29.")) return "google";
 
-  // Pour les JWT, vérifier l'issuer
   if (isValidJWT(accessToken)) {
     const claims = getJwtClaims(accessToken);
     const iss = (claims?.iss || "").toLowerCase();
@@ -78,76 +74,66 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   };
 }
 
+function emitLog(message: string, type: "info" | "success" | "error" = "info") {
+  window.dispatchEvent(new CustomEvent("app-log", { detail: { message, type } }));
+}
+
+async function clearInvalidMicrosoftTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return;
+
+  await supabase
+    .from("oauth_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "microsoft");
+}
+
 async function saveProviderTokens() {
-  console.log("🔍 Début saveProviderTokens");
-  
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
   
-  if (!user) {
-    console.log("❌ Pas d'utilisateur connecté");
-    return;
-  }
+  if (!user) return;
 
-  console.log("✅ Utilisateur connecté:", user.email);
-
-  // Récupérer le provider en attente depuis localStorage ET sessionStorage
   let pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   if (!pendingProvider) {
     pendingProvider = sessionStorage.getItem("pending_provider_connection") as Provider | null;
   }
-  
-  console.log("🎯 Provider en attente:", pendingProvider);
 
-  // Essayer de capturer les tokens depuis plusieurs sources
   let accessToken: string | null = null;
   let refreshToken: string | null = null;
   let tokenSource: string = "";
 
-  // Source 1: URL hash (PRIORITAIRE)
   const urlTokens = captureTokensFromUrl();
   if (urlTokens.accessToken) {
-    console.log("📍 Tokens trouvés dans l'URL");
     accessToken = urlTokens.accessToken;
     refreshToken = urlTokens.refreshToken;
     tokenSource = "url";
   }
 
-  // Source 2: session.provider_token (si pas trouvé dans l'URL)
   if (!accessToken && session?.provider_token) {
-    console.log("📍 Tokens trouvés dans session.provider_token");
     accessToken = session.provider_token;
     refreshToken = session.provider_refresh_token;
     tokenSource = "session";
   }
 
-  // Si on a un pending provider et que le token de session ne correspond pas,
-  // forcer l'attente du token depuis l'URL
   if (pendingProvider && tokenSource === "session") {
     const sessionTokenProvider = detectProviderFromToken(accessToken!);
     if (sessionTokenProvider && sessionTokenProvider !== pendingProvider) {
-      console.warn(`⚠️ Token de session (${sessionTokenProvider}) ne correspond pas au pending provider (${pendingProvider})`);
-      console.log("🔄 Attente du token depuis l'URL...");
-      
-      // Vérifier si l'URL contient un token
       if (!urlTokens.accessToken) {
-        console.log("⏳ Pas de token dans l'URL, on attend la prochaine tentative");
-        return; // Ne pas sauvegarder, attendre que l'URL contienne le bon token
+        return;
       }
     }
   }
 
-  // Source 3: Identities (pour les tokens stockés par Supabase)
   if (!accessToken) {
     const identities = user.identities || [];
-    console.log("📍 Vérification des identities:", identities.length);
     
     for (const identity of identities) {
       const idProvider = identity.provider?.toLowerCase();
-      console.log("  - Identity provider:", idProvider);
       
-      // Mapper les providers
       let mappedProvider: Provider | null = null;
       if (idProvider === "google") mappedProvider = "google";
       else if (["azure", "microsoft", "azure-oidc"].includes(idProvider)) mappedProvider = "microsoft";
@@ -156,7 +142,6 @@ async function saveProviderTokens() {
       else if (idProvider === "amazon") mappedProvider = "amazon";
       
       if (mappedProvider && (!pendingProvider || mappedProvider === pendingProvider)) {
-        // Vérifier si on a déjà ce token en base
         const { data: existingToken } = await supabase
           .from("oauth_tokens")
           .select("access_token")
@@ -165,67 +150,45 @@ async function saveProviderTokens() {
           .maybeSingle();
         
         if (!existingToken) {
-          console.log(`  ⚠️ ${mappedProvider} identity trouvée mais pas de token en base`);
-          // Si on n'a pas de pending provider, on le définit maintenant
           if (!pendingProvider) {
             pendingProvider = mappedProvider;
-            console.log(`  🎯 Pending provider défini sur: ${mappedProvider}`);
           }
         }
       }
     }
   }
 
-  // Validation du token : accepter les JWT ET les tokens Google (ya29.)
   const isValid = accessToken && (isValidJWT(accessToken) || isValidGoogleToken(accessToken));
   
   if (!isValid) {
-    console.warn("⚠️ Pas de token valide trouvé");
-    
-    // Si on a un pending provider mais pas de token, demander à l'utilisateur de reconnecter
     if (pendingProvider) {
-      toast.info(`Reconnexion ${pendingProvider} nécessaire`, {
-        description: "Cliquez à nouveau sur le logo pour obtenir les permissions.",
-      });
+      emitLog(`Reconnexion ${pendingProvider} nécessaire`, "info");
       localStorage.removeItem("pending_provider_connection");
       sessionStorage.removeItem("pending_provider_connection");
     }
     return;
   }
 
-  console.log("✅ Token valide trouvé (source:", tokenSource, ")");
-
-  // Détecter le provider depuis le token si pas de pending provider
   let providerToSave: Provider | null = pendingProvider;
   
   if (!providerToSave) {
     providerToSave = detectProviderFromToken(accessToken);
-    console.log("🔍 Provider détecté depuis le token:", providerToSave);
   }
 
   if (!providerToSave) {
-    console.error("❌ Impossible de déterminer le provider");
     return;
   }
 
-  // Vérifier que le token correspond au provider attendu
   if (pendingProvider) {
     const tokenProvider = detectProviderFromToken(accessToken);
     if (tokenProvider && tokenProvider !== pendingProvider) {
-      console.warn(`⚠️ Token provider mismatch: expected ${pendingProvider}, got ${tokenProvider}`);
-      console.log("❌ Refus de sauvegarder un token incorrect");
-      
-      toast.error(`Erreur de connexion ${pendingProvider}`, {
-        description: "Le token reçu ne correspond pas. Réessayez.",
-      });
+      emitLog(`Erreur connexion ${pendingProvider}`, "error");
       
       localStorage.removeItem("pending_provider_connection");
       sessionStorage.removeItem("pending_provider_connection");
       return;
     }
   }
-
-  console.log(`💾 Sauvegarde du token pour ${providerToSave}`);
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
@@ -244,18 +207,13 @@ async function saveProviderTokens() {
     });
 
   if (error) {
-    console.error(`❌ Erreur sauvegarde token ${providerToSave}:`, error);
     return;
   }
-  
-  console.log(`✅ Token ${providerToSave} sauvegardé avec succès`);
   
   localStorage.removeItem("pending_provider_connection");
   sessionStorage.removeItem("pending_provider_connection");
   
-  toast.success(`${providerToSave} connecté avec succès !`, {
-    description: "Vos données seront maintenant synchronisées.",
-  });
+  emitLog(`${providerToSave} connecté`, "success");
   
   if (window.location.hash) {
     window.history.replaceState(null, '', window.location.pathname);
@@ -272,8 +230,6 @@ const AuthTokensWatcher: React.FC = () => {
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-      console.log("🔔 Auth state change:", event);
-      
       if (["SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event)) {
         setTimeout(() => {
           saveProviderTokens();
