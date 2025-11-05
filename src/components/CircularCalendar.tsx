@@ -606,15 +606,24 @@ export const CircularCalendar: React.FC<Props> = ({
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
 
-  // Les arcs utilisent sunrise/sunset
-  if (sunrise < sunset) {
-    if (hourDecimal <= sunrise) {
-      futureArc = { start: sunriseAngle, end: sunsetAngle };
-    } else if (hourDecimal >= sunset) {
-      pastArc = { start: sunriseAngle, end: sunsetAngle };
-    } else {
-      pastArc = { start: sunriseAngle, end: nowAngleDeg };
-      futureArc = { start: nowAngleDeg, end: sunsetAngle };
+  // Les arcs utilisent les heures de sommeil de l'utilisateur
+  const hasSleepData = typeof wakeHour === "number" && typeof bedHour === "number";
+  
+  if (hasSleepData) {
+    const userWakeAngle = angleFromHour(wakeHour);
+    
+    // Calculer l'heure de coucher idéale (9h avant le réveil)
+    const idealBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
+    const idealBedAngle = angleFromHour(idealBedHour);
+
+    // Arc intérieur : du réveil utilisateur au curseur (passé)
+    if (hourDecimal >= wakeHour) {
+      pastArc = { start: userWakeAngle, end: nowAngleDeg };
+    }
+
+    // Arc extérieur : du curseur au coucher idéal (futur)
+    if (hourDecimal <= idealBedHour || (idealBedHour < wakeHour && hourDecimal >= wakeHour)) {
+      futureArc = { start: nowAngleDeg, end: idealBedAngle };
     }
   }
 
@@ -740,7 +749,6 @@ export const CircularCalendar: React.FC<Props> = ({
 
   // Overlays de sommeil : n'afficher que si on a des données valides
   const sleepOverlays: JSX.Element[] = [];
-  const hasSleepData = typeof wakeHour === "number" && typeof bedHour === "number";
   
   if (hasSleepData) {
     // Période principale de sommeil
