@@ -424,6 +424,10 @@ const Visualiser = () => {
     const adjustedSunrise = adjustForDST(virtualDateTime, sunrise);
     const adjustedSunset = adjustForDST(virtualDateTime, sunset);
     
+    console.log(`📅 Date virtuelle: ${virtualDateTime.toLocaleDateString()}`);
+    console.log(`🌅 Sunrise calculé: ${adjustedSunrise.toFixed(2)}h`);
+    console.log(`🌇 Sunset calculé: ${adjustedSunset.toFixed(2)}h`);
+    
     setDisplaySunrise(adjustedSunrise);
     setDisplaySunset(adjustedSunset);
   }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset]);
