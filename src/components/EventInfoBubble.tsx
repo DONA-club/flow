@@ -27,8 +27,8 @@ function detectPlatform(url: string): string {
   return "Vidéoconférence";
 }
 
-const ENTRY_BUFFER = 14;   // px de tolérance pour l'entrée dans la zone
-const EXIT_BUFFER = 42;    // px supplémentaires avant fermeture
+const ENTRY_BUFFER = 14;
+const EXIT_BUFFER = 42;
 
 const EventInfoBubble: React.FC<Props> = ({
   title,
@@ -46,6 +46,15 @@ const EventInfoBubble: React.FC<Props> = ({
   const timeoutRef = React.useRef<number | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const hasEnteredZoneRef = React.useRef(false);
+
+  const computeDistance = React.useCallback((x: number, y: number) => {
+    const node = containerRef.current;
+    if (!node) return Number.POSITIVE_INFINITY;
+    const rect = node.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    return Math.hypot(x - centerX, y - centerY);
+  }, []);
 
   const closeBubble = React.useCallback(() => {
     if (timeoutRef.current) {
@@ -89,17 +98,10 @@ const EventInfoBubble: React.FC<Props> = ({
     };
   }, [title, date, timeRemaining, resetTimeout]);
 
-  const handleMouseMove = React.useCallback(
-    (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
-      const distance = Math.hypot(dx, dy);
+  const handlePointerMove = React.useCallback(
+    (event: PointerEvent) => {
+      const distance = computeDistance(event.clientX, event.clientY);
+      if (!Number.isFinite(distance)) return;
 
       const radius = diameter / 2;
       const entryRadius = radius + ENTRY_BUFFER;
@@ -121,15 +123,38 @@ const EventInfoBubble: React.FC<Props> = ({
         closeBubble();
       }
     },
-    [closeBubble, diameter, resetTimeout],
+    [computeDistance, diameter, resetTimeout, closeBubble],
   );
 
   React.useEffect(() => {
-    document.addEventListener("mousemove", handleMouseMove);
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-    };
-  }, [handleMouseMove]);
+    const listener = (event: PointerEvent) => handlePointerMove(event);
+    document.addEventListener("pointermove", listener, { passive: true });
+    return () => document.removeEventListener("pointermove", listener);
+  }, [handlePointerMove]);
+
+  const handlePointerEnter = React.useCallback(() => {
+    hasEnteredZoneRef.current = true;
+    resetTimeout();
+  }, [resetTimeout]);
+
+  const handlePointerLeave = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const related = event.relatedTarget as Node | null;
+      if (related && containerRef.current?.contains(related)) {
+        return;
+      }
+
+      const distance = computeDistance(event.clientX, event.clientY);
+      const radius = diameter / 2;
+      const exitRadius = radius + EXIT_BUFFER;
+
+      if (hasEnteredZoneRef.current && distance > exitRadius) {
+        hasEnteredZoneRef.current = false;
+        closeBubble();
+      }
+    },
+    [computeDistance, diameter, closeBubble],
+  );
 
   const handleCalendarClick = (e: React.MouseEvent) => {
     if (url) {
@@ -159,10 +184,10 @@ const EventInfoBubble: React.FC<Props> = ({
 
   const borderColor = isDarkMode ? "border-white/24" : "border-sky-400/35";
 
-  const titleClass = isDarkMode ? "text-white" : "text-slate-900";
-  const organizerClass = isDarkMode ? "text-white/70" : "text-slate-600";
-  const dateClass = isDarkMode ? "text-white/82" : "text-sky-800";
-  const timeClass = isDarkMode ? "text-white/75" : "text-emerald-700";
+  const titleClass = isDarkMode ? "text-white" : "text-[#0b3f6b]";
+  const organizerClass = isDarkMode ? "text-white/70" : "text-[#115e7f]";
+  const dateClass = isDarkMode ? "text-white/82" : "text-[#0b6595]";
+  const timeClass = isDarkMode ? "text-white/75" : "text-[#0f766e]";
 
   const videoButtonClass = isDarkMode
     ? "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/12 hover:bg-white/20 transition-all duration-300 cursor-pointer"
@@ -173,14 +198,14 @@ const EventInfoBubble: React.FC<Props> = ({
     : "relative bg-gradient-to-br from-emerald-500 to-sky-500 text-white p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none";
 
   const videoIconColor = isDarkMode ? "text-blue-600" : "text-white";
-  const videoTitleClass = isDarkMode ? "text-white text-xs font-semibold" : "text-emerald-900 text-xs font-semibold";
-  const videoSubtitleClass = isDarkMode ? "text-white/65 text-[10px]" : "text-sky-700 text-[10px]";
+  const videoTitleClass = isDarkMode ? "text-white text-xs font-semibold" : "text-[#0b3f6b] text-xs font-semibold";
+  const videoSubtitleClass = isDarkMode ? "text-white/65 text-[10px]" : "text-[#0c6f99] text-[10px]";
 
   const calendarButtonClass = isDarkMode
     ? "p-2 rounded-full bg-white/12 hover:bg-white/22 transition-colors cursor-pointer"
     : "p-2 rounded-full bg-emerald-400/12 hover:bg-sky-300/22 transition-colors cursor-pointer";
 
-  const calendarIconColor = isDarkMode ? "text-white/82" : "text-sky-700";
+  const calendarIconColor = isDarkMode ? "text-white/82" : "text-[#0c6f99]";
 
   return (
     <div
@@ -195,10 +220,8 @@ const EventInfoBubble: React.FC<Props> = ({
       style={{ width: diameter, height: diameter, pointerEvents: "auto" }}
       role="dialog"
       aria-live="polite"
-      onMouseEnter={() => {
-        hasEnteredZoneRef.current = true;
-        resetTimeout();
-      }}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${outerGlowGradient} rounded-full blur-xl opacity-70 pointer-events-none`} />
       <div className={`absolute inset-0 bg-gradient-to-br ${glassGradient} rounded-full backdrop-blur-xl pointer-events-none`} />
