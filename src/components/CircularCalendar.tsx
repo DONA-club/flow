@@ -615,8 +615,11 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
+      console.log("🖱️ Wheel event détecté");
+      
       // Annuler toute animation en cours
       if (animationFrameRef.current) {
+        console.log("❌ Annulation animation en cours");
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
@@ -630,6 +633,8 @@ export const CircularCalendar: React.FC<Props> = ({
       setVirtualDateTime((prev) => {
         const newVirtualTime = new Date(prev);
         newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
+        
+        console.log(`📅 Nouveau virtualDateTime: ${newVirtualTime.toLocaleTimeString()}`);
         
         const dayChanged = newVirtualTime.getDate() !== prev.getDate();
         
@@ -681,10 +686,12 @@ export const CircularCalendar: React.FC<Props> = ({
         
         // Annuler le timeout précédent
         if (scrollTimeoutRef.current) {
+          console.log("⏱️ Annulation timeout précédent");
           window.clearTimeout(scrollTimeoutRef.current);
         }
         
         const randomDelay = 8000 + Math.random() * 2000;
+        console.log(`⏰ Timeout programmé dans ${Math.round(randomDelay)}ms`);
         
         const capturedVirtualTime = new Date(newVirtualTime);
         
