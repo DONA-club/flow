@@ -794,6 +794,11 @@ export const CircularCalendar: React.FC<Props> = ({
   // Taille de la div centrale = même taille que la bulle d'événement
   const centerDivSize = bubbleDiameter;
 
+  // Couleurs pour le texte central selon le thème et le hover
+  const centerTextColor = isDarkMode 
+    ? (hoverCenterEvent ? "#93c5fd" : "#bfdbfe") // Mode sombre: blue-300 hover, blue-200 normal
+    : (hoverCenterEvent ? "#1e3a8a" : "#1d4ed8"); // Mode clair: blue-900 hover, blue-700 normal
+
   return (
     <div className="flex flex-col items-center justify-center">
       <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
@@ -824,12 +829,8 @@ export const CircularCalendar: React.FC<Props> = ({
             <>
               <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
               <div 
-                className="font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-300"
-                style={{
-                  color: hoverCenterEvent 
-                    ? (isDarkMode ? "#93c5fd" : "#1e40af")
-                    : (isDarkMode ? "#bfdbfe" : "#1d4ed8")
-                }}
+                className="font-bold text-xl leading-tight px-4 pointer-events-none transition-colors duration-200"
+                style={{ color: centerTextColor }}
               >
                 {currentEvent.title}
               </div>
@@ -842,8 +843,8 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
         </div>
 
-        {/* SVG avec l'anneau - z-index: 1 */}
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
+        {/* SVG avec l'anneau - z-index: 1 - pointer-events: none sauf pour les arcs */}
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none" }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
@@ -863,21 +864,23 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          <g mask="url(#ringFadeMask)" style={{ pointerEvents: "none" }}>{sleepOverlays}</g>
+          <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
 
           {hoverRing && pastArc && (
-            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" />
           )}
 
           {hoverRing && futureArc && (
-            <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+            <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" />
           )}
 
-          <g style={{ pointerEvents: "none" }}>{hoverRing && hourNumbers}</g>
-          <g>{eventArcs}</g>
+          <g>{hoverRing && hourNumbers}</g>
+          
+          {/* Arcs d'événements avec pointer-events: auto */}
+          <g style={{ pointerEvents: "auto" }}>{eventArcs}</g>
 
           {isScrolling && (
-            <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" style={{ pointerEvents: "none", filter: "blur(3px)" }} />
+            <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" />
           )}
 
           <line
@@ -889,7 +892,6 @@ export const CircularCalendar: React.FC<Props> = ({
             strokeWidth={isScrolling ? 4 : 3}
             strokeLinecap="round"
             style={{
-              pointerEvents: "none",
               filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
             }}
