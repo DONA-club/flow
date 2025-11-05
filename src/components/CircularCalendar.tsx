@@ -336,6 +336,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const scrollTimeoutRef = React.useRef<number | null>(null);
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
+  const nowIntervalRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -344,16 +345,29 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
+  // Interval pour mettre à jour 'now' - DÉSACTIVÉ pendant scroll et retour
   React.useEffect(() => {
-    const id = window.setInterval(() => {
+    const updateNow = () => {
       const newNow = new Date();
       setNow(newNow);
       
+      // Synchroniser virtualDateTime avec now SEULEMENT si on n'est pas en train de scroller ou revenir
       if (!isScrolling && !isReturning) {
         setVirtualDateTime(newNow);
       }
-    }, 1000);
-    return () => window.clearInterval(id);
+    };
+
+    // Mettre à jour immédiatement
+    updateNow();
+
+    // Puis toutes les secondes
+    nowIntervalRef.current = window.setInterval(updateNow, 1000);
+
+    return () => {
+      if (nowIntervalRef.current) {
+        window.clearInterval(nowIntervalRef.current);
+      }
+    };
   }, [isScrolling, isReturning]);
 
   React.useEffect(() => {
@@ -600,6 +614,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
+      // Annuler toute animation en cours
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -663,6 +678,7 @@ export const CircularCalendar: React.FC<Props> = ({
         
         setCursorEventIndex(foundEventIndex);
         
+        // Annuler le timeout précédent
         if (scrollTimeoutRef.current) {
           window.clearTimeout(scrollTimeoutRef.current);
         }
@@ -677,22 +693,24 @@ export const CircularCalendar: React.FC<Props> = ({
           
           const duration = 1500;
           const startTime = performance.now();
-          const targetTime = new Date();
           
           const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const easedProgress = easeOutCubic(progress);
             
+            // Calculer la nouvelle heure cible (maintenant)
+            const targetTime = new Date();
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
-            const newTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
+            const interpolatedTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
             
-            // IMPORTANT: Mettre à jour virtualDateTime pendant l'animation pour que le curseur suive
-            setVirtualDateTime(newTime);
+            // CRUCIAL: Mettre à jour virtualDateTime à chaque frame
+            setVirtualDateTime(interpolatedTime);
             
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
+              // Animation terminée
               setVirtualDateTime(new Date());
               setIsReturning(false);
               setShowTimeLabel(true);
