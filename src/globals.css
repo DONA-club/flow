@@ -155,20 +155,20 @@ body, html, #root {
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* En mode clair - couleur proche du curseur bleu (#1d4ed8) */
+/* En mode clair - couleur identique au curseur (#1d4ed8) */
 @media (prefers-color-scheme: light) {
-  .calendar-light-bg .calendar-center-title {
-    color: #1d4ed8; /* blue-700 - même couleur que le curseur en mode clair */
-    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+  .calendar-center-title {
+    color: #1d4ed8 !important; /* blue-700 - même couleur que le curseur */
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8) !important;
   }
-  .calendar-light-bg .calendar-center-title:hover {
-    color: #1e40af; /* blue-800 - légèrement plus foncé au survol */
+  .calendar-center-title:hover {
+    color: #1e40af !important; /* blue-800 */
   }
-  .calendar-light-bg .calendar-center-sub {
-    color: #2563eb; /* blue-600 */
+  .calendar-center-sub {
+    color: #2563eb !important; /* blue-600 */
   }
-  .calendar-light-bg .calendar-center-meta {
-    color: #3b82f6; /* blue-500 */
+  .calendar-center-meta {
+    color: #3b82f6 !important; /* blue-500 */
   }
 }
 
