@@ -23,7 +23,6 @@ function getAvatarUrl(user: any, provider: Provider): string | null {
   const identity = identities.find((i: any) => matches.includes(i.provider));
   const data = identity?.identity_data || {};
 
-  // Avatar strictement issu de l'identité du provider courant
   const fromIdentity =
     data.avatar_url ||
     data.picture ||
@@ -38,9 +37,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   const isConnected = connectedProviders?.[provider] ?? false;
   const avatarUrl = isConnected ? getAvatarUrl(user, provider) : null;
 
-  // Fallback Microsoft: récupérer la photo via Graph si non fournie
   const [msPhotoUrl, setMsPhotoUrl] = React.useState<string | null>(null);
-  // Fallback Google: récupérer la photo via userinfo si non fournie
   const [ggPhotoUrl, setGgPhotoUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -52,8 +49,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         return;
       }
 
-      console.log("🔍 ProviderBadge: Tentative de récupération de la photo Microsoft via Graph API");
-
       const { data, error } = await supabase
         .from("oauth_tokens")
         .select("access_token")
@@ -63,7 +58,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
       const token = data?.access_token || null;
       if (!token || error) {
-        console.log("⚠️ ProviderBadge: Pas de token Microsoft disponible");
         setMsPhotoUrl(null);
         return;
       }
@@ -74,7 +68,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       ];
 
       for (const url of tryUrls) {
-        console.log(`🌐 ProviderBadge: Tentative de récupération depuis ${url}`);
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -82,14 +75,10 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
           const blob = await res.blob();
           revokeUrl = URL.createObjectURL(blob);
           setMsPhotoUrl(revokeUrl);
-          console.log("✅ ProviderBadge: Photo Microsoft récupérée avec succès");
           return;
-        } else {
-          console.log(`❌ ProviderBadge: Échec ${res.status} pour ${url}`);
         }
       }
 
-      console.log("⚠️ ProviderBadge: Aucune photo Microsoft trouvée");
       setMsPhotoUrl(null);
     }
 
@@ -107,8 +96,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
         return;
       }
 
-      console.log("🔍 ProviderBadge: Tentative de récupération de la photo Google via userinfo");
-
       const { data, error } = await supabase
         .from("oauth_tokens")
         .select("access_token")
@@ -118,18 +105,15 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
       const token = data?.access_token || null;
       if (!token || error) {
-        console.log("⚠️ ProviderBadge: Pas de token Google disponible");
         setGgPhotoUrl(null);
         return;
       }
 
-      // Endpoint userinfo (nécessite openid profile email)
       const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
-        console.log(`❌ ProviderBadge: Échec récupération photo Google (${res.status})`);
         setGgPhotoUrl(null);
         return;
       }
@@ -137,12 +121,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
       const json = await res.json();
       const pic = json?.picture || null;
       setGgPhotoUrl(pic || null);
-      
-      if (pic) {
-        console.log("✅ ProviderBadge: Photo Google récupérée avec succès");
-      } else {
-        console.log("⚠️ ProviderBadge: Aucune photo Google trouvée");
-      }
     }
 
     fetchGooglePhoto();
@@ -150,21 +128,17 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
 
   const finalAvatarUrl = avatarUrl || msPhotoUrl || ggPhotoUrl;
 
-  // Désaturation partielle (50%) et flou léger, pas complètement gris
   const baseFilters =
     "filter saturate-50 blur-[1.5px] transition-all duration-200 ease-out group-hover:saturate-100 group-hover:blur-0";
 
-  // Badge du provider sous la photo
   const badgeSize = "w-3.5 h-3.5";
 
-  // Si connecté mais pas de photo : point vert avec check
   if (isConnected && !finalAvatarUrl) {
     return (
       <div className="flex flex-col items-center gap-1">
         <div className={["w-full aspect-square rounded-full bg-green-500 flex items-center justify-center shadow-md", baseFilters].join(" ")}>
           <Check className="w-1/2 h-1/2 text-white" strokeWidth={3} />
         </div>
-        {/* Badge provider directement sous le point vert */}
         <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
@@ -175,7 +149,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     );
   }
 
-  // Si photo disponible
   if (finalAvatarUrl) {
     return (
       <div className="flex flex-col items-center gap-1">
@@ -187,7 +160,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
             .join(" ")
             .trim()}
         />
-        {/* Badge provider directement sous la photo */}
         <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
@@ -198,7 +170,6 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     );
   }
 
-  // Sinon : logo du provider (non connecté)
   return (
     <BrandIcon
       name={provider}

@@ -83,7 +83,7 @@ async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshRespo
   });
 
   if (error || !data) {
-    console.error("❌ Outlook Calendar: Erreur refresh token");
+    console.error("❌ Outlook Calendar: Erreur refresh token:", error);
     return null;
   }
 
@@ -155,7 +155,6 @@ export function useOutlookCalendar(options?: Options): Result {
     const startISO = now.toISOString();
     const endISO = end.toISOString();
     
-    // Ajout de body et onlineMeeting dans le $select pour récupérer le contenu complet
     const url =
       "https://graph.microsoft.com/v1.0/me/calendarview" +
       `?startDateTime=${encodeURIComponent(startISO)}` +

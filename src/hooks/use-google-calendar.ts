@@ -86,7 +86,7 @@ async function refreshGoogleToken(refreshToken: string): Promise<RefreshResponse
   });
 
   if (error || !data) {
-    console.error("❌ Google Calendar: Erreur refresh token");
+    console.error("❌ Google Calendar: Erreur refresh token:", error);
     return null;
   }
   
@@ -148,7 +148,6 @@ export function useGoogleCalendar(options?: Options): Result {
     const timeMin = now.toISOString();
     const timeMax = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
     
-    // Ajout de fields pour s'assurer que description, location, conferenceData et hangoutLink sont inclus
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}&maxResults=50&fields=items(summary,description,location,start,end,htmlLink,conferenceData,hangoutLink,organizer)`;
