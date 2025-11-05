@@ -139,6 +139,7 @@ export function useMultiProviderAuth() {
 
     let error: any = null;
 
+    // TOUJOURS utiliser linkIdentity pour forcer la récupération des tokens
     if (hasExistingUser) {
       const result = await supabase.auth.linkIdentity({
         provider: config.supabaseProvider as any,

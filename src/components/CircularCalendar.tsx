@@ -1090,7 +1090,7 @@ export const CircularCalendar: React.FC<Props> = ({
         )}
 
         {showDateLabel && daysDiff !== 0 && (
-          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.5}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
+          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.75}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
             <div className="px-3 py-1.5 rounded-lg pointer-events-none" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
               <div className="pointer-events-none" style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
                 {formatDateLabel(virtualDateTime)}
