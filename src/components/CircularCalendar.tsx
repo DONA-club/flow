@@ -256,6 +256,14 @@ function easeOutCubic(t: number) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+function isSameDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+}
+
 export const CircularCalendar: React.FC<Props> = ({
   sunrise,
   sunset,
@@ -637,7 +645,12 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  const eventArcs = upcomingEvents.map((entry, index) => {
+  // Filtrer les événements pour n'afficher que ceux du jour du curseur
+  const currentDayEvents = upcomingEvents.filter((entry) => 
+    isSameDay(entry.start, virtualDateTime)
+  );
+
+  const eventArcs = currentDayEvents.map((entry, index) => {
     const { event, start, end } = entry;
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
@@ -654,7 +667,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const colorIndex = Math.min(Math.abs(dayDiff), dayColors.length - 1);
     const color = dayColors[colorIndex];
 
-    const totalEvents = upcomingEvents.length || 1;
+    const totalEvents = currentDayEvents.length || 1;
     const radiusStep = RING_THICKNESS / totalEvents;
     const eventRadius = innerRadius + radiusStep * index + radiusStep / 2;
 
