@@ -46,6 +46,11 @@ type CalendarEvent = {
   raw?: any;
 };
 
+type SleepSession = {
+  bedHour: number;
+  wakeHour: number;
+};
+
 function toHourDecimal(iso: string): number {
   const d = new Date(iso);
   return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
@@ -366,6 +371,7 @@ const Visualiser = () => {
     wakeHour,
     bedHour,
     totalSleepHours,
+    sleepSessions,
     loading: fitLoading,
     error: fitError,
     connected: fitConnected,
@@ -389,6 +395,7 @@ const Visualiser = () => {
   const [currentDayWake, setCurrentDayWake] = useState<number | null>(null);
   const [currentDayBed, setCurrentDayBed] = useState<number | null>(null);
   const [currentDayTotalSleep, setCurrentDayTotalSleep] = useState<number | null>(null);
+  const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -403,6 +410,7 @@ const Visualiser = () => {
   let effectiveWake: number | null = null;
   let effectiveBed: number | null = null;
   let effectiveTotalSleep: number | null = null;
+  let effectiveSleepSessions: SleepSession[] | null = null;
 
   if (isToday) {
     // Aujourd'hui : afficher les données du jour si disponibles, sinon rien
@@ -410,10 +418,12 @@ const Visualiser = () => {
       effectiveWake = currentDayWake;
       effectiveBed = currentDayBed;
       effectiveTotalSleep = currentDayTotalSleep;
+      effectiveSleepSessions = currentDaySleepSessions;
     } else if (fitConnected && wakeHour !== null && bedHour !== null) {
       effectiveWake = wakeHour;
       effectiveBed = bedHour;
       effectiveTotalSleep = totalSleepHours;
+      effectiveSleepSessions = sleepSessions;
     }
   } else if (isTomorrowDay) {
     // Demain : afficher les données d'aujourd'hui
@@ -421,6 +431,7 @@ const Visualiser = () => {
       effectiveWake = wakeHour;
       effectiveBed = bedHour;
       effectiveTotalSleep = totalSleepHours;
+      effectiveSleepSessions = sleepSessions;
     }
   } else {
     // Autre jour : afficher les données du jour si disponibles, sinon rien
@@ -428,6 +439,7 @@ const Visualiser = () => {
       effectiveWake = currentDayWake;
       effectiveBed = currentDayBed;
       effectiveTotalSleep = currentDayTotalSleep;
+      effectiveSleepSessions = currentDaySleepSessions;
     }
   }
 
@@ -527,10 +539,12 @@ const Visualiser = () => {
       setCurrentDayWake(sleepData.wakeHour);
       setCurrentDayBed(sleepData.bedHour);
       setCurrentDayTotalSleep(sleepData.totalSleepHours);
+      setCurrentDaySleepSessions(sleepData.sleepSessions);
     } else {
       setCurrentDayWake(null);
       setCurrentDayBed(null);
       setCurrentDayTotalSleep(null);
+      setCurrentDaySleepSessions(null);
     }
   }, [fitConnected, getSleepForDate]);
 
@@ -728,6 +742,7 @@ const Visualiser = () => {
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
             totalSleepHours={effectiveTotalSleep}
+            sleepSessions={effectiveSleepSessions}
             externalSelectedEvent={selectedEventFromList}
             onEventBubbleClosed={() => setSelectedEventFromList(null)}
             onDayChange={handleDayChange}

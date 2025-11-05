@@ -3,15 +3,26 @@
 import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+type SleepSession = {
+  bedHour: number;
+  wakeHour: number;
+};
+
 type Result = {
   wakeHour: number | null;
   bedHour: number | null;
   totalSleepHours: number | null;
+  sleepSessions: SleepSession[] | null;
   loading: boolean;
   error: string | null;
   connected: boolean;
   refresh: () => void;
-  getSleepForDate: (date: Date) => Promise<{ wakeHour: number | null; bedHour: number | null; totalSleepHours: number | null }>;
+  getSleepForDate: (date: Date) => Promise<{ 
+    wakeHour: number | null; 
+    bedHour: number | null; 
+    totalSleepHours: number | null;
+    sleepSessions: SleepSession[] | null;
+  }>;
 };
 
 type Options = {
@@ -65,12 +76,12 @@ async function refreshGoogleToken(refreshToken: string) {
   return data.access_token;
 }
 
-type SleepSession = {
+type RawSleepSession = {
   startMs: number;
   endMs: number;
 };
 
-async function fetchSleepSessions(accessToken: string, startDate: Date, endDate: Date): Promise<SleepSession[]> {
+async function fetchSleepSessions(accessToken: string, startDate: Date, endDate: Date): Promise<RawSleepSession[]> {
   const url = `https://www.googleapis.com/fitness/v1/users/me/sessions?startTime=${encodeURIComponent(
     startDate.toISOString()
   )}&endTime=${encodeURIComponent(endDate.toISOString())}`;
@@ -93,13 +104,14 @@ async function fetchSleepSessions(accessToken: string, startDate: Date, endDate:
     .sort((a, b) => a.startMs - b.startMs);
 }
 
-function calculateSleepForDay(sessions: SleepSession[], targetDate: Date): { 
+function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): { 
   wakeHour: number | null; 
   bedHour: number | null; 
   totalSleepHours: number | null;
+  sleepSessions: SleepSession[] | null;
 } {
   if (sessions.length === 0) {
-    return { wakeHour: null, bedHour: null, totalSleepHours: null };
+    return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
   }
 
   // Définir les limites de la journée cible (de 12h la veille à 12h le jour même)
@@ -117,7 +129,7 @@ function calculateSleepForDay(sessions: SleepSession[], targetDate: Date): {
   });
 
   if (daySessions.length === 0) {
-    return { wakeHour: null, bedHour: null, totalSleepHours: null };
+    return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
   }
 
   // Première heure de coucher (début de la première session)
@@ -130,10 +142,17 @@ function calculateSleepForDay(sessions: SleepSession[], targetDate: Date): {
   const totalSleepMs = daySessions.reduce((sum, s) => sum + (s.endMs - s.startMs), 0);
   const totalSleepHours = totalSleepMs / (1000 * 60 * 60);
 
+  // Créer les sessions individuelles
+  const sleepSessions: SleepSession[] = daySessions.map(s => ({
+    bedHour: Number(toLocalDecimalHourFromMillis(s.startMs).toFixed(4)),
+    wakeHour: Number(toLocalDecimalHourFromMillis(s.endMs).toFixed(4)),
+  }));
+
   return {
     wakeHour: Number(lastWakeHour.toFixed(4)),
     bedHour: Number(firstBedHour.toFixed(4)),
     totalSleepHours: Number(totalSleepHours.toFixed(2)),
+    sleepSessions,
   };
 }
 
@@ -143,10 +162,11 @@ export function useGoogleFitSleep(options?: Options): Result {
   const [wakeHour, setWakeHour] = React.useState<number | null>(null);
   const [bedHour, setBedHour] = React.useState<number | null>(null);
   const [totalSleepHours, setTotalSleepHours] = React.useState<number | null>(null);
+  const [sleepSessions, setSleepSessions] = React.useState<SleepSession[] | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [connected, setConnected] = React.useState<boolean>(false);
-  const [allSessions, setAllSessions] = React.useState<SleepSession[]>([]);
+  const [allSessions, setAllSessions] = React.useState<RawSleepSession[]>([]);
 
   const fetchSleep = React.useCallback(async () => {
     if (!enabled) return;
@@ -165,6 +185,7 @@ export function useGoogleFitSleep(options?: Options): Result {
       setWakeHour(null);
       setBedHour(null);
       setTotalSleepHours(null);
+      setSleepSessions(null);
       setLoading(false);
       setConnected(false);
       setError("Google non connecté. Connectez Google depuis la page d'accueil.");
@@ -181,6 +202,7 @@ export function useGoogleFitSleep(options?: Options): Result {
       setWakeHour(null);
       setBedHour(null);
       setTotalSleepHours(null);
+      setSleepSessions(null);
       setLoading(false);
       setConnected(true);
       setError("Aucune session de sommeil trouvée dans Google Fit.");
@@ -197,6 +219,7 @@ export function useGoogleFitSleep(options?: Options): Result {
     setWakeHour(todaySleep.wakeHour);
     setBedHour(todaySleep.bedHour);
     setTotalSleepHours(todaySleep.totalSleepHours);
+    setSleepSessions(todaySleep.sleepSessions);
     setLoading(false);
   }, [enabled]);
 
@@ -211,7 +234,7 @@ export function useGoogleFitSleep(options?: Options): Result {
       }
 
       if (!accessToken) {
-        return { wakeHour: null, bedHour: null, totalSleepHours: null };
+        return { wakeHour: null, bedHour: null, totalSleepHours: null, sleepSessions: null };
       }
 
       // Récupérer les sessions autour de la date demandée (±3 jours)
@@ -236,6 +259,7 @@ export function useGoogleFitSleep(options?: Options): Result {
     wakeHour, 
     bedHour, 
     totalSleepHours,
+    sleepSessions,
     loading, 
     error, 
     connected, 
