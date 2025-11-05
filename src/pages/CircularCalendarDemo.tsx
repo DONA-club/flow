@@ -192,7 +192,6 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
     .filter(Boolean) as CalendarEvent[];
 }
 
-// Fonction pour calculer le jour de l'année (1-366)
 function getDayOfYear(date: Date): number {
   const start = new Date(date.getFullYear(), 0, 0);
   const diff = date.getTime() - start.getTime();
@@ -200,20 +199,10 @@ function getDayOfYear(date: Date): number {
   return Math.floor(diff / oneDay);
 }
 
-// Fonction pour déterminer si une date est en heure d'été (DST)
-function isDST(date: Date): boolean {
-  const jan = new Date(date.getFullYear(), 0, 1);
-  const jul = new Date(date.getFullYear(), 6, 1);
-  const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-  return date.getTimezoneOffset() < stdOffset;
-}
-
-// Fonction pour obtenir l'offset du fuseau horaire pour une date donnée
 function getTimezoneOffsetForDate(date: Date): number {
   return -date.getTimezoneOffset() / 60;
 }
 
-// Fonction pour calculer sunrise/sunset basée sur le cycle annuel
 function calculateSunTimesFromBase(
   targetDate: Date,
   todayDate: Date,
@@ -222,7 +211,6 @@ function calculateSunTimesFromBase(
   latitude: number,
   todayTimezoneOffset: number
 ): { sunrise: number; sunset: number } {
-  // Si c'est aujourd'hui, retourner les valeurs de l'API
   const targetDay = new Date(targetDate);
   targetDay.setHours(0, 0, 0, 0);
   const today = new Date(todayDate);
@@ -232,50 +220,37 @@ function calculateSunTimesFromBase(
     return { sunrise: todaySunrise, sunset: todaySunset };
   }
 
-  // Calculer l'offset pour la date cible (peut être différent si DST change)
   const targetTimezoneOffset = getTimezoneOffsetForDate(targetDate);
   const offsetDiff = targetTimezoneOffset - todayTimezoneOffset;
 
-  // Calculer le jour de l'année pour les deux dates
   const todayDayOfYear = getDayOfYear(todayDate);
   const targetDayOfYear = getDayOfYear(targetDate);
   
-  // Paramètres du cycle annuel (basés sur l'hémisphère)
   const isNorthern = latitude >= 0;
   
-  // Solstice d'été (jour le plus long) et d'hiver (jour le plus court)
-  const summerSolstice = isNorthern ? 172 : 355; // ~21 juin (nord) ou ~21 décembre (sud)
-  const winterSolstice = isNorthern ? 355 : 172; // ~21 décembre (nord) ou ~21 juin (sud)
+  const summerSolstice = isNorthern ? 172 : 355;
+  const winterSolstice = isNorthern ? 355 : 172;
   
-  // Amplitude de variation (en heures) selon la latitude
   const latFactor = Math.abs(latitude) / 90;
-  const maxVariation = 6 * latFactor; // Jusqu'à 6h de variation aux pôles
+  const maxVariation = 6 * latFactor;
   
-  // Fonction pour calculer la durée du jour selon le jour de l'année
   const calculateDayLength = (dayOfYear: number) => {
-    // Utiliser une fonction sinusoïdale pour modéliser le cycle annuel
     const angle = ((dayOfYear - summerSolstice) / 365.25) * 2 * Math.PI;
     const variation = Math.cos(angle) * maxVariation;
-    return 12 + variation; // 12h de base ± variation
+    return 12 + variation;
   };
   
-  // Calculer la durée du jour pour aujourd'hui et la date cible
   const todayDayLength = calculateDayLength(todayDayOfYear);
   const targetDayLength = calculateDayLength(targetDayOfYear);
   
-  // Calculer la durée actuelle du jour d'après l'API
   const currentDayLength = todaySunset - todaySunrise;
   
-  // Ratio entre la durée calculée et la durée réelle (pour calibrer)
   const calibrationRatio = currentDayLength / todayDayLength;
   
-  // Appliquer le ratio à la durée cible
   const targetDayLengthCalibrated = targetDayLength * calibrationRatio;
   
-  // Calculer le point milieu du jour (midi solaire)
   const todayMidpoint = (todaySunrise + todaySunset) / 2;
   
-  // Calculer sunrise et sunset pour la date cible
   const targetSunrise = todayMidpoint - targetDayLengthCalibrated / 2 + offsetDiff;
   const targetSunset = todayMidpoint + targetDayLengthCalibrated / 2 + offsetDiff;
   
@@ -285,14 +260,12 @@ function calculateSunTimesFromBase(
   };
 }
 
-// Fonction pour calculer la couleur du fond basée sur le cycle circadien avec ondes de 2h
 function getCircadianGradient(
   currentHour: number,
   wakeHour: number,
   bedHour: number,
   isDarkMode: boolean
 ): string {
-  // Normaliser les heures pour gérer le cycle qui traverse minuit
   let normalizedCurrent = currentHour;
   let normalizedBed = bedHour;
   
@@ -303,26 +276,22 @@ function getCircadianGradient(
     }
   }
 
-  // Calculer la progression dans le cycle (0 = réveil, 1 = coucher)
   const cycleLength = normalizedBed - wakeHour;
   const progress = Math.max(0, Math.min(1, (normalizedCurrent - wakeHour) / cycleLength));
 
-  // Créer des oscillations sinusoïdales avec période de 2h
   const hoursFromWake = normalizedCurrent - wakeHour;
-  const waveFrequency = Math.PI / 2; // Période de 2h (π/2 rad/h)
-  const wave = Math.sin(hoursFromWake * waveFrequency) * 0.15; // Amplitude de 15%
+  const waveFrequency = Math.PI / 2;
+  const wave = Math.sin(hoursFromWake * waveFrequency) * 0.15;
 
   if (isDarkMode) {
-    // Mode sombre : variations de violet/bleu profond avec oscillations
     const baseColors = [
-      { h: 270, s: 60, l: 15 }, // Réveil - Violet profond
-      { h: 265, s: 58, l: 17 }, // +25% - Violet-bleu
-      { h: 260, s: 55, l: 20 }, // +50% - Bleu-violet (midi)
-      { h: 255, s: 53, l: 19 }, // +75% - Bleu-indigo
-      { h: 250, s: 50, l: 18 }, // Coucher - Violet-indigo
+      { h: 270, s: 60, l: 15 },
+      { h: 265, s: 58, l: 17 },
+      { h: 260, s: 55, l: 20 },
+      { h: 255, s: 53, l: 19 },
+      { h: 250, s: 50, l: 18 },
     ];
 
-    // Interpolation entre les couleurs de base
     const segmentIndex = Math.floor(progress * (baseColors.length - 1));
     const segmentProgress = (progress * (baseColors.length - 1)) % 1;
     const color1 = baseColors[Math.min(segmentIndex, baseColors.length - 1)];
@@ -334,16 +303,14 @@ function getCircadianGradient(
 
     return `radial-gradient(circle at 50% 50%, hsl(${h}, ${s}%, ${l + 5}%) 0%, hsl(${h}, ${s}%, ${l}%) 55%, #181c2a 100%)`;
   } else {
-    // Mode clair : variations de turquoise/cyan avec oscillations
     const baseColors = [
-      { h: 180, s: 70, l: 85 }, // Réveil - Turquoise très clair
-      { h: 182, s: 72, l: 78 }, // +25% - Turquoise-cyan
-      { h: 185, s: 75, l: 70 }, // +50% - Cyan moyen (midi)
-      { h: 188, s: 77, l: 65 }, // +75% - Cyan-bleu
-      { h: 190, s: 80, l: 60 }, // Coucher - Bleu cyan
+      { h: 180, s: 70, l: 85 },
+      { h: 182, s: 72, l: 78 },
+      { h: 185, s: 75, l: 70 },
+      { h: 188, s: 77, l: 65 },
+      { h: 190, s: 80, l: 60 },
     ];
 
-    // Interpolation entre les couleurs de base
     const segmentIndex = Math.floor(progress * (baseColors.length - 1));
     const segmentProgress = (progress * (baseColors.length - 1)) % 1;
     const color1 = baseColors[Math.min(segmentIndex, baseColors.length - 1)];
@@ -384,10 +351,12 @@ const Visualiser = () => {
   const {
     wakeHour,
     bedHour,
+    totalSleepHours,
     loading: fitLoading,
     error: fitError,
     connected: fitConnected,
     refresh: refreshFit,
+    getSleepForDate,
   } = useGoogleFitSleep({ enabled: googleEnabled });
 
   const [displaySunrise, setDisplaySunrise] = useState(DEFAULT_SUNRISE);
@@ -402,12 +371,15 @@ const Visualiser = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [backgroundGradient, setBackgroundGradient] = useState("");
   const [virtualDateTime, setVirtualDateTime] = useState<Date | null>(null);
+  
+  const [currentDayWake, setCurrentDayWake] = useState<number | null>(null);
+  const [currentDayBed, setCurrentDayBed] = useState<number | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
-  const effectiveWake = fitConnected && wakeHour != null && bedHour != null ? wakeHour : SIM_WAKE;
-  const effectiveBed = fitConnected && wakeHour != null && bedHour != null ? bedHour : SIM_BED;
+  const effectiveWake = currentDayWake ?? (fitConnected && wakeHour != null ? wakeHour : SIM_WAKE);
+  const effectiveBed = currentDayBed ?? (fitConnected && bedHour != null ? bedHour : SIM_BED);
 
   useEffect(() => {
     document.title = "DONA.club Visualiser";
@@ -421,10 +393,8 @@ const Visualiser = () => {
     }
   }, [authLoading, connectedProviders, navigate]);
 
-  // Mise à jour des heures de lever/coucher pour aujourd'hui (valeurs réelles de l'API)
   useEffect(() => {
     if (todaySunrise !== null && todaySunset !== null && !sunLoading && !sunError) {
-      // Si on est en temps réel (pas de virtualDateTime), utiliser les valeurs de l'API
       if (!virtualDateTime) {
         setDisplaySunrise(todaySunrise);
         setDisplaySunset(todaySunset);
@@ -432,9 +402,7 @@ const Visualiser = () => {
     }
   }, [todaySunrise, todaySunset, sunLoading, sunError, virtualDateTime]);
 
-  // Mise à jour dynamique des heures de lever/coucher selon la date virtuelle
   useEffect(() => {
-    // Ne rien faire si on n'a pas de virtualDateTime (temps réel géré par l'effet précédent)
     if (!virtualDateTime || !latitude || !longitude || todaySunrise === null || todaySunset === null) return;
 
     const today = new Date();
@@ -445,14 +413,12 @@ const Visualiser = () => {
     
     const isToday = virtualDay.getTime() === today.getTime();
 
-    // Si c'est aujourd'hui, utiliser les valeurs actuelles de l'API
     if (isToday) {
       setDisplaySunrise(todaySunrise);
       setDisplaySunset(todaySunset);
       return;
     }
 
-    // Sinon, calculer basé sur le cycle annuel avec gestion du DST
     const { sunrise, sunset } = calculateSunTimesFromBase(
       virtualDay,
       today,
@@ -466,7 +432,6 @@ const Visualiser = () => {
     setDisplaySunset(Number(sunset.toFixed(2)));
   }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset, timezoneOffset]);
 
-  // Détection du thème
   useEffect(() => {
     const updateTheme = () => {
       const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -483,7 +448,6 @@ const Visualiser = () => {
     }
   }, []);
 
-  // Mise à jour du gradient basé sur virtualDateTime (curseur) ou l'heure actuelle
   useEffect(() => {
     const updateGradient = () => {
       const referenceTime = virtualDateTime || new Date();
@@ -494,19 +458,25 @@ const Visualiser = () => {
 
     updateGradient();
     
-    // Si pas de virtualDateTime, mettre à jour toutes les minutes
     if (!virtualDateTime) {
       const interval = setInterval(updateGradient, 60000);
       return () => clearInterval(interval);
     }
   }, [effectiveWake, effectiveBed, isDarkMode, virtualDateTime]);
 
-  // Callback pour recevoir les changements de virtualDateTime depuis CircularCalendar
-  const handleVirtualDateTimeChange = useCallback((newDateTime: Date | null) => {
+  const handleVirtualDateTimeChange = useCallback(async (newDateTime: Date | null) => {
     setVirtualDateTime(newDateTime);
-  }, []);
+    
+    if (newDateTime && fitConnected && getSleepForDate) {
+      const sleepData = await getSleepForDate(newDateTime);
+      setCurrentDayWake(sleepData.wakeHour);
+      setCurrentDayBed(sleepData.bedHour);
+    } else {
+      setCurrentDayWake(null);
+      setCurrentDayBed(null);
+    }
+  }, [fitConnected, getSleepForDate]);
 
-  // Gestion des logs de localisation - remplacer "..." par résultat final
   useEffect(() => {
     if (sunLoading) {
       return;
@@ -517,7 +487,6 @@ const Visualiser = () => {
     }
   }, [sunLoading, sunError, todaySunrise, todaySunset]);
 
-  // Gestion des logs Google Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (gLoading) {
       return;
@@ -532,7 +501,6 @@ const Visualiser = () => {
     }
   }, [gLoading, gError, gConnected, gEvents.length]);
 
-  // Gestion des logs Outlook Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (oLoading) {
       return;
@@ -547,7 +515,6 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Gestion des logs Google Fit - remplacer "..." par résultat final
   useEffect(() => {
     if (fitLoading) {
       return;
@@ -558,9 +525,12 @@ const Visualiser = () => {
     } else if (fitError) {
       setLogs([{ message: "Sommeil indisponible", type: "info" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
-      setLogs([{ message: "Sommeil synchronisé", type: "success" }]);
+      const sleepMsg = totalSleepHours 
+        ? `Sommeil: ${totalSleepHours.toFixed(1)}h`
+        : "Sommeil synchronisé";
+      setLogs([{ message: sleepMsg, type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
+  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour, totalSleepHours]);
 
   useEffect(() => {
     const today = new Date();
@@ -610,13 +580,12 @@ const Visualiser = () => {
         return newMap;
       });
 
-      // Log uniquement si des événements sont trouvés
       if (allEvents.length > 0) {
         const formattedDate = formatDateForLog(date);
         setLogs([{ message: `${formattedDate} : ${allEvents.length} événement${allEvents.length > 1 ? 's' : ''}`, type: "success" }]);
       }
     } catch (err) {
-      // Pas de log d'erreur pour ne pas surcharger
+      // Pas de log d'erreur
     } finally {
       setLoadingDays((prev) => {
         const newSet = new Set(prev);
@@ -642,7 +611,6 @@ const Visualiser = () => {
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
-  // Rafraîchissement silencieux toutes les minutes
   useEffect(() => {
     const id = window.setInterval(() => {
       if (googleEnabled) {

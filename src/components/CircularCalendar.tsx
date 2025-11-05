@@ -32,6 +32,7 @@ type Props = {
 const DEFAULT_SIZE = 320;
 const RING_THICKNESS = 32;
 const SEGMENTS = 1440;
+const RECOMMENDED_SLEEP_HOURS = 9;
 
 const SEASON_COLORS: Record<string, string> = {
   spring: "#4ade80",
@@ -250,13 +251,10 @@ function getSeason(date: Date): Props["season"] {
 function isDayMinute(minute: number, wakeHour: number, bedHour: number) {
   const hour = minute / 60;
   
-  // Si bedHour < wakeHour, le cycle traverse minuit
   if (bedHour < wakeHour) {
-    // Période d'éveil = de wakeHour à 24h OU de 0h à bedHour
     return hour >= wakeHour || hour < bedHour;
   }
   
-  // Sinon, période d'éveil normale dans la même journée
   return hour >= wakeHour && hour < bedHour;
 }
 
@@ -554,7 +552,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
-  // Utiliser wakeHour et bedHour si disponibles, sinon utiliser sunrise/sunset
   const effectiveWake = typeof wakeHour === "number" ? wakeHour : sunrise;
   const effectiveBed = typeof bedHour === "number" ? bedHour : sunset;
 
@@ -766,8 +763,10 @@ export const CircularCalendar: React.FC<Props> = ({
       <path key="sleep-main" d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} fill="rgba(0, 0, 0, 0.4)" style={{ pointerEvents: "none" }} />,
     );
 
-    const recommendedStart = (wakeHour - 9 + 24) % 24;
-    const recommendedAngle = angleFromHour(recommendedStart);
+    // Calculer l'heure recommandée de coucher (9h avant le réveil)
+    const recommendedBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
+    const recommendedAngle = angleFromHour(recommendedBedHour);
+    
     sleepOverlays.push(
       <path key="sleep-recommended" d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, bedAngle)} fill="rgba(0, 0, 0, 0.2)" style={{ pointerEvents: "none" }} />,
     );
