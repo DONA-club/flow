@@ -58,25 +58,7 @@ function detectProviderFromToken(accessToken: string): Provider | null {
   return null;
 }
 
-async function detectProviderFromIdentities(user: any): Promise<Provider | null> {
-  const identities = user?.identities || [];
-  
-  for (const identity of identities) {
-    const provider = identity.provider?.toLowerCase();
-    
-    if (provider === "azure" || provider === "microsoft" || provider === "azure-oidc") {
-      return "microsoft";
-    }
-    if (provider === "google") return "google";
-    if (provider === "apple") return "apple";
-    if (provider === "facebook") return "facebook";
-    if (provider === "amazon") return "amazon";
-  }
-  
-  return null;
-}
-
-function captureTokensFromUrl(): { accessToken: string | null; refreshToken: string | null; provider: Provider | null } {
+function captureTokensFromUrl(): { accessToken: string | null; refreshToken: string | null } {
   const hash = window.location.hash.substring(1);
   const params = new URLSearchParams(hash);
   
@@ -85,56 +67,13 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   const providerToken = params.get('provider_token');
   const providerRefreshToken = params.get('provider_refresh_token');
   
-  const finalAccessToken = providerToken || accessToken;
-  const finalRefreshToken = providerRefreshToken || refreshToken;
-  
-  if (!finalAccessToken) return { accessToken: null, refreshToken: null, provider: null };
-  
-  const provider = detectProviderFromToken(finalAccessToken);
-  
   return { 
-    accessToken: finalAccessToken, 
-    refreshToken: finalRefreshToken, 
-    provider 
-  };
-}
-
-function checkForOAuthError(): { hasError: boolean; errorCode: string | null; errorDescription: string | null } {
-  const params = new URLSearchParams(window.location.search);
-  const error = params.get('error');
-  const errorCode = params.get('error_code');
-  const errorDescription = params.get('error_description');
-  
-  return {
-    hasError: !!error,
-    errorCode,
-    errorDescription
+    accessToken: providerToken || accessToken, 
+    refreshToken: providerRefreshToken || refreshToken
   };
 }
 
 async function saveProviderTokens() {
-  // Vérifier s'il y a une erreur OAuth dans l'URL
-  const { hasError, errorCode, errorDescription } = checkForOAuthError();
-  
-  if (hasError) {
-    const pendingProvider = localStorage.getItem("pending_provider_connection");
-    localStorage.removeItem("pending_provider_connection");
-    
-    if (errorCode === "identity_already_exists") {
-      // L'identity existe déjà, on va forcer une reconnexion
-      console.log("Identity already exists, will retry with signInWithOAuth");
-      // Ne pas afficher d'erreur, juste nettoyer l'URL
-    } else {
-      toast.error("Erreur de connexion", {
-        description: errorDescription || "Une erreur est survenue lors de la connexion.",
-      });
-    }
-    
-    // Nettoyer l'URL
-    window.history.replaceState(null, '', window.location.pathname);
-    return;
-  }
-
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
@@ -143,6 +82,8 @@ async function saveProviderTokens() {
 
   // Récupérer le provider en attente
   const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
+  
+  if (!pendingProvider) return;
 
   let accessToken: string | null = session?.provider_token ?? null;
   let refreshToken: string | null = session?.provider_refresh_token ?? null;
@@ -156,76 +97,16 @@ async function saveProviderTokens() {
   }
 
   if (!accessToken || !isValidJWT(accessToken)) {
-    // Vérifier si l'utilisateur a des identities sans tokens
-    const identities = user.identities || [];
-    const googleIdentity = identities.find((i: any) => i.provider === "google");
-    const microsoftIdentity = identities.find((i: any) => ["azure", "microsoft", "azure-oidc"].includes(i.provider));
-
-    // Vérifier si on a déjà les tokens en base
-    const { data: existingTokens } = await supabase
-      .from("oauth_tokens")
-      .select("provider")
-      .eq("user_id", user.id);
-
-    const existingProviders = new Set(existingTokens?.map(t => t.provider) || []);
-
-    // Si Google est connecté mais n'a pas de token, forcer la reconnexion
-    if (googleIdentity && !existingProviders.has("google")) {
-      if (pendingProvider !== "google") {
-        toast.info("Reconnexion Google nécessaire", {
-          description: "Cliquez sur le logo Google pour obtenir les permissions.",
-        });
-      }
-    }
-
-    // Si Microsoft est connecté mais n'a pas de token, forcer la reconnexion
-    if (microsoftIdentity && !existingProviders.has("microsoft")) {
-      if (pendingProvider !== "microsoft") {
-        toast.info("Reconnexion Microsoft nécessaire", {
-          description: "Cliquez sur le logo Microsoft pour obtenir les permissions.",
-        });
-      }
-    }
-
+    console.warn("⚠️ Pas de token valide trouvé");
     return;
   }
-
-  let providerToSave: Provider | null = null;
-
-  // IMPORTANT : Utiliser UNIQUEMENT le provider en attente si disponible
-  if (pendingProvider) {
-    providerToSave = pendingProvider;
-  } else {
-    // Sinon, détecter depuis le token
-    const detected = detectProviderFromToken(accessToken);
-    if (detected) {
-      providerToSave = detected;
-    } else {
-      const identityProvider = await detectProviderFromIdentities(user);
-      if (identityProvider) {
-        providerToSave = identityProvider;
-      }
-    }
-  }
-
-  if (!providerToSave) return;
 
   // Vérifier que le token correspond bien au provider attendu
   const tokenProvider = detectProviderFromToken(accessToken);
-  if (pendingProvider && tokenProvider && tokenProvider !== pendingProvider) {
+  if (tokenProvider && tokenProvider !== pendingProvider) {
     console.warn(`⚠️ Token provider mismatch: expected ${pendingProvider}, got ${tokenProvider}`);
-    // Ne pas sauvegarder si le provider ne correspond pas
     return;
   }
-
-  const { data: existingToken } = await supabase
-    .from("oauth_tokens")
-    .select("access_token, refresh_token")
-    .eq("user_id", user.id)
-    .eq("provider", providerToSave)
-    .maybeSingle();
-
-  if (existingToken && !pendingProvider) return;
 
   const expiresAtUnix: number | null = session?.expires_at ?? null;
   const expiresAtIso = expiresAtUnix ? new Date(expiresAtUnix * 1000).toISOString() : null;
@@ -234,7 +115,7 @@ async function saveProviderTokens() {
     .from("oauth_tokens")
     .upsert({
       user_id: user.id,
-      provider: providerToSave,
+      provider: pendingProvider,
       access_token: accessToken,
       refresh_token: refreshToken ?? undefined,
       expires_at: expiresAtIso,
@@ -244,16 +125,14 @@ async function saveProviderTokens() {
     });
 
   if (error) {
-    console.error(`❌ Erreur sauvegarde token ${providerToSave}:`, error);
+    console.error(`❌ Erreur sauvegarde token ${pendingProvider}:`, error);
     return;
   }
   
-  if (pendingProvider === providerToSave) {
-    localStorage.removeItem("pending_provider_connection");
-    toast.success(`${providerToSave} connecté avec succès !`, {
-      description: "Vos données seront maintenant synchronisées.",
-    });
-  }
+  localStorage.removeItem("pending_provider_connection");
+  toast.success(`${pendingProvider} connecté avec succès !`, {
+    description: "Vos données seront maintenant synchronisées.",
+  });
   
   if (window.location.hash) {
     window.history.replaceState(null, '', window.location.pathname);
