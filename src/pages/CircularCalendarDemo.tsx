@@ -200,13 +200,27 @@ function getDayOfYear(date: Date): number {
   return Math.floor(diff / oneDay);
 }
 
+// Fonction pour déterminer si une date est en heure d'été (DST)
+function isDST(date: Date): boolean {
+  const jan = new Date(date.getFullYear(), 0, 1);
+  const jul = new Date(date.getFullYear(), 6, 1);
+  const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+  return date.getTimezoneOffset() < stdOffset;
+}
+
+// Fonction pour obtenir l'offset du fuseau horaire pour une date donnée
+function getTimezoneOffsetForDate(date: Date): number {
+  return -date.getTimezoneOffset() / 60;
+}
+
 // Fonction pour calculer sunrise/sunset basée sur le cycle annuel
 function calculateSunTimesFromBase(
   targetDate: Date,
   todayDate: Date,
   todaySunrise: number,
   todaySunset: number,
-  latitude: number
+  latitude: number,
+  todayTimezoneOffset: number
 ): { sunrise: number; sunset: number } {
   // Si c'est aujourd'hui, retourner les valeurs de l'API
   const targetDay = new Date(targetDate);
@@ -217,6 +231,10 @@ function calculateSunTimesFromBase(
   if (targetDay.getTime() === today.getTime()) {
     return { sunrise: todaySunrise, sunset: todaySunset };
   }
+
+  // Calculer l'offset pour la date cible (peut être différent si DST change)
+  const targetTimezoneOffset = getTimezoneOffsetForDate(targetDate);
+  const offsetDiff = targetTimezoneOffset - todayTimezoneOffset;
 
   // Calculer le jour de l'année pour les deux dates
   const todayDayOfYear = getDayOfYear(todayDate);
@@ -258,8 +276,8 @@ function calculateSunTimesFromBase(
   const todayMidpoint = (todaySunrise + todaySunset) / 2;
   
   // Calculer sunrise et sunset pour la date cible
-  const targetSunrise = todayMidpoint - targetDayLengthCalibrated / 2;
-  const targetSunset = todayMidpoint + targetDayLengthCalibrated / 2;
+  const targetSunrise = todayMidpoint - targetDayLengthCalibrated / 2 + offsetDiff;
+  const targetSunset = todayMidpoint + targetDayLengthCalibrated / 2 + offsetDiff;
   
   return {
     sunrise: Math.max(0, Math.min(24, targetSunrise)),
@@ -341,7 +359,7 @@ function getCircadianGradient(
 
 const Visualiser = () => {
   const navigate = useNavigate();
-  const { sunrise: todaySunrise, sunset: todaySunset, loading: sunLoading, error: sunError, latitude, longitude } = useSunTimes();
+  const { sunrise: todaySunrise, sunset: todaySunset, loading: sunLoading, error: sunError, latitude, longitude, timezoneOffset } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
   const googleEnabled = connectedProviders?.google ?? false;
@@ -434,18 +452,19 @@ const Visualiser = () => {
       return;
     }
 
-    // Sinon, calculer basé sur le cycle annuel
+    // Sinon, calculer basé sur le cycle annuel avec gestion du DST
     const { sunrise, sunset } = calculateSunTimesFromBase(
       virtualDay,
       today,
       todaySunrise,
       todaySunset,
-      latitude
+      latitude,
+      timezoneOffset
     );
     
     setDisplaySunrise(Number(sunrise.toFixed(2)));
     setDisplaySunset(Number(sunset.toFixed(2)));
-  }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset]);
+  }, [virtualDateTime, latitude, longitude, todaySunrise, todaySunset, timezoneOffset]);
 
   // Détection du thème
   useEffect(() => {
