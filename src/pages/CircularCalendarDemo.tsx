@@ -441,16 +441,12 @@ const CircularCalendarDemo = () => {
       </div>
 
       {hasAnyConnection && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "auto" }}>
-            <UpcomingEventsList
-              events={combinedEvents}
-              onSelect={(evt) => {
-                setSelectedEventFromList(evt);
-              }}
-            />
-          </div>
-        </div>
+        <UpcomingEventsList
+          events={combinedEvents}
+          onSelect={(evt) => {
+            setSelectedEventFromList(evt);
+          }}
+        />
       )}
     </>
   );
