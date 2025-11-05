@@ -337,6 +337,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const labelTimeoutRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
   const nowIntervalRef = React.useRef<number | null>(null);
+  const lastLogTimeRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     if (externalSelectedEvent) {
@@ -688,6 +689,7 @@ export const CircularCalendar: React.FC<Props> = ({
         const capturedVirtualTime = new Date(newVirtualTime);
         
         scrollTimeoutRef.current = window.setTimeout(() => {
+          console.log("🔄 Début retour au présent");
           setIsScrolling(false);
           setIsReturning(true);
           
@@ -704,6 +706,13 @@ export const CircularCalendar: React.FC<Props> = ({
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
             const interpolatedTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
             
+            // Log toutes les 200ms pour éviter le flood
+            const nowMs = performance.now();
+            if (nowMs - lastLogTimeRef.current > 200) {
+              console.log(`⏱️ Animation: ${Math.round(progress * 100)}% | virtualDateTime: ${interpolatedTime.toLocaleTimeString()}`);
+              lastLogTimeRef.current = nowMs;
+            }
+            
             // CRUCIAL: Mettre à jour virtualDateTime à chaque frame
             setVirtualDateTime(interpolatedTime);
             
@@ -711,6 +720,7 @@ export const CircularCalendar: React.FC<Props> = ({
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
               // Animation terminée
+              console.log("✅ Retour terminé");
               setVirtualDateTime(new Date());
               setIsReturning(false);
               setShowTimeLabel(true);
@@ -903,8 +913,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
-  const dateLabelAngle = -90;
-  const dateLabelRadius = INNER_RADIUS - Math.max(12, RING_THICKNESS * 0.4);
+  // Position de l'étiquette de date : en bas, au-dessus de la bubble
+  const dateLabelAngle = 90; // En bas (12h = -90°, 6h = 90°)
+  const dateLabelRadius = INNER_RADIUS + Math.max(20, RING_THICKNESS * 0.6);
   const dateLabelPt = toPoint(dateLabelAngle, dateLabelRadius);
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
