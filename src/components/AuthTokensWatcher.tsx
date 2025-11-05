@@ -24,7 +24,18 @@ function getJwtClaims(token: string) {
   }
 }
 
+function isValidJWT(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  return parts.length === 3;
+}
+
 function detectProviderFromToken(accessToken: string): Provider | null {
+  if (!isValidJWT(accessToken)) {
+    console.warn("⚠️ Token invalide détecté dans detectProviderFromToken");
+    return null;
+  }
+
   if (accessToken.startsWith("ya29.")) return "google";
 
   if (accessToken.startsWith("eyJ")) {
@@ -61,6 +72,12 @@ async function saveProviderTokens() {
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
   if (!accessToken) return;
+
+  // Valider le token avant de continuer
+  if (!isValidJWT(accessToken)) {
+    console.warn("⚠️ Token invalide détecté, ignoré:", accessToken.substring(0, 20) + "...");
+    return;
+  }
 
   const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   let providerToSave: Provider | null = null;

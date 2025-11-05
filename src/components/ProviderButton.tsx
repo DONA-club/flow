@@ -20,6 +20,12 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   amazon: "Amazon",
 };
 
+function isValidJWT(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  return parts.length === 3;
+}
+
 async function saveCurrentSessionTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -31,6 +37,12 @@ async function saveCurrentSessionTokens() {
   const refreshToken: string | null = session?.provider_refresh_token ?? null;
 
   if (!accessToken) return;
+
+  // Valider le token avant de le sauvegarder
+  if (!isValidJWT(accessToken)) {
+    console.warn("⚠️ Token invalide détecté, ignoré:", accessToken.substring(0, 20) + "...");
+    return;
+  }
 
   const identities = user.identities || [];
   let currentProvider: string | null = null;

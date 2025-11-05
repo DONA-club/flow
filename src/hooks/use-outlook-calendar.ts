@@ -35,6 +35,12 @@ type MicrosoftTokens = {
   expires_at: string | null;
 };
 
+function isValidJWT(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  return parts.length === 3;
+}
+
 async function getMicrosoftTokens(): Promise<MicrosoftTokens | null> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
@@ -116,6 +122,18 @@ function isExpiredOrNear(expIso: string | null, skewMs = 60_000) {
   return Date.now() + skewMs >= exp;
 }
 
+async function clearInvalidMicrosoftTokens() {
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+  if (!userId) return;
+
+  await supabase
+    .from("oauth_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "microsoft");
+}
+
 export function useOutlookCalendar(options?: Options): Result {
   const enabled = options?.enabled ?? true;
 
@@ -133,6 +151,17 @@ export function useOutlookCalendar(options?: Options): Result {
     const tokens = await getMicrosoftTokens();
     let accessToken = tokens?.access_token ?? null;
     let refreshToken = tokens?.refresh_token ?? null;
+
+    // Vérifier si le token est valide
+    if (accessToken && !isValidJWT(accessToken)) {
+      console.warn("⚠️ Outlook Calendar: Token invalide détecté, nettoyage...");
+      await clearInvalidMicrosoftTokens();
+      setConnected(false);
+      setEvents([]);
+      setLoading(false);
+      setError("Microsoft non connecté correctement. Veuillez reconnecter votre compte Microsoft.");
+      return;
+    }
 
     if (refreshToken && (!accessToken || isExpiredOrNear(tokens?.expires_at ?? null))) {
       const refreshed = await refreshMicrosoftToken(refreshToken);
@@ -181,6 +210,9 @@ export function useOutlookCalendar(options?: Options): Result {
             },
           });
           return retryRes;
+        } else {
+          // Si le refresh échoue, nettoyer les tokens invalides
+          await clearInvalidMicrosoftTokens();
         }
       }
 
@@ -199,6 +231,12 @@ export function useOutlookCalendar(options?: Options): Result {
         const json = await res.json();
         if (json?.error) {
           errMsg += `: ${typeof json.error === "string" ? json.error : JSON.stringify(json.error)}`;
+          
+          // Si c'est une erreur d'authentification, nettoyer les tokens
+          if (res.status === 401) {
+            await clearInvalidMicrosoftTokens();
+            errMsg = "Microsoft non connecté correctement. Veuillez reconnecter votre compte Microsoft.";
+          }
         }
       } catch {
         // ignore parse error
