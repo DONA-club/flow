@@ -374,12 +374,14 @@ const Visualiser = () => {
   
   const [currentDayWake, setCurrentDayWake] = useState<number | null>(null);
   const [currentDayBed, setCurrentDayBed] = useState<number | null>(null);
+  const [currentDayTotalSleep, setCurrentDayTotalSleep] = useState<number | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
   const effectiveWake = currentDayWake ?? (fitConnected && wakeHour != null ? wakeHour : SIM_WAKE);
   const effectiveBed = currentDayBed ?? (fitConnected && bedHour != null ? bedHour : SIM_BED);
+  const effectiveTotalSleep = currentDayTotalSleep ?? totalSleepHours;
 
   useEffect(() => {
     document.title = "DONA.club Visualiser";
@@ -471,9 +473,11 @@ const Visualiser = () => {
       const sleepData = await getSleepForDate(newDateTime);
       setCurrentDayWake(sleepData.wakeHour);
       setCurrentDayBed(sleepData.bedHour);
+      setCurrentDayTotalSleep(sleepData.totalSleepHours);
     } else {
       setCurrentDayWake(null);
       setCurrentDayBed(null);
+      setCurrentDayTotalSleep(null);
     }
   }, [fitConnected, getSleepForDate]);
 
@@ -670,6 +674,7 @@ const Visualiser = () => {
             size={size}
             wakeHour={effectiveWake}
             bedHour={effectiveBed}
+            totalSleepHours={effectiveTotalSleep}
             externalSelectedEvent={selectedEventFromList}
             onEventBubbleClosed={() => setSelectedEventFromList(null)}
             onDayChange={handleDayChange}

@@ -23,6 +23,7 @@ type Props = {
   longitude?: number;
   wakeHour?: number | null;
   bedHour?: number | null;
+  totalSleepHours?: number | null;
   externalSelectedEvent?: Event | null;
   onEventBubbleClosed?: () => void;
   onDayChange?: (date: Date) => void;
@@ -248,14 +249,16 @@ function getSeason(date: Date): Props["season"] {
   return "winter";
 }
 
-function isDayMinute(minute: number, wakeHour: number, bedHour: number) {
+// Cette fonction détermine si un segment est en période diurne (sunrise/sunset)
+function isDayMinute(minute: number, sunrise: number, sunset: number) {
   const hour = minute / 60;
   
-  if (bedHour < wakeHour) {
-    return hour >= wakeHour || hour < bedHour;
+  if (sunset < sunrise) {
+    // Le jour traverse minuit (cas rare mais possible près des pôles)
+    return hour >= sunrise || hour < sunset;
   }
   
-  return hour >= wakeHour && hour < bedHour;
+  return hour >= sunrise && hour < sunset;
 }
 
 function easeOutCubic(t: number) {
@@ -279,6 +282,7 @@ export const CircularCalendar: React.FC<Props> = ({
   size = DEFAULT_SIZE,
   wakeHour,
   bedHour,
+  totalSleepHours,
   externalSelectedEvent,
   onEventBubbleClosed,
   onDayChange,
@@ -552,9 +556,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
-  const effectiveWake = typeof wakeHour === "number" ? wakeHour : sunrise;
-  const effectiveBed = typeof bedHour === "number" ? bedHour : sunset;
-
+  // Les wedges utilisent UNIQUEMENT sunrise/sunset pour les couleurs
   const wedges = React.useMemo(
     () =>
       Array.from({ length: SEGMENTS }, (_, i) => {
@@ -565,10 +567,10 @@ export const CircularCalendar: React.FC<Props> = ({
           return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill: "none" };
         }
 
-        const fill = isDayMinute(i, effectiveWake, effectiveBed) ? SEASON_COLORS[currentSeason] : NIGHT_COLOR;
+        const fill = isDayMinute(i, sunrise, sunset) ? SEASON_COLORS[currentSeason] : NIGHT_COLOR;
         return { key: i, path: getWedgePath(cx, cy, radius, innerRadius, startAngle, endAngle), fill };
       }),
-    [blockAngle, cx, cy, currentSeason, innerRadius, radius, effectiveWake, effectiveBed],
+    [blockAngle, cx, cy, currentSeason, innerRadius, radius, sunrise, sunset],
   );
 
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
@@ -604,27 +606,8 @@ export const CircularCalendar: React.FC<Props> = ({
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
 
-  if (typeof wakeHour === "number" && typeof bedHour === "number") {
-    let wake = wakeHour;
-    let bed = bedHour;
-    let current = hourDecimal;
-
-    if (bed <= wake) bed += 24;
-    if (current < wake) current += 24;
-
-    const wakeAngle = angleFromHour(wakeHour % 24);
-    const bedAngle = angleFromHour(bedHour % 24);
-    const currentAngle = angleFromHour(hourDecimal % 24);
-
-    if (current <= wake) {
-      futureArc = { start: wakeAngle, end: bedAngle };
-    } else if (current >= bed) {
-      pastArc = { start: wakeAngle, end: bedAngle };
-    } else {
-      pastArc = { start: wakeAngle, end: currentAngle };
-      futureArc = { start: currentAngle, end: bedAngle };
-    }
-  } else if (sunrise < sunset) {
+  // Les arcs utilisent sunrise/sunset
+  if (sunrise < sunset) {
     if (hourDecimal <= sunrise) {
       futureArc = { start: sunriseAngle, end: sunsetAngle };
     } else if (hourDecimal >= sunset) {
@@ -755,21 +738,36 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
+  // Overlays de sommeil : afficher toutes les périodes séparément
   const sleepOverlays: JSX.Element[] = [];
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
+    // Période principale de sommeil (la plus longue)
     const bedAngle = angleFromHour(bedHour);
     const wakeAngle = angleFromHour(wakeHour);
     sleepOverlays.push(
-      <path key="sleep-main" d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} fill="rgba(0, 0, 0, 0.4)" style={{ pointerEvents: "none" }} />,
+      <path 
+        key="sleep-main" 
+        d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} 
+        fill="rgba(0, 0, 0, 0.4)" 
+        style={{ pointerEvents: "none" }} 
+      />
     );
 
-    // Calculer l'heure recommandée de coucher (9h avant le réveil)
-    const recommendedBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
-    const recommendedAngle = angleFromHour(recommendedBedHour);
-    
-    sleepOverlays.push(
-      <path key="sleep-recommended" d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, bedAngle)} fill="rgba(0, 0, 0, 0.2)" style={{ pointerEvents: "none" }} />,
-    );
+    // Zone recommandée (9h avant le réveil depuis la première heure de coucher)
+    if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS) {
+      const missingHours = RECOMMENDED_SLEEP_HOURS - totalSleepHours;
+      const recommendedBedHour = (bedHour - missingHours + 24) % 24;
+      const recommendedAngle = angleFromHour(recommendedBedHour);
+      
+      sleepOverlays.push(
+        <path 
+          key="sleep-recommended" 
+          d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, bedAngle)} 
+          fill="rgba(0, 0, 0, 0.2)" 
+          style={{ pointerEvents: "none" }} 
+        />
+      );
+    }
   }
 
   const currentEventStart = currentEvent ? getEventStartDate(currentEvent, virtualDateTime) : null;
