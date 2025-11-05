@@ -23,6 +23,13 @@ body, html, #root {
   transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html.no-scroll,
+body.no-scroll {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  height: 100%;
+}
+
 /* Glassmorphism pour les éléments centraux avec effet liquid glass */
 .glass {
   background: rgba(24,28,42,0.45);
@@ -280,44 +287,54 @@ body {
 /* Styles personnalisés pour Sonner Toaster - Centrage avec espacement calculé */
 [data-sonner-toaster] {
   position: fixed !important;
-  bottom: 0 !important;
+  bottom: clamp(4rem, 32vh, 8rem) !important;
   left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: auto !important;
-  /* Hauteur approximative du toast: 60px (py-3 * 2 + contenu ~54px) */
-  /* Espacement = 1/4 de la hauteur = 15px */
-  padding-bottom: 15px !important;
+  transform: translate(-50%, 0) !important;
+  width: min(calc(100vw - 2.5rem), 360px) !important;
+  padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 10px !important;
+  pointer-events: none !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast] {
-  width: auto !important;
-  margin: 0 auto !important;
+  width: 100% !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 16px !important;
+  pointer-events: auto !important;
+  background: rgba(15, 23, 42, 0.75) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.35) !important;
+  backdrop-filter: blur(12px);
 }
 
-/* Assurer que les toasts custom sont bien centrés */
 [data-sonner-toaster][data-y-position="bottom"] {
-  bottom: 0 !important;
+  bottom: clamp(4rem, 32vh, 8rem) !important;
   left: 50% !important;
   right: auto !important;
-  transform: translateX(-50%) !important;
+  transform: translate(-50%, 0) !important;
+  width: inherit !important;
 }
 
 [data-sonner-toaster][data-x-position="center"] {
   left: 50% !important;
   right: auto !important;
-  transform: translateX(-50%) !important;
+  transform: translate(-50%, 0) !important;
 }
 
 /* Responsive pour mobile */
 @media (max-width: 640px) {
   [data-sonner-toaster] {
-    padding-bottom: 12px !important;
+    bottom: clamp(3.5rem, 28vh, 6rem) !important;
+    width: calc(100vw - 1.75rem) !important;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast] {
+    border-radius: 14px !important;
   }
 }
 

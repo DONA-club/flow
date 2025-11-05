@@ -37,8 +37,18 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   const isConnected = connectedProviders?.[provider] ?? false;
   const avatarUrl = isConnected ? getAvatarUrl(user, provider) : null;
 
+  const [isMobile, setIsMobile] = React.useState(false);
   const [msPhotoUrl, setMsPhotoUrl] = React.useState<string | null>(null);
   const [ggPhotoUrl, setGgPhotoUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   React.useEffect(() => {
     let revokeUrl: string | null = null;
@@ -87,7 +97,7 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     return () => {
       if (revokeUrl) URL.revokeObjectURL(revokeUrl);
     };
-  }, [provider, isConnected, avatarUrl, user?.id]);
+  }, [provider, isConnected, avatarUrl, user?.id, msPhotoUrl]);
 
   React.useEffect(() => {
     async function fetchGooglePhoto() {
@@ -124,25 +134,41 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
     }
 
     fetchGooglePhoto();
-  }, [provider, isConnected, avatarUrl, user?.id]);
+  }, [provider, isConnected, avatarUrl, user?.id, ggPhotoUrl]);
 
   const finalAvatarUrl = avatarUrl || msPhotoUrl || ggPhotoUrl;
 
-  const baseFilters =
-    "filter saturate-50 blur-[1.5px] transition-all duration-200 ease-out group-hover:saturate-100 group-hover:blur-0";
+  const filterClasses = [
+    "transition-all duration-200 ease-out",
+    isMobile ? "" : "filter saturate-50 blur-[1.5px] group-hover:saturate-100 group-hover:blur-0",
+  ]
+    .join(" ")
+    .trim();
 
   const badgeSize = "w-3.5 h-3.5";
 
   if (isConnected && !finalAvatarUrl) {
     return (
       <div className="flex flex-col items-center gap-1">
-        <div className={["w-full aspect-square rounded-full bg-green-500 flex items-center justify-center shadow-md", baseFilters].join(" ")}>
+        <div
+          className={[
+            "w-full aspect-square rounded-full bg-green-500 flex items-center justify-center shadow-md",
+            filterClasses,
+          ]
+            .join(" ")
+            .trim()}
+        >
           <Check className="w-1/2 h-1/2 text-white" strokeWidth={3} />
         </div>
         <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
-            className={["w-full h-full", baseFilters].join(" ")}
+            className={[
+              "w-full h-full",
+              filterClasses,
+            ]
+              .join(" ")
+              .trim()}
           />
         </div>
       </div>
@@ -156,14 +182,23 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
           src={finalAvatarUrl}
           alt={`${provider} avatar`}
           referrerPolicy="no-referrer"
-          className={["w-full aspect-square rounded-full object-cover", baseFilters, className || ""]
+          className={[
+            "w-full aspect-square rounded-full object-cover",
+            filterClasses,
+            className || "",
+          ]
             .join(" ")
             .trim()}
         />
         <div className={["rounded-full", badgeSize].join(" ")}>
           <BrandIcon
             name={provider}
-            className={["w-full h-full", baseFilters].join(" ")}
+            className={[
+              "w-full h-full",
+              filterClasses,
+            ]
+              .join(" ")
+              .trim()}
           />
         </div>
       </div>
@@ -173,7 +208,13 @@ const ProviderBadge: React.FC<Props> = ({ provider, user, connectedProviders, cl
   return (
     <BrandIcon
       name={provider}
-      className={["w-full h-full", baseFilters, className || ""].join(" ").trim()}
+      className={[
+        "w-full h-full",
+        filterClasses,
+        className || "",
+      ]
+        .join(" ")
+        .trim()}
     />
   );
 };

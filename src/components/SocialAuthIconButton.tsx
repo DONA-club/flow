@@ -20,6 +20,24 @@ const SocialAuthIconButton: React.FC<Props> = ({
   ariaLabel,
   title,
 }) => {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const innerWrapperClass = clsx(
+    "w-full h-full transition-all duration-200",
+    isMobile
+      ? "filter-none"
+      : "filter blur-[1px] saturate-50 group-hover:blur-0 group-hover:saturate-100"
+  );
+
   return (
     <button
       type="button"
@@ -35,11 +53,9 @@ const SocialAuthIconButton: React.FC<Props> = ({
         className
       )}
     >
-      <span className="w-full h-full filter blur-[1px] saturate-50 transition-all duration-200 group-hover:blur-0 group-hover:saturate-100">
+      <span className={innerWrapperClass}>
         {/* Les enfants doivent occuper toute la surface pour des proportions homogènes */}
-        <span className="block w-full h-full">
-          {children}
-        </span>
+        <span className="block w-full h-full">{children}</span>
       </span>
     </button>
   );

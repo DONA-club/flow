@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LogoScroller from "@/components/LogoScroller";
 import SparkBurst from "@/components/SparkBurst";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
@@ -10,7 +10,30 @@ const Index = () => {
   const [burstActive, setBurstActive] = useState(false);
   const { connectedProviders } = useMultiProviderAuth();
 
-  // Autoriser l'entrée si au moins un provider est connecté
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mq = window.matchMedia("(max-width: 640px)");
+    const applyNoScroll = () => {
+      if (mq.matches) {
+        document.documentElement.classList.add("no-scroll");
+        document.body.classList.add("no-scroll");
+      } else {
+        document.documentElement.classList.remove("no-scroll");
+        document.body.classList.remove("no-scroll");
+      }
+    };
+
+    applyNoScroll();
+    mq.addEventListener("change", applyNoScroll);
+
+    return () => {
+      mq.removeEventListener("change", applyNoScroll);
+      document.documentElement.classList.remove("no-scroll");
+      document.body.classList.remove("no-scroll");
+    };
+  }, []);
+
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
   const handleChange = () => {
@@ -30,7 +53,6 @@ const Index = () => {
     navigate("/visualiser");
   };
 
-  // Rayon des particules légèrement augmenté
   const sparkRadiusRem = 1.6;
 
   return (
