@@ -54,26 +54,10 @@ body, html, #root {
   overflow: hidden;
 }
 
-.glass::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    45deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.08) 50%,
-    transparent 70%
-  );
-  transform: rotate(45deg);
-  animation: glass-shimmer 8s ease-in-out infinite;
-}
-
-@keyframes glass-shimmer {
-  0%, 100% { transform: rotate(45deg) translateX(-100%); }
-  50% { transform: rotate(45deg) translateX(100%); }
+/* Animation shimmer unique pour ouverture/fermeture */
+@keyframes shimmer-once {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .glass:hover {

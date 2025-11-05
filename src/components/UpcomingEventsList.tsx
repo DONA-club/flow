@@ -71,6 +71,7 @@ function getDaysDifference(date1: Date, date2: Date): number {
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
   const [open, setOpen] = React.useState(true);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [isAnimating, setIsAnimating] = React.useState(false);
 
   React.useEffect(() => {
     const checkTheme = () => {
@@ -113,6 +114,12 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     }
   };
 
+  const handleToggle = () => {
+    setIsAnimating(true);
+    setOpen(!open);
+    setTimeout(() => setIsAnimating(false), 400);
+  };
+
   if (upcoming.length === 0) return null;
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
@@ -122,15 +129,24 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleToggle}
         className={[
           "fixed top-4 left-4 glass px-3 py-2 backdrop-blur-md rounded-lg",
           "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
+          "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
         style={{ zIndex: 100 }}
         aria-label="Afficher les événements à venir"
       >
+        {isAnimating && (
+          <div 
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            style={{
+              animation: "shimmer-once 0.4s ease-out forwards"
+            }}
+          />
+        )}
         <Calendar className="w-4 h-4" />
         <span className="text-sm font-semibold tracking-tight">A venir</span>
       </button>
@@ -142,11 +158,20 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       className={[
         "fixed top-4 left-4 w-[88vw] sm:w-[320px] md:w-[360px]",
         "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
+        "relative overflow-hidden",
         className || "",
       ].join(" ").trim()}
       style={{ zIndex: 100 }}
       aria-label="Événements à venir"
     >
+      {isAnimating && (
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
+          style={{
+            animation: "shimmer-once 0.4s ease-out forwards"
+          }}
+        />
+      )}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-200">
           <Calendar className="w-4 h-4" />
@@ -154,7 +179,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
         </div>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={handleToggle}
           className="p-1 rounded-md hover:bg-white/10 text-slate-300 transition-transform"
           aria-label="Fermer la liste des événements"
         >
