@@ -392,13 +392,23 @@ export const CircularCalendar: React.FC<Props> = ({
       setShowTimeLabel(false);
       setIsLabelFadingOut(false);
 
-      const deltaMinutes = event.deltaY > 0 ? 15 : -15;
+      // Détection du type de scroll
+      const isHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
 
       setVirtualDateTime((prev) => {
         const nextTime = new Date(prev);
-        nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
 
-        const dayChanged = nextTime.getDate() !== prev.getDate();
+        if (isHorizontalScroll) {
+          // Scroll horizontal : changer de jour en conservant l'heure
+          const dayDelta = event.deltaX > 0 ? 1 : -1;
+          nextTime.setDate(nextTime.getDate() + dayDelta);
+        } else {
+          // Scroll vertical : changer l'heure dans la journée
+          const deltaMinutes = event.deltaY > 0 ? 15 : -15;
+          nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
+        }
+
+        const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
         setIsScrolling(true);
 
         if (dayChanged) {
