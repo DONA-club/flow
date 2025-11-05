@@ -30,14 +30,17 @@ function isValidJWT(token: string): boolean {
   return parts.length === 3;
 }
 
-function detectProviderFromToken(accessToken: string): Provider | null {
-  if (!isValidJWT(accessToken)) return null;
+function isValidGoogleToken(token: string): boolean {
+  // Les tokens Google commencent par ya29. et ne sont pas des JWT
+  return token && typeof token === 'string' && token.startsWith('ya29.');
+}
 
+function detectProviderFromToken(accessToken: string): Provider | null {
   // Google tokens commencent par ya29.
   if (accessToken.startsWith("ya29.")) return "google";
 
   // Pour les JWT, vérifier l'issuer
-  if (accessToken.startsWith("eyJ")) {
+  if (isValidJWT(accessToken)) {
     const claims = getJwtClaims(accessToken);
     const iss = (claims?.iss || "").toLowerCase();
 
@@ -101,21 +104,19 @@ async function saveProviderTokens() {
   let accessToken: string | null = null;
   let refreshToken: string | null = null;
 
-  // Source 1: session.provider_token
-  if (session?.provider_token) {
+  // Source 1: URL hash (PRIORITAIRE pour Google)
+  const urlTokens = captureTokensFromUrl();
+  if (urlTokens.accessToken) {
+    console.log("📍 Tokens trouvés dans l'URL");
+    accessToken = urlTokens.accessToken;
+    refreshToken = urlTokens.refreshToken;
+  }
+
+  // Source 2: session.provider_token (si pas trouvé dans l'URL)
+  if (!accessToken && session?.provider_token) {
     console.log("📍 Tokens trouvés dans session.provider_token");
     accessToken = session.provider_token;
     refreshToken = session.provider_refresh_token;
-  }
-
-  // Source 2: URL hash
-  if (!accessToken) {
-    const urlTokens = captureTokensFromUrl();
-    if (urlTokens.accessToken) {
-      console.log("📍 Tokens trouvés dans l'URL");
-      accessToken = urlTokens.accessToken;
-      refreshToken = urlTokens.refreshToken;
-    }
   }
 
   // Source 3: Identities (pour les tokens stockés par Supabase)
@@ -156,7 +157,10 @@ async function saveProviderTokens() {
     }
   }
 
-  if (!accessToken || !isValidJWT(accessToken)) {
+  // Validation du token : accepter les JWT ET les tokens Google (ya29.)
+  const isValid = accessToken && (isValidJWT(accessToken) || isValidGoogleToken(accessToken));
+  
+  if (!isValid) {
     console.warn("⚠️ Pas de token valide trouvé");
     
     // Si on a un pending provider mais pas de token, demander à l'utilisateur de reconnecter
@@ -190,8 +194,13 @@ async function saveProviderTokens() {
     const tokenProvider = detectProviderFromToken(accessToken);
     if (tokenProvider && tokenProvider !== pendingProvider) {
       console.warn(`⚠️ Token provider mismatch: expected ${pendingProvider}, got ${tokenProvider}`);
-      // Ne pas bloquer, utiliser le provider du token
-      providerToSave = tokenProvider;
+      // Si le token ne correspond pas, ne pas sauvegarder
+      toast.error(`Erreur de connexion ${pendingProvider}`, {
+        description: "Le token reçu ne correspond pas au provider attendu. Réessayez.",
+      });
+      localStorage.removeItem("pending_provider_connection");
+      sessionStorage.removeItem("pending_provider_connection");
+      return;
     }
   }
 
