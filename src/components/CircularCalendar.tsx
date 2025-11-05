@@ -297,6 +297,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const nowIntervalRef = React.useRef<number | null>(null);
   const upcomingEventsRef = React.useRef<{ event: Event; start: Date; end: Date }[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
+  const horizontalScrollAccumulator = React.useRef<number>(0);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
@@ -399,13 +400,26 @@ export const CircularCalendar: React.FC<Props> = ({
         const nextTime = new Date(prev);
 
         if (isHorizontalScroll) {
-          // Scroll horizontal : changer de jour en conservant l'heure
-          const dayDelta = event.deltaX > 0 ? 1 : -1;
-          nextTime.setDate(nextTime.getDate() + dayDelta);
+          // Scroll horizontal : accumuler le delta et changer de jour seulement quand le seuil est atteint
+          horizontalScrollAccumulator.current += event.deltaX;
+          
+          // Seuil de 100 pixels pour changer de jour (ajustable selon la sensibilité souhaitée)
+          const threshold = 100;
+          
+          if (Math.abs(horizontalScrollAccumulator.current) >= threshold) {
+            const dayDelta = horizontalScrollAccumulator.current > 0 ? 1 : -1;
+            nextTime.setDate(nextTime.getDate() + dayDelta);
+            horizontalScrollAccumulator.current = 0; // Réinitialiser l'accumulateur
+          } else {
+            // Pas assez de scroll accumulé, on ne change pas de jour
+            return prev;
+          }
         } else {
           // Scroll vertical : changer l'heure dans la journée
           const deltaMinutes = event.deltaY > 0 ? 15 : -15;
           nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
+          // Réinitialiser l'accumulateur horizontal lors du scroll vertical
+          horizontalScrollAccumulator.current = 0;
         }
 
         const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
@@ -477,6 +491,7 @@ export const CircularCalendar: React.FC<Props> = ({
               setIsLabelFadingOut(false);
               setCursorEventIndex(null);
               setShowDateLabel(false);
+              horizontalScrollAccumulator.current = 0; // Réinitialiser lors du retour
 
               if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
               labelTimeoutRef.current = window.setTimeout(() => {
