@@ -756,7 +756,7 @@ export const CircularCalendar: React.FC<Props> = ({
             ))}
           </g>
 
-          <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
+          <g mask="url(#ringFadeMask)" style={{ pointerEvents: "none" }}>{sleepOverlays}</g>
 
           {hoverRing && pastArc && (
             <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
@@ -766,8 +766,8 @@ export const CircularCalendar: React.FC<Props> = ({
             <path d={getArcPath(cx, cy, outerArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
-          <g style={{ position: "relative", zIndex: 2 }}>{hoverRing && hourNumbers}</g>
-          <g style={{ position: "relative", zIndex: 3 }}>{eventArcs}</g>
+          <g style={{ pointerEvents: "none" }}>{hoverRing && hourNumbers}</g>
+          <g>{eventArcs}</g>
 
           {isScrolling && (
             <line x1={cursorX1} y1={cursorY1} x2={cursorX2} y2={cursorY2} stroke="rgba(255, 255, 255, 0.4)" strokeWidth={8} strokeLinecap="round" style={{ pointerEvents: "none", filter: "blur(3px)" }} />
@@ -782,6 +782,7 @@ export const CircularCalendar: React.FC<Props> = ({
             strokeWidth={isScrolling ? 4 : 3}
             strokeLinecap="round"
             style={{
+              pointerEvents: "none",
               filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
             }}
@@ -803,13 +804,13 @@ export const CircularCalendar: React.FC<Props> = ({
         >
           {currentEvent ? (
             <>
-              <div className="text-xs calendar-center-meta opacity-60 mb-2">{centerTimeIndicator}</div>
-              <div className="calendar-center-title font-bold text-base leading-tight px-4">{currentEvent.title}</div>
+              <div className="text-xs calendar-center-meta opacity-60 mb-2 pointer-events-none">{centerTimeIndicator}</div>
+              <div className="calendar-center-title font-bold text-base leading-tight px-4 pointer-events-none">{currentEvent.title}</div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2">
-              <div className="text-sm calendar-center-meta">{formatHour(hourDecimal)}</div>
-              <div className="calendar-center-title font-semibold">Aucun événement</div>
+            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
+              <div className="text-sm calendar-center-meta pointer-events-none">{formatHour(hourDecimal)}</div>
+              <div className="calendar-center-title font-semibold pointer-events-none">Aucun événement</div>
             </div>
           )}
         </div>
@@ -865,11 +866,11 @@ export const CircularCalendar: React.FC<Props> = ({
 
         {showDateLabel && daysDiff !== 0 && (
           <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.5}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
-            <div className="px-3 py-1.5 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
-              <div style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
+            <div className="px-3 py-1.5 rounded-lg pointer-events-none" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
+              <div className="pointer-events-none" style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
                 {formatDateLabel(virtualDateTime)}
               </div>
-              <div style={{ fontSize: 9, lineHeight: 1, color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center", marginTop: "2px" }}>
+              <div className="pointer-events-none" style={{ fontSize: 9, lineHeight: 1, color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center", marginTop: "2px" }}>
                 {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? "s" : ""}` : `${daysDiff} jour${daysDiff < -1 ? "s" : ""}`}
               </div>
             </div>
@@ -880,8 +881,8 @@ export const CircularCalendar: React.FC<Props> = ({
           <>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="absolute" style={{ left: sunrisePoint.x - metaIconSize / 2, top: sunrisePoint.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunrise at ${formatHour(sunrise)}`}>
-                  <Sunrise className="text-yellow-400" size={metaIconSize} />
+                <div className="absolute pointer-events-auto" style={{ left: sunrisePoint.x - metaIconSize / 2, top: sunrisePoint.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunrise at ${formatHour(sunrise)}`}>
+                  <Sunrise className="text-yellow-400 pointer-events-none" size={metaIconSize} />
                 </div>
               </TooltipTrigger>
               <TooltipContent
@@ -900,8 +901,8 @@ export const CircularCalendar: React.FC<Props> = ({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="absolute" style={{ left: sunsetPoint.x - metaIconSize / 2, top: sunsetPoint.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunset at ${formatHour(sunset)}`}>
-                  <Sunset className="text-orange-400" size={metaIconSize} />
+                <div className="absolute pointer-events-auto" style={{ left: sunsetPoint.x - metaIconSize / 2, top: sunsetPoint.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }} aria-label={`Sunset at ${formatHour(sunset)}`}>
+                  <Sunset className="text-orange-400 pointer-events-none" size={metaIconSize} />
                 </div>
               </TooltipTrigger>
               <TooltipContent
