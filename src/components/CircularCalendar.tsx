@@ -368,23 +368,27 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
+  // Mise à jour de `now` toutes les secondes
   React.useEffect(() => {
     const updateNow = () => {
-      const current = new Date();
-      setNow(current);
-      if (!isScrolling && !isReturning && !isDraggingCursor) {
-        setVirtualDateTime(current);
-        pendingCallbacksRef.current.push(() => {
-          onVirtualDateTimeChangeRef.current?.(null);
-        });
-      }
+      setNow(new Date());
     };
     updateNow();
     nowIntervalRef.current = window.setInterval(updateNow, 1000);
     return () => {
       if (nowIntervalRef.current) window.clearInterval(nowIntervalRef.current);
     };
-  }, [isScrolling, isReturning, isDraggingCursor]);
+  }, []);
+
+  // Synchronisation automatique de virtualDateTime avec now quand on n'interagit pas
+  React.useEffect(() => {
+    if (!isScrolling && !isReturning && !isDraggingCursor) {
+      setVirtualDateTime(now);
+      pendingCallbacksRef.current.push(() => {
+        onVirtualDateTimeChangeRef.current?.(null);
+      });
+    }
+  }, [now, isScrolling, isReturning, isDraggingCursor]);
 
   React.useEffect(() => {
     const updateTheme = () => setIsDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -525,7 +529,6 @@ export const CircularCalendar: React.FC<Props> = ({
       if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
 
       const randomDelay = 8000 + Math.random() * 2000;
-      const captured = new Date(nextTime);
 
       scrollTimeoutRef.current = window.setTimeout(() => {
         setIsScrolling(false);
@@ -533,6 +536,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
         const duration = 1500;
         const startTime = performance.now();
+        const capturedTime = nextTime.getTime();
 
         const animate = (currentTime: number) => {
           const elapsed = currentTime - startTime;
@@ -540,8 +544,8 @@ export const CircularCalendar: React.FC<Props> = ({
           const eased = easeOutCubic(progress);
 
           const target = new Date();
-          const diff = target.getTime() - captured.getTime();
-          const interpolated = new Date(captured.getTime() + diff * eased);
+          const diff = target.getTime() - capturedTime;
+          const interpolated = new Date(capturedTime + diff * eased);
           setVirtualDateTime(interpolated);
           
           pendingCallbacksRef.current.push(() => {
@@ -551,17 +555,12 @@ export const CircularCalendar: React.FC<Props> = ({
           if (progress < 1) {
             animationFrameRef.current = requestAnimationFrame(animate);
           } else {
-            setVirtualDateTime(new Date());
             setIsReturning(false);
             setShowTimeLabel(true);
             setIsLabelFadingOut(false);
             setCursorEventIndex(null);
             setShowDateLabel(false);
             horizontalScrollAccumulator.current = 0;
-            
-            pendingCallbacksRef.current.push(() => {
-              onVirtualDateTimeChangeRef.current?.(null);
-            });
 
             if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
             labelTimeoutRef.current = window.setTimeout(() => {
@@ -732,7 +731,7 @@ export const CircularCalendar: React.FC<Props> = ({
         if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
 
         const randomDelay = 8000 + Math.random() * 2000;
-        const captured = new Date(virtualDateTime);
+        const capturedTime = virtualDateTime.getTime();
 
         scrollTimeoutRef.current = window.setTimeout(() => {
           setIsScrolling(false);
@@ -747,8 +746,8 @@ export const CircularCalendar: React.FC<Props> = ({
             const eased = easeOutCubic(progress);
 
             const target = new Date();
-            const diff = target.getTime() - captured.getTime();
-            const interpolated = new Date(captured.getTime() + diff * eased);
+            const diff = target.getTime() - capturedTime;
+            const interpolated = new Date(capturedTime + diff * eased);
             setVirtualDateTime(interpolated);
             
             pendingCallbacksRef.current.push(() => {
@@ -758,16 +757,11 @@ export const CircularCalendar: React.FC<Props> = ({
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-              setVirtualDateTime(new Date());
               setIsReturning(false);
               setShowTimeLabel(true);
               setIsLabelFadingOut(false);
               setCursorEventIndex(null);
               setShowDateLabel(false);
-              
-              pendingCallbacksRef.current.push(() => {
-                onVirtualDateTimeChangeRef.current?.(null);
-              });
 
               if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
               labelTimeoutRef.current = window.setTimeout(() => {
@@ -1277,7 +1271,7 @@ export const CircularCalendar: React.FC<Props> = ({
           <div 
             className="absolute left-1/2 pointer-events-none" 
             style={{ 
-              top: `calc(50% - ${innerRadius * 0.75}px)`,
+              top: `calc(50% - ${innerRadius * 0.5}px)`,
               transform: "translateX(-50%)", 
               zIndex: 8 
             }}
