@@ -392,16 +392,21 @@ const Visualiser = () => {
     }
   }, [authLoading, connectedProviders, navigate]);
 
-  // Mise à jour des heures de lever/coucher pour aujourd'hui
+  // Mise à jour des heures de lever/coucher pour aujourd'hui (valeurs réelles de l'API)
   useEffect(() => {
     if (todaySunrise !== null && todaySunset !== null && !sunLoading && !sunError) {
-      setDisplaySunrise(todaySunrise);
-      setDisplaySunset(todaySunset);
+      // Si on est en temps réel (pas de virtualDateTime), utiliser les valeurs de l'API
+      if (!virtualDateTime) {
+        console.log(`🌅 Aujourd'hui (API): Sunrise ${todaySunrise.toFixed(2)}h, Sunset ${todaySunset.toFixed(2)}h`);
+        setDisplaySunrise(todaySunrise);
+        setDisplaySunset(todaySunset);
+      }
     }
-  }, [todaySunrise, todaySunset, sunLoading, sunError]);
+  }, [todaySunrise, todaySunset, sunLoading, sunError, virtualDateTime]);
 
   // Mise à jour dynamique des heures de lever/coucher selon la date virtuelle
   useEffect(() => {
+    // Ne rien faire si on n'a pas de virtualDateTime (temps réel géré par l'effet précédent)
     if (!virtualDateTime || !latitude || !longitude) return;
 
     const today = new Date();
@@ -410,9 +415,10 @@ const Visualiser = () => {
       virtualDateTime.getMonth() === today.getMonth() &&
       virtualDateTime.getFullYear() === today.getFullYear();
 
-    // Si c'est aujourd'hui, utiliser les valeurs actuelles
+    // Si c'est aujourd'hui, utiliser les valeurs actuelles de l'API
     if (isToday) {
       if (todaySunrise !== null && todaySunset !== null) {
+        console.log(`🌅 Aujourd'hui (retour temps réel): Sunrise ${todaySunrise.toFixed(2)}h, Sunset ${todaySunset.toFixed(2)}h`);
         setDisplaySunrise(todaySunrise);
         setDisplaySunset(todaySunset);
       }
