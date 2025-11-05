@@ -913,11 +913,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
-  // Position de l'étiquette de date : en bas, au-dessus de la bubble
-  const dateLabelAngle = 90; // En bas (12h = -90°, 6h = 90°)
-  const dateLabelRadius = INNER_RADIUS + Math.max(20, RING_THICKNESS * 0.6);
-  const dateLabelPt = toPoint(dateLabelAngle, dateLabelRadius);
-
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
   return (
@@ -1133,11 +1128,10 @@ export const CircularCalendar: React.FC<Props> = ({
 
         {showDateLabel && daysDiff !== 0 && (
           <div
-            className="absolute pointer-events-none"
+            className="absolute left-1/2 pointer-events-none"
             style={{
-              left: dateLabelPt.x,
-              top: dateLabelPt.y,
-              transform: `translate(-50%, -50%)`,
+              top: `calc(50% - ${INNER_RADIUS * 0.5}px)`,
+              transform: `translateX(-50%)`,
               zIndex: 8,
             }}
           >
