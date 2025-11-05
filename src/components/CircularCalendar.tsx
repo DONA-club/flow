@@ -338,6 +338,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const animationFrameRef = React.useRef<number | null>(null);
   const nowIntervalRef = React.useRef<number | null>(null);
 
+  // Refs stables pour callbacks/données
   const upcomingEventsRef = React.useRef<any[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
 
@@ -352,6 +353,7 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
+  // Mise à jour de l'heure courante, sans perturber le scroll/retour
   React.useEffect(() => {
     const updateNow = () => {
       const newNow = new Date();
@@ -405,6 +407,7 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [size]);
 
+  // Événements à afficher (journée virtuelle + 3 jours)
   const upcomingEvents = React.useMemo(() => {
     const virtualDayStart = new Date(virtualDateTime);
     virtualDayStart.setHours(0, 0, 0, 0);
@@ -424,6 +427,7 @@ export const CircularCalendar: React.FC<Props> = ({
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, virtualDateTime, now]);
 
+  // Ref toujours à jour pour le handler de scroll
   React.useEffect(() => {
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
@@ -576,6 +580,7 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
+  // Listener wheel: attaché une seule fois, stable
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
@@ -612,6 +617,7 @@ export const CircularCalendar: React.FC<Props> = ({
           });
         }
 
+        // Recherche d’événement au curseur virtuel
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
 
@@ -638,6 +644,7 @@ export const CircularCalendar: React.FC<Props> = ({
         if (foundEventIndex === null) setSelectedEvent(null);
         setCursorEventIndex(foundEventIndex);
 
+        // Timeout de retour au présent
         if (scrollTimeoutRef.current) {
           window.clearTimeout(scrollTimeoutRef.current);
         }
@@ -812,14 +819,8 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const bubbleDiameter = INNER_RADIUS * 1.8;
 
-  const angleFromHour = (time: number) => (time / 24) * 360 - 90;
-  const toPoint = (angleDeg: number, r: number) => {
-    const rad = (Math.PI / 180) * angleDeg;
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-  };
   const labelOffset = Math.max(8, RING_THICKNESS * 0.25) + 15;
   const timeLabelRadius = INNER_RADIUS - labelOffset;
-  const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const timeLabelPt = toPoint(cursorAngle, timeLabelRadius);
   const timeLabelRotation = cursorAngle + 90;
 
@@ -827,14 +828,14 @@ export const CircularCalendar: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
+      <div id="calendar-container" style={{ position: "relative", width: SIZE, height: SIZE }}>
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (RADIUS + RING_THICKNESS)} y={cy - (RADIUS + RING_THICKNESS)} width={(RADIUS + RING_THICKNESS) * 2} height={(RADIUS + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
             </filter>
-            <mask id="ringFadeMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
-              <rect x={0} y={0} width={size} height={size} fill="black" />
+            <mask id="ringFadeMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={0} y={0} width={SIZE} height={SIZE}>
+              <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
               <g filter="url(#ringEdgeBlur)">
                 <circle cx={cx} cy={cy} r={(INNER_RADIUS + RADIUS) / 2} stroke="white" strokeWidth={RING_THICKNESS} fill="none" />
               </g>
@@ -849,11 +850,11 @@ export const CircularCalendar: React.FC<Props> = ({
           <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
 
           {hoverRing && pastArc && (
-            <path d={getArcPath(cx, cy, INNER_RADIUS - Math.max(2, Math.round(3 * scale)) / 2 - 1, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={Math.max(2, Math.round(3 * scale))} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           {hoverRing && futureArc && (
-            <path d={getArcPath(cx, cy, RADIUS + Math.max(2, Math.round(3 * scale)) / 2 + 1, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={Math.max(2, Math.round(3 * scale))} strokeLinecap="round" style={{ pointerEvents: "none" }} />
+            <path d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           <g style={{ position: "relative", zIndex: 2 }}>{hoverRing && hourNumbers}</g>
@@ -861,10 +862,10 @@ export const CircularCalendar: React.FC<Props> = ({
 
           {isScrolling && (
             <line
-              x1={cx + (INNER_RADIUS - RING_THICKNESS * 0.2) * Math.cos((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-              y1={cy + (INNER_RADIUS - RING_THICKNESS * 0.2) * Math.sin((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-              x2={cx + (RADIUS + RING_THICKNESS * 0.2) * Math.cos((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-              y2={cy + (RADIUS + RING_THICKNESS * 0.2) * Math.sin((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
+              x1={cursorX1}
+              y1={cursorY1}
+              x2={cursorX2}
+              y2={cursorY2}
               stroke="rgba(255, 255, 255, 0.4)"
               strokeWidth={8}
               strokeLinecap="round"
@@ -873,10 +874,10 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
 
           <line
-            x1={cx + (INNER_RADIUS - RING_THICKNESS * 0.2) * Math.cos((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-            y1={cy + (INNER_RADIUS - RING_THICKNESS * 0.2) * Math.sin((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-            x2={cx + (RADIUS + RING_THICKNESS * 0.2) * Math.cos((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
-            y2={cy + (RADIUS + RING_THICKNESS * 0.2) * Math.sin((Math.PI / 180) * ((hourDecimal / 24) * 360 - 90))}
+            x1={cursorX1}
+            y1={cursorY1}
+            x2={cursorX2}
+            y2={cursorY2}
             stroke={cursorColor}
             strokeWidth={isScrolling ? 4 : 3}
             strokeLinecap="round"
@@ -908,16 +909,9 @@ export const CircularCalendar: React.FC<Props> = ({
         </div>
 
         {selectedEvent && (
+          // Important: overlay non bloquant; seule la bulle capte les interactions
           <div style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }}>
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                pointerEvents: "auto",
-              }}
-            >
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "auto" }}>
               <EventInfoBubble
                 title={selectedEvent.title}
                 organizer={eventOrganizer}
@@ -979,7 +973,7 @@ export const CircularCalendar: React.FC<Props> = ({
               <TooltipTrigger asChild>
                 <div
                   className="absolute"
-                  style={{ left: sunrisePt.x - metaIconSize / 2, top: sunrisePt.y - metaIconSize / 2, transform: `rotate(${angleFromHour(sunrise) + 90}deg)`, transformOrigin: "center", zIndex: 1 }}
+                  style={{ left: sunrisePt.x - metaIconSize / 2, top: sunrisePt.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
                   aria-label={`Sunrise at ${formatHour(sunrise)}`}
                 >
                   <Sunrise className="text-yellow-400" size={metaIconSize} />
@@ -1003,7 +997,7 @@ export const CircularCalendar: React.FC<Props> = ({
               <TooltipTrigger asChild>
                 <div
                   className="absolute"
-                  style={{ left: sunsetPt.x - metaIconSize / 2, top: sunsetPt.y - metaIconSize / 2, transform: `rotate(${angleFromHour(sunset) + 90}deg)`, transformOrigin: "center", zIndex: 1 }}
+                  style={{ left: sunsetPt.x - metaIconSize / 2, top: sunsetPt.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
                   aria-label={`Sunset at ${formatHour(sunset)}`}
                 >
                   <Sunset className="text-orange-400" size={metaIconSize} />
