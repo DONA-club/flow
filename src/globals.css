@@ -135,7 +135,7 @@ body, html, #root {
   transform: scale(1.08);
 }
 
-/* Texte central du calendrier: couleurs adaptatives avec nuances de bleu en mode clair */
+/* Texte central du calendrier: couleurs adaptatives */
 
 /* Par défaut (fond sombre) */
 .calendar-center-title {
@@ -155,20 +155,20 @@ body, html, #root {
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* En mode clair sur la page calendar - nuances de bleu */
+/* En mode clair - couleur proche du curseur bleu (#1d4ed8) */
 @media (prefers-color-scheme: light) {
   .calendar-light-bg .calendar-center-title {
-    color: #1e40af; /* blue-800 - bleu profond lisible */
+    color: #1d4ed8; /* blue-700 - même couleur que le curseur en mode clair */
     text-shadow: 0 1px 2px rgba(255,255,255,0.8);
   }
   .calendar-light-bg .calendar-center-title:hover {
-    color: #1e3a8a; /* blue-900 */
+    color: #1e40af; /* blue-800 - légèrement plus foncé au survol */
   }
   .calendar-light-bg .calendar-center-sub {
-    color: #3b82f6; /* blue-500 */
+    color: #2563eb; /* blue-600 */
   }
   .calendar-light-bg .calendar-center-meta {
-    color: #2563eb; /* blue-600 */
+    color: #3b82f6; /* blue-500 */
   }
 }
 
