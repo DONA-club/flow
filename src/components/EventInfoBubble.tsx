@@ -38,18 +38,68 @@ const EventInfoBubble: React.FC<Props> = ({
   diameter = 200 
 }) => {
   const [visible, setVisible] = React.useState(true);
+  const timeoutRef = React.useRef<number | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const handleMouseLeave = () => {
-    setVisible(false);
-    window.setTimeout(() => {
-      onClose && onClose();
-    }, 300);
-  };
+  const resetTimeout = React.useCallback(() => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = window.setTimeout(() => {
+      setVisible(false);
+      window.setTimeout(() => {
+        onClose && onClose();
+      }, 300);
+    }, 10000);
+  }, [onClose]);
+
+  React.useEffect(() => {
+    resetTimeout();
+    
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [resetTimeout]);
+
+  const handleMouseMove = React.useCallback((e: MouseEvent) => {
+    if (!containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Zone de survol = diamètre de la bulle
+    if (distance > diameter / 2) {
+      setVisible(false);
+      window.setTimeout(() => {
+        onClose && onClose();
+      }, 300);
+    } else {
+      // Réinitialiser le timeout si on bouge dans la zone
+      resetTimeout();
+    }
+  }, [diameter, onClose, resetTimeout]);
+
+  React.useEffect(() => {
+    document.addEventListener("mousemove", handleMouseMove);
+    
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [handleMouseMove]);
 
   const handleCalendarClick = (e: React.MouseEvent) => {
     if (url) {
       e.stopPropagation();
       window.open(url, '_blank', 'noopener,noreferrer');
+      resetTimeout();
     }
   };
 
@@ -57,6 +107,7 @@ const EventInfoBubble: React.FC<Props> = ({
     if (videoLink) {
       e.stopPropagation();
       window.open(videoLink, '_blank', 'noopener,noreferrer');
+      resetTimeout();
     }
   };
 
@@ -64,6 +115,7 @@ const EventInfoBubble: React.FC<Props> = ({
 
   return (
     <div
+      ref={containerRef}
       className={[
         "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
         "rounded-full z-30",
@@ -71,10 +123,10 @@ const EventInfoBubble: React.FC<Props> = ({
         "transition-opacity duration-300 select-none",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
-      style={{ width: diameter, height: diameter, pointerEvents: "none" }}
+      style={{ width: diameter, height: diameter, pointerEvents: "auto" }}
       role="dialog"
       aria-live="polite"
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={resetTimeout}
     >
       {/* Liquid Glass Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60 pointer-events-none" />
@@ -115,6 +167,7 @@ const EventInfoBubble: React.FC<Props> = ({
           {videoLink && (
             <button
               onClick={handleVideoClick}
+              onMouseEnter={resetTimeout}
               className="group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
               aria-label={`Rejoindre ${platform}`}
             >
@@ -135,6 +188,7 @@ const EventInfoBubble: React.FC<Props> = ({
           {url && (
             <button
               onClick={handleCalendarClick}
+              onMouseEnter={resetTimeout}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Ouvrir dans le calendrier"
             >
