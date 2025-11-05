@@ -176,7 +176,7 @@ async function fetchOutlookEventsForDay(date: Date): Promise<CalendarEvent[]> {
 
 const CircularCalendarDemo = () => {
   const navigate = useNavigate();
-  const { sunrise, sunset, loading, error, retry } = useSunTimes();
+  const { sunrise, sunset, loading: sunLoading, error: sunError } = useSunTimes();
   const { connectedProviders, loading: authLoading } = useMultiProviderAuth();
 
   const googleEnabled = connectedProviders?.google ?? false;
@@ -214,7 +214,6 @@ const CircularCalendarDemo = () => {
   const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
   const [selectedEventFromList, setSelectedEventFromList] = useState<any>(null);
 
-  // Cache des événements par jour
   const [eventsByDay, setEventsByDay] = useState<Map<string, CalendarEvent[]>>(new Map());
   const [loadingDays, setLoadingDays] = useState<Set<string>>(new Set());
 
@@ -233,58 +232,72 @@ const CircularCalendarDemo = () => {
   }, [authLoading, connectedProviders, navigate]);
 
   useEffect(() => {
-    if (sunrise !== null && sunset !== null && !loading && !error) {
+    if (sunrise !== null && sunset !== null && !sunLoading && !sunError) {
       setDisplaySunrise(sunrise);
       setDisplaySunset(sunset);
     }
-  }, [sunrise, sunset, loading, error]);
+  }, [sunrise, sunset, sunLoading, sunError]);
 
+  // Gestion des logs de localisation
   useEffect(() => {
-    if (loading) {
-      setLogs([{ message: "Chargement de la localisation…", type: "info" }]);
-    } else if (error) {
-      setLogs([{ message: error, type: "error" }]);
+    if (sunLoading) {
+      setLogs([{ message: "Localisation en cours...", type: "info" }]);
+    } else if (sunError) {
+      setLogs([{ message: "Position approximative utilisée", type: "info" }]);
     } else if (sunrise !== null && sunset !== null) {
-      setLogs([{ message: "Localisation détectée !", type: "success" }]);
+      setLogs([{ message: "Position détectée", type: "success" }]);
     }
-  }, [loading, error, sunrise, sunset]);
+  }, [sunLoading, sunError, sunrise, sunset]);
 
+  // Gestion des logs Google Calendar - uniquement les changements significatifs
   useEffect(() => {
     if (gLoading) {
-      setLogs([{ message: "Synchronisation du calendrier Google…", type: "info" }]);
+      setLogs([{ message: "Synchronisation Google...", type: "info" }]);
+    } else if (gError && gError.includes("non connecté")) {
+      // Ne pas afficher d'erreur si simplement non connecté
+      return;
     } else if (gError) {
-      setLogs([{ message: gError, type: "error" }]);
+      setLogs([{ message: "Erreur Google Calendar", type: "error" }]);
     } else if (gConnected && gEvents.length > 0) {
-      setLogs([{ message: `${gEvents.length} événements Google synchronisés ✔️`, type: "success" }]);
+      setLogs([{ message: `${gEvents.length} événements Google`, type: "success" }]);
     }
   }, [gLoading, gError, gConnected, gEvents.length]);
 
+  // Gestion des logs Outlook Calendar - uniquement les changements significatifs
   useEffect(() => {
     if (oLoading) {
-      setLogs([{ message: "Synchronisation du calendrier Outlook…", type: "info" }]);
+      setLogs([{ message: "Synchronisation Outlook...", type: "info" }]);
+    } else if (oError && oError.includes("non connecté")) {
+      // Ne pas afficher d'erreur si simplement non connecté
+      return;
     } else if (oError) {
-      setLogs([{ message: oError, type: "error" }]);
+      setLogs([{ message: "Erreur Outlook Calendar", type: "error" }]);
     } else if (oConnected && oEvents.length > 0) {
-      setLogs([{ message: `${oEvents.length} événements Outlook synchronisés ✔️`, type: "success" }]);
+      setLogs([{ message: `${oEvents.length} événements Outlook`, type: "success" }]);
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
+  // Gestion des logs Google Fit - uniquement si connecté et données disponibles
   useEffect(() => {
     if (fitLoading) {
-      setLogs([{ message: "Récupération des heures de sommeil…", type: "info" }]);
+      setLogs([{ message: "Récupération sommeil...", type: "info" }]);
+    } else if (fitError && fitError.includes("non connecté")) {
+      // Ne pas afficher d'erreur si simplement non connecté
+      return;
+    } else if (fitError && fitError.includes("Aucune session")) {
+      // Ne pas afficher si pas de données de sommeil
+      return;
     } else if (fitError) {
-      setLogs([{ message: fitError, type: "error" }]);
+      setLogs([{ message: "Données sommeil indisponibles", type: "info" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
-      setLogs([{ message: "Heures lever/coucher récupérées ✔️ (Google Fit)", type: "success" }]);
+      setLogs([{ message: "Données sommeil synchronisées", type: "success" }]);
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
-  // Charger les événements initiaux (aujourd'hui + 3 jours + hier)
   useEffect(() => {
     const today = new Date();
     const newCache = new Map<string, CalendarEvent[]>();
 
-    // Événements d'aujourd'hui et des 3 prochains jours (depuis les hooks)
     const allInitialEvents = [...gEvents, ...oEvents];
     
     for (let i = -1; i <= 3; i++) {
@@ -306,17 +319,14 @@ const CircularCalendarDemo = () => {
     setEventsByDay(newCache);
   }, [gEvents, oEvents]);
 
-  // Fonction pour charger les événements d'un jour spécifique
   const loadEventsForDay = useCallback(async (date: Date) => {
     const key = formatDateKey(date);
     
-    // Si déjà en cache ou en cours de chargement, ne rien faire
     if (eventsByDay.has(key) || loadingDays.has(key)) {
       return;
     }
 
     setLoadingDays((prev) => new Set(prev).add(key));
-    setLogs([{ message: `Chargement des événements du ${key}…`, type: "info" }]);
 
     try {
       const [googleEvents, outlookEvents] = await Promise.all([
@@ -332,9 +342,14 @@ const CircularCalendarDemo = () => {
         return newMap;
       });
 
-      setLogs([{ message: `${allEvents.length} événements chargés pour le ${key}`, type: "success" }]);
+      // Log uniquement si des événements sont trouvés
+      if (allEvents.length > 0) {
+        const dateObj = new Date(date);
+        const dayName = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"][dateObj.getDay()];
+        setLogs([{ message: `${dayName} ${dateObj.getDate()}: ${allEvents.length} événement${allEvents.length > 1 ? 's' : ''}`, type: "success" }]);
+      }
     } catch (err) {
-      setLogs([{ message: `Erreur chargement ${key}`, type: "error" }]);
+      // Pas de log d'erreur pour ne pas surcharger
     } finally {
       setLoadingDays((prev) => {
         const newSet = new Set(prev);
@@ -344,26 +359,23 @@ const CircularCalendarDemo = () => {
     }
   }, [eventsByDay, loadingDays, googleEnabled, msEnabled]);
 
-  // Callback pour le calendrier quand l'utilisateur scrolle vers un nouveau jour
   const handleDayChange = useCallback((date: Date) => {
-    // Charger le jour actuel + le jour suivant (anticipation)
     loadEventsForDay(date);
     
     const nextDay = new Date(date);
     nextDay.setDate(nextDay.getDate() + 1);
     loadEventsForDay(nextDay);
     
-    // Charger aussi le jour précédent (pour le scroll arrière)
     const prevDay = new Date(date);
     prevDay.setDate(prevDay.getDate() - 1);
     loadEventsForDay(prevDay);
   }, [loadEventsForDay]);
 
-  // Combiner tous les événements du cache
   const combinedEvents = Array.from(eventsByDay.values()).flat();
 
   const outerPad = Math.max(8, Math.round(size * 0.03));
 
+  // Rafraîchissement silencieux toutes les minutes
   useEffect(() => {
     const id = window.setInterval(() => {
       if (googleEnabled) {
@@ -412,9 +424,9 @@ const CircularCalendarDemo = () => {
             onEventBubbleClosed={() => setSelectedEventFromList(null)}
             onDayChange={handleDayChange}
           />
-          {error && (
+          {sunError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-red-500 gap-2 rounded-full">
-              <span className="text-sm text-center px-4">{error}</span>
+              <span className="text-sm text-center px-4">{sunError}</span>
             </div>
           )}
         </div>
