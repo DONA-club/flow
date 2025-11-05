@@ -38,12 +38,53 @@ const EventInfoBubble: React.FC<Props> = ({
   diameter = 200 
 }) => {
   const [visible, setVisible] = React.useState(true);
+  const [isInteracting, setIsInteracting] = React.useState(false);
+  const timeoutRef = React.useRef<number | null>(null);
+
+  // Fonction pour démarrer le timer d'estompe
+  const startFadeTimer = React.useCallback(() => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = window.setTimeout(() => {
+      if (!isInteracting) {
+        setVisible(false);
+        window.setTimeout(() => {
+          onClose && onClose();
+        }, 300);
+      }
+    }, 6000);
+  }, [isInteracting, onClose]);
+
+  // Démarrer le timer au montage
+  React.useEffect(() => {
+    startFadeTimer();
+    
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [startFadeTimer]);
+
+  // Réinitialiser le timer quand l'interaction change
+  React.useEffect(() => {
+    if (!isInteracting) {
+      startFadeTimer();
+    } else {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    }
+  }, [isInteracting, startFadeTimer]);
+
+  const handleMouseEnter = () => {
+    setIsInteracting(true);
+  };
 
   const handleMouseLeave = () => {
-    setVisible(false);
-    window.setTimeout(() => {
-      onClose && onClose();
-    }, 300);
+    setIsInteracting(false);
   };
 
   const handleCalendarClick = (e: React.MouseEvent) => {
@@ -74,6 +115,7 @@ const EventInfoBubble: React.FC<Props> = ({
       style={{ width: diameter, height: diameter, pointerEvents: "none" }}
       role="dialog"
       aria-live="polite"
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Liquid Glass Background */}
