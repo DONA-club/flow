@@ -24,6 +24,7 @@ type Props = {
   wakeHour?: number | null;
   bedHour?: number | null;
   totalSleepHours?: number | null;
+  sleepSessions?: Array<{ bedHour: number; wakeHour: number }> | null;
   externalSelectedEvent?: Event | null;
   onEventBubbleClosed?: () => void;
   onDayChange?: (date: Date) => void;
@@ -283,6 +284,7 @@ export const CircularCalendar: React.FC<Props> = ({
   wakeHour,
   bedHour,
   totalSleepHours,
+  sleepSessions,
   externalSelectedEvent,
   onEventBubbleClosed,
   onDayChange,
@@ -622,7 +624,20 @@ export const CircularCalendar: React.FC<Props> = ({
     }
 
     // Arc extérieur : du curseur au coucher idéal (futur)
-    if (hourDecimal <= idealBedHour || (idealBedHour < wakeHour && hourDecimal >= wakeHour)) {
+    // Ne pas afficher si on est déjà dans une période de sommeil
+    const isInSleepPeriod = sleepSessions?.some(session => {
+      const bedNormalized = session.bedHour;
+      const wakeNormalized = session.wakeHour;
+      
+      if (wakeNormalized < bedNormalized) {
+        // Période traverse minuit
+        return hourDecimal >= bedNormalized || hourDecimal < wakeNormalized;
+      } else {
+        return hourDecimal >= bedNormalized && hourDecimal < wakeNormalized;
+      }
+    });
+
+    if (!isInSleepPeriod && (hourDecimal <= idealBedHour || (idealBedHour < wakeHour && hourDecimal >= wakeHour))) {
       futureArc = { start: nowAngleDeg, end: idealBedAngle };
     }
   }
@@ -747,32 +762,35 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Overlays de sommeil : n'afficher que si on a des données valides
+  // Overlays de sommeil : afficher toutes les périodes distinctes
   const sleepOverlays: JSX.Element[] = [];
   
-  if (hasSleepData) {
-    // Période principale de sommeil
-    const bedAngle = angleFromHour(bedHour);
-    const wakeAngle = angleFromHour(wakeHour);
-    sleepOverlays.push(
-      <path 
-        key="sleep-main" 
-        d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} 
-        fill="rgba(0, 0, 0, 0.4)" 
-        style={{ pointerEvents: "none" }} 
-      />
-    );
+  if (sleepSessions && sleepSessions.length > 0) {
+    sleepSessions.forEach((session, idx) => {
+      const bedAngle = angleFromHour(session.bedHour);
+      const wakeAngle = angleFromHour(session.wakeHour);
+      
+      sleepOverlays.push(
+        <path 
+          key={`sleep-session-${idx}`}
+          d={getWedgePath(cx, cy, radius, innerRadius, bedAngle, wakeAngle)} 
+          fill="rgba(0, 0, 0, 0.4)" 
+          style={{ pointerEvents: "none" }} 
+        />
+      );
+    });
 
-    // Zone recommandée (9h avant le réveil depuis la première heure de coucher)
-    if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS) {
+    // Zone recommandée (heures manquantes avant le premier coucher)
+    if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS && bedHour !== null) {
       const missingHours = RECOMMENDED_SLEEP_HOURS - totalSleepHours;
       const recommendedBedHour = (bedHour - missingHours + 24) % 24;
       const recommendedAngle = angleFromHour(recommendedBedHour);
+      const firstBedAngle = angleFromHour(bedHour);
       
       sleepOverlays.push(
         <path 
           key="sleep-recommended" 
-          d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, bedAngle)} 
+          d={getWedgePath(cx, cy, radius, innerRadius, recommendedAngle, firstBedAngle)} 
           fill="rgba(0, 0, 0, 0.2)" 
           style={{ pointerEvents: "none" }} 
         />
