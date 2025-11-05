@@ -30,8 +30,8 @@ body, html, #root {
       #ccfbf1 25%,
       #99f6e4 45%,
       #5eead4 65%,
-      #2dd4bf 80%,
-      #14b8a6 100%
+      #38bdf8 82%,
+      #2563eb 100%
     ) !important;
     background-attachment: fixed;
   }
@@ -49,13 +49,13 @@ body, html, #root {
 
 @media (prefers-color-scheme: light) {
   .glass {
-    background: rgba(255, 255, 255, 0.78);
-    box-shadow: 0 8px 32px 0 rgba(14, 165, 233, 0.12);
-    border: 1.5px solid rgba(14, 165, 233, 0.15);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 20px 45px -12px rgba(45, 212, 191, 0.22);
+    border: 1.4px solid rgba(14, 165, 233, 0.26);
   }
 }
 
-/* Point blanc moderne avec adaptation */
+/* Point blanc moderne (reste blanc en clair comme en sombre) */
 .point-blanc {
   width: 5.5rem;
   height: 5.5rem;
@@ -74,8 +74,8 @@ body, html, #root {
 @media (prefers-color-scheme: light) {
   .point-blanc {
     background: #ffffff;
-    border: 4px solid rgba(226, 232, 240, 0.85);
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 1), 0 12px 40px 0 rgba(15, 118, 110, 0.18);
+    border: 4px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 1), 0 12px 42px 0 rgba(6, 182, 212, 0.28);
   }
 }
 
@@ -89,39 +89,45 @@ body, html, #root {
 @media (prefers-color-scheme: light) {
   .point-blanc:hover,
   .point-blanc:focus {
-    box-shadow: 0 0 0 12px rgba(45, 212, 191, 0.18), 0 16px 50px 0 rgba(13, 148, 136, 0.28);
-    border-color: rgba(13, 148, 136, 0.75);
+    box-shadow: 0 0 0 14px rgba(56, 189, 248, 0.22), 0 22px 46px 0 rgba(13, 148, 136, 0.32);
+    border-color: rgba(13, 148, 136, 0.85);
   }
 }
 
-/* Texte central du calendrier: couleurs adaptatives */
+/* Texte central du calendrier: contrastes adaptés */
+.calendar-center-title,
+.calendar-center-sub,
+.calendar-center-meta {
+  transition: color 0.25s ease;
+}
+
 .calendar-center-title {
-  color: #e0e7ff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color: #0f172a;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
 }
 .calendar-center-title:hover {
-  color: #c7d2fe;
+  color: #0284c7;
 }
 .calendar-center-sub {
-  color: #cbd5e1;
+  color: rgba(15, 23, 42, 0.75);
 }
 .calendar-center-meta {
-  color: #e2e8f0;
+  color: rgba(15, 23, 42, 0.66);
 }
 
-@media (prefers-color-scheme: light) {
-  .calendar-light-bg .calendar-center-title {
-    color: #0f172a;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+@media (prefers-color-scheme: dark) {
+  .calendar-center-title {
+    color: #e0e7ff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
-  .calendar-light-bg .calendar-center-title:hover {
-    color: #0e7490;
+  .calendar-center-title:hover {
+    color: #c7d2fe;
   }
-  .calendar-light-bg .calendar-center-sub {
-    color: rgba(15, 23, 42, 0.78);
+  .calendar-center-sub {
+    color: #cbd5f5;
   }
-  .calendar-light-bg .calendar-center-meta {
-    color: rgba(15, 23, 42, 0.7);
+  .calendar-center-meta {
+    color: #e2e8f0;
   }
 }
 
@@ -132,8 +138,8 @@ body, html, #root {
     padding: 1.5rem;
   }
   .point-blanc {
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 3.7rem;
+    height: 3.7rem;
   }
 }
 
@@ -224,7 +230,7 @@ body {
   width: var(--size, 6px);
   height: var(--size, 6px);
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
   transform-origin: center center;
   transform: translate(-50%, -50%) rotate(var(--angle)) translate(0rem) scale(0.7);
@@ -234,8 +240,8 @@ body {
 
 @media (prefers-color-scheme: light) {
   .spark {
-    background: rgba(20, 184, 166, 0.85);
-    box-shadow: 0 0 8px rgba(20, 184, 166, 0.7);
+    background: rgba(14, 165, 233, 0.9);
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.45);
   }
 }
 

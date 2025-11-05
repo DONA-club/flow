@@ -27,6 +27,9 @@ function detectPlatform(url: string): string {
   return "Vidéoconférence";
 }
 
+const ENTRY_BUFFER = 14;   // px de tolérance pour l'entrée dans la zone
+const EXIT_BUFFER = 42;    // px supplémentaires avant fermeture
+
 const EventInfoBubble: React.FC<Props> = ({
   title,
   organizer,
@@ -53,7 +56,7 @@ const EventInfoBubble: React.FC<Props> = ({
     window.setTimeout(() => {
       hasEnteredZoneRef.current = false;
       onClose?.();
-    }, 300);
+    }, 320);
   }, [onClose]);
 
   const resetTimeout = React.useCallback(() => {
@@ -97,22 +100,26 @@ const EventInfoBubble: React.FC<Props> = ({
       const dx = e.clientX - centerX;
       const dy = e.clientY - centerY;
       const distance = Math.hypot(dx, dy);
-      const radius = diameter / 2;
 
-      if (distance <= radius) {
-        if (!hasEnteredZoneRef.current) {
-          hasEnteredZoneRef.current = true;
-        }
+      const radius = diameter / 2;
+      const entryRadius = radius + ENTRY_BUFFER;
+      const exitRadius = radius + EXIT_BUFFER;
+
+      if (!hasEnteredZoneRef.current && distance <= entryRadius) {
+        hasEnteredZoneRef.current = true;
         resetTimeout();
         return;
       }
 
-      if (!hasEnteredZoneRef.current) {
+      if (hasEnteredZoneRef.current && distance <= exitRadius) {
+        resetTimeout();
         return;
       }
 
-      hasEnteredZoneRef.current = false;
-      closeBubble();
+      if (hasEnteredZoneRef.current && distance > exitRadius) {
+        hasEnteredZoneRef.current = false;
+        closeBubble();
+      }
     },
     [closeBubble, diameter, resetTimeout],
   );
@@ -143,35 +150,37 @@ const EventInfoBubble: React.FC<Props> = ({
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
   const outerGlowGradient = isDarkMode
-    ? "from-blue-500/20 to-purple-500/20"
-    : "from-emerald-500/14 to-teal-500/14";
+    ? "from-blue-600/25 via-indigo-500/20 to-sky-500/20"
+    : "from-emerald-400/18 via-sky-300/16 to-sky-400/18";
+
   const glassGradient = isDarkMode
-    ? "from-white/10 to-white/5"
-    : "from-white/92 to-white/72";
-  const borderColor = isDarkMode ? "border-white/20" : "border-teal-500/25";
+    ? "from-white/12 to-white/6"
+    : "from-white/90 to-white/74";
+
+  const borderColor = isDarkMode ? "border-white/24" : "border-sky-400/35";
 
   const titleClass = isDarkMode ? "text-white" : "text-slate-900";
-  const organizerClass = isDarkMode ? "text-white/65" : "text-slate-600";
-  const dateClass = isDarkMode ? "text-white/80" : "text-slate-700";
-  const timeClass = isDarkMode ? "text-white/70" : "text-teal-700";
+  const organizerClass = isDarkMode ? "text-white/70" : "text-slate-600";
+  const dateClass = isDarkMode ? "text-white/82" : "text-sky-800";
+  const timeClass = isDarkMode ? "text-white/75" : "text-emerald-700";
 
   const videoButtonClass = isDarkMode
-    ? "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 cursor-pointer"
-    : "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-teal-500/12 hover:bg-teal-500/20 transition-all duration-300 cursor-pointer";
+    ? "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-white/12 hover:bg-white/20 transition-all duration-300 cursor-pointer"
+    : "group/video flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-400/15 hover:bg-sky-300/25 transition-all duration-300 cursor-pointer";
 
   const videoIconWrapperClass = isDarkMode
     ? "relative bg-white/90 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none"
-    : "relative bg-teal-600 p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none";
+    : "relative bg-gradient-to-br from-emerald-500 to-sky-500 text-white p-1.5 rounded-full group-hover/video:scale-110 transition-transform duration-300 pointer-events-none";
 
   const videoIconColor = isDarkMode ? "text-blue-600" : "text-white";
-  const videoTitleClass = isDarkMode ? "text-white text-xs font-semibold" : "text-teal-800 text-xs font-semibold";
-  const videoSubtitleClass = isDarkMode ? "text-white/60 text-[10px]" : "text-teal-600 text-[10px]";
+  const videoTitleClass = isDarkMode ? "text-white text-xs font-semibold" : "text-emerald-900 text-xs font-semibold";
+  const videoSubtitleClass = isDarkMode ? "text-white/65 text-[10px]" : "text-sky-700 text-[10px]";
 
   const calendarButtonClass = isDarkMode
-    ? "p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-    : "p-2 rounded-full bg-teal-500/12 hover:bg-teal-500/20 transition-colors cursor-pointer";
+    ? "p-2 rounded-full bg-white/12 hover:bg-white/22 transition-colors cursor-pointer"
+    : "p-2 rounded-full bg-emerald-400/12 hover:bg-sky-300/22 transition-colors cursor-pointer";
 
-  const calendarIconColor = isDarkMode ? "text-white/80" : "text-teal-700";
+  const calendarIconColor = isDarkMode ? "text-white/82" : "text-sky-700";
 
   return (
     <div
@@ -180,7 +189,7 @@ const EventInfoBubble: React.FC<Props> = ({
         "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
         "rounded-full z-30",
         "flex items-center justify-center text-center",
-        "transition-opacity duration-300 select-none",
+        "transition-opacity duration-320 select-none",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
       style={{ width: diameter, height: diameter, pointerEvents: "auto" }}
@@ -191,9 +200,9 @@ const EventInfoBubble: React.FC<Props> = ({
         resetTimeout();
       }}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${outerGlowGradient} rounded-full blur-xl opacity-60 pointer-events-none`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${outerGlowGradient} rounded-full blur-xl opacity-70 pointer-events-none`} />
       <div className={`absolute inset-0 bg-gradient-to-br ${glassGradient} rounded-full backdrop-blur-xl pointer-events-none`} />
-      <div className={`absolute inset-0 rounded-full border ${borderColor} shadow-2xl pointer-events-none`} />
+      <div className={`absolute inset-0 rounded-full border ${borderColor} shadow-[0_18px_48px_-20px_rgba(14,165,233,0.35)] pointer-events-none`} />
 
       <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2">
         {organizer && (
@@ -202,23 +211,23 @@ const EventInfoBubble: React.FC<Props> = ({
           </div>
         )}
 
-        <div className={`${titleClass} font-bold text-base leading-tight line-clamp-2`}>
+        <div className={`${titleClass} font-bold text-base leading-tight px-2`}>
           {title}
         </div>
 
         {date && (
-          <div className={`${dateClass} text-sm font-medium`}>
+          <div className={`${dateClass} text-sm font-semibold`}>
             {date}
           </div>
         )}
 
         {timeRemaining && (
-          <div className={`${timeClass} text-xs font-semibold`}>
+          <div className={`${timeClass} text-xs font-semibold tracking-wide`}>
             {timeRemaining}
           </div>
         )}
 
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex items-center gap-3 mt-3">
           {videoLink && (
             <button
               onClick={handleVideoClick}
@@ -226,7 +235,7 @@ const EventInfoBubble: React.FC<Props> = ({
               aria-label={`Rejoindre ${platform}`}
             >
               <div className="relative pointer-events-none">
-                <div className="absolute inset-0 bg-white/20 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
+                <div className="absolute inset-0 bg-white/24 rounded-full blur-md group-hover/video:blur-lg transition-all duration-300 pointer-events-none" />
                 <div className={videoIconWrapperClass}>
                   <Video className={`w-4 h-4 ${videoIconColor} pointer-events-none`} strokeWidth={2.5} />
                 </div>
@@ -251,7 +260,7 @@ const EventInfoBubble: React.FC<Props> = ({
       </div>
 
       <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1100 ease-in-out pointer-events-none" />
       </div>
     </div>
   );
