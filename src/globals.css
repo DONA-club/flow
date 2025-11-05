@@ -1,16 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Police Montserrat partout */
+/* Police Inter/Aptos partout par défaut */
 * {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Inter', 'Aptos', Arial, Helvetica, sans-serif !important;
 }
 
 body, html, #root, .font-sans, .font-sans * {
-  font-family: 'Montserrat', sans-serif !important;
+  font-family: 'Inter', 'Aptos', Arial, Helvetica, sans-serif !important;
 }
 
 /* Fond par défaut (sombre) - dégradé radial, clair au centre → sombre aux angles */
@@ -153,7 +154,7 @@ body, html, #root {
 
 /* Typographie globale */
 body {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', 'Aptos', Arial, Helvetica, sans-serif;
   font-size: 18px;
   line-height: 1.7;
   color: #e0e7ef; /* lisible en mode sombre */

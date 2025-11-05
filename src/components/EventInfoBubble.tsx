@@ -131,10 +131,12 @@ const EventInfoBubble: React.FC<Props> = ({
 
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
-  // Couleurs adaptées au thème
-  const textColor = isDarkMode ? "#ffffff" : "#1e293b"; // slate-900 en clair
-  const textSecondaryColor = isDarkMode ? "rgba(255, 255, 255, 0.8)" : "#334155"; // slate-700 en clair
-  const textTertiaryColor = isDarkMode ? "rgba(255, 255, 255, 0.6)" : "#475569"; // slate-600 en clair
+  // Couleurs adaptées au thème - utilisation des couleurs du calendrier
+  // Mode sombre: #bfdbfe (blue-200) pour titre, #93c5fd (blue-300) pour hover
+  // Mode clair: #1e40af (blue-800) pour titre (hover de calendar-center-title), #2563eb (blue-600) pour secondaire
+  const textColor = isDarkMode ? "#bfdbfe" : "#1e40af"; // blue-200 / blue-800
+  const textSecondaryColor = isDarkMode ? "#93c5fd" : "#2563eb"; // blue-300 / blue-600
+  const textTertiaryColor = isDarkMode ? "#60a5fa" : "#3b82f6"; // blue-400 / blue-500
 
   return (
     <div
@@ -165,7 +167,7 @@ const EventInfoBubble: React.FC<Props> = ({
             className="text-xs truncate w-full font-light pointer-events-none"
             style={{ 
               color: textTertiaryColor,
-              fontFamily: "'Montserrat', sans-serif"
+              fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
             }}
           >
             {organizer}
@@ -177,7 +179,7 @@ const EventInfoBubble: React.FC<Props> = ({
           className="font-bold text-lg leading-tight line-clamp-2 pointer-events-none"
           style={{ 
             color: textColor,
-            fontFamily: "'Montserrat', sans-serif"
+            fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
           }}
         >
           {title}
@@ -189,7 +191,7 @@ const EventInfoBubble: React.FC<Props> = ({
             className="text-sm font-medium pointer-events-none"
             style={{ 
               color: textSecondaryColor,
-              fontFamily: "'Montserrat', sans-serif"
+              fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
             }}
           >
             {date}
@@ -202,7 +204,7 @@ const EventInfoBubble: React.FC<Props> = ({
             className="text-xs font-semibold pointer-events-none"
             style={{ 
               color: textTertiaryColor,
-              fontFamily: "'Montserrat', sans-serif"
+              fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
             }}
           >
             {timeRemaining}
@@ -229,7 +231,7 @@ const EventInfoBubble: React.FC<Props> = ({
                   className="text-xs font-semibold pointer-events-none"
                   style={{ 
                     color: textColor,
-                    fontFamily: "'Montserrat', sans-serif"
+                    fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
                   }}
                 >
                   Rejoindre
@@ -238,7 +240,7 @@ const EventInfoBubble: React.FC<Props> = ({
                   className="text-[10px] font-light pointer-events-none"
                   style={{ 
                     color: textTertiaryColor,
-                    fontFamily: "'Montserrat', sans-serif"
+                    fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
                   }}
                 >
                   {platform}
