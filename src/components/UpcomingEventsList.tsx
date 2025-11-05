@@ -99,15 +99,13 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       })
       .filter(Boolean) as { e: EventLike; start: Date; end: Date | null }[];
 
-    const filtered = mapped
+    return mapped
       .filter(
         (x) =>
           x.start.getTime() >= now.getTime() &&
           x.start.getTime() <= threeDaysLater.getTime()
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    return filtered;
   }, [events, maxItems]);
 
   const handleEventClick = (evt: EventLike) => {
@@ -122,9 +120,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     setTimeout(() => setIsAnimating(false), 400);
   };
 
-  if (upcoming.length === 0) {
-    return null;
-  }
+  if (upcoming.length === 0) return null;
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const nowRef = new Date();
@@ -140,7 +136,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: 100 }}
         aria-label="Afficher les événements à venir"
       >
         {isAnimating && (
@@ -160,13 +156,12 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   return (
     <div
       className={[
-        "fixed top-4 left-4",
+        "fixed top-4 left-4 w-[88vw] sm:w-[320px] md:w-[360px]",
         "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
         "relative overflow-hidden",
-        "w-auto max-w-[360px]",
         className || "",
       ].join(" ").trim()}
-      style={{ zIndex: 9999, pointerEvents: "auto" }}
+      style={{ zIndex: 100 }}
       aria-label="Événements à venir"
     >
       {isAnimating && (
@@ -180,7 +175,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-200">
           <Calendar className="w-4 h-4" />
-          <span className="text-sm font-semibold tracking-tight whitespace-nowrap">A venir</span>
+          <span className="text-sm font-semibold tracking-tight">A venir</span>
         </div>
         <button
           type="button"
@@ -218,6 +213,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
           const dayLabel = start ? getDayLabel(start, nowRef) : "";
           const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
 
+          // Choisir l'icône selon le jour
           let EventIcon = Clock;
           let iconColor = cursorColor;
           
