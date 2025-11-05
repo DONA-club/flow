@@ -238,59 +238,63 @@ const CircularCalendarDemo = () => {
     }
   }, [sunrise, sunset, sunLoading, sunError]);
 
-  // Gestion des logs de localisation
+  // Gestion des logs de localisation - remplacer "..." par résultat final
   useEffect(() => {
     if (sunLoading) {
-      setLogs([{ message: "Localisation en cours...", type: "info" }]);
+      // Ne pas afficher de log pendant le chargement
+      return;
     } else if (sunError) {
-      setLogs([{ message: "Position approximative utilisée", type: "info" }]);
+      setLogs([{ message: "Position approximative", type: "info" }]);
     } else if (sunrise !== null && sunset !== null) {
       setLogs([{ message: "Position détectée", type: "success" }]);
     }
   }, [sunLoading, sunError, sunrise, sunset]);
 
-  // Gestion des logs Google Calendar - uniquement les changements significatifs
+  // Gestion des logs Google Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (gLoading) {
-      setLogs([{ message: "Synchronisation Google...", type: "info" }]);
+      // Ne pas afficher de log pendant le chargement
+      return;
     } else if (gError && gError.includes("non connecté")) {
-      // Ne pas afficher d'erreur si simplement non connecté
       return;
     } else if (gError) {
-      setLogs([{ message: "Erreur Google Calendar", type: "error" }]);
+      setLogs([{ message: "Google indisponible", type: "error" }]);
     } else if (gConnected && gEvents.length > 0) {
-      setLogs([{ message: `${gEvents.length} événements Google`, type: "success" }]);
+      setLogs([{ message: `${gEvents.length} événement${gEvents.length > 1 ? 's' : ''} Google`, type: "success" }]);
+    } else if (gConnected && gEvents.length === 0) {
+      setLogs([{ message: "Google synchronisé", type: "success" }]);
     }
   }, [gLoading, gError, gConnected, gEvents.length]);
 
-  // Gestion des logs Outlook Calendar - uniquement les changements significatifs
+  // Gestion des logs Outlook Calendar - remplacer "..." par résultat final
   useEffect(() => {
     if (oLoading) {
-      setLogs([{ message: "Synchronisation Outlook...", type: "info" }]);
+      // Ne pas afficher de log pendant le chargement
+      return;
     } else if (oError && oError.includes("non connecté")) {
-      // Ne pas afficher d'erreur si simplement non connecté
       return;
     } else if (oError) {
-      setLogs([{ message: "Erreur Outlook Calendar", type: "error" }]);
+      setLogs([{ message: "Outlook indisponible", type: "error" }]);
     } else if (oConnected && oEvents.length > 0) {
-      setLogs([{ message: `${oEvents.length} événements Outlook`, type: "success" }]);
+      setLogs([{ message: `${oEvents.length} événement${oEvents.length > 1 ? 's' : ''} Outlook`, type: "success" }]);
+    } else if (oConnected && oEvents.length === 0) {
+      setLogs([{ message: "Outlook synchronisé", type: "success" }]);
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Gestion des logs Google Fit - uniquement si connecté et données disponibles
+  // Gestion des logs Google Fit - remplacer "..." par résultat final
   useEffect(() => {
     if (fitLoading) {
-      setLogs([{ message: "Récupération sommeil...", type: "info" }]);
+      // Ne pas afficher de log pendant le chargement
+      return;
     } else if (fitError && fitError.includes("non connecté")) {
-      // Ne pas afficher d'erreur si simplement non connecté
       return;
     } else if (fitError && fitError.includes("Aucune session")) {
-      // Ne pas afficher si pas de données de sommeil
       return;
     } else if (fitError) {
-      setLogs([{ message: "Données sommeil indisponibles", type: "info" }]);
+      setLogs([{ message: "Sommeil indisponible", type: "info" }]);
     } else if (fitConnected && wakeHour != null && bedHour != null) {
-      setLogs([{ message: "Données sommeil synchronisées", type: "success" }]);
+      setLogs([{ message: "Sommeil synchronisé", type: "success" }]);
     }
   }, [fitLoading, fitError, fitConnected, wakeHour, bedHour]);
 
