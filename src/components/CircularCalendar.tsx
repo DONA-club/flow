@@ -315,6 +315,8 @@ export const CircularCalendar: React.FC<Props> = ({
   // Refs pour les interactions tactiles
   const touchStartRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
   const isTouchScrollingRef = React.useRef(false);
+  const lastTouchYRef = React.useRef<number>(0);
+  const velocityRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
@@ -431,7 +433,12 @@ export const CircularCalendar: React.FC<Props> = ({
           return prev;
         }
       } else {
-        const deltaMinutes = deltaY > 0 ? 15 : -15;
+        // Sensibilité adaptée à la vélocité pour mobile
+        const baseSensitivity = 15;
+        const velocityFactor = Math.min(Math.abs(velocityRef.current) / 10, 3);
+        const adjustedSensitivity = baseSensitivity * (1 + velocityFactor * 0.5);
+        
+        const deltaMinutes = deltaY > 0 ? adjustedSensitivity : -adjustedSensitivity;
         nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
         horizontalScrollAccumulator.current = 0;
       }
@@ -541,7 +548,7 @@ export const CircularCalendar: React.FC<Props> = ({
       handleScroll(event.deltaY, event.deltaX);
     };
 
-    // Gestion du touch (mobile)
+    // Gestion du touch (mobile) - AMÉLIORÉE
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       
@@ -551,46 +558,54 @@ export const CircularCalendar: React.FC<Props> = ({
         y: touch.clientY,
         time: Date.now()
       };
+      lastTouchYRef.current = touch.clientY;
+      velocityRef.current = 0;
       isTouchScrollingRef.current = false;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       if (!touchStartRef.current || event.touches.length !== 1) return;
       
-      event.preventDefault(); // Empêcher le scroll natif
+      event.preventDefault();
       
       const touch = event.touches[0];
-      const deltaX = touch.clientX - touchStartRef.current.x;
-      const deltaY = touch.clientY - touchStartRef.current.y;
+      const currentTime = Date.now();
+      const deltaTime = currentTime - touchStartRef.current.time;
+      
+      // Calculer la vélocité
+      const deltaY = touch.clientY - lastTouchYRef.current;
+      if (deltaTime > 0) {
+        velocityRef.current = deltaY / deltaTime;
+      }
+      
+      const totalDeltaX = touch.clientX - touchStartRef.current.x;
+      const totalDeltaY = touch.clientY - touchStartRef.current.y;
       
       // Déterminer la direction dominante
-      const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
-      // Sensibilité ajustée pour mobile
-      const sensitivity = 0.5;
+      // Sensibilité réduite pour un contrôle plus précis
+      const sensitivity = 0.3;
       
       if (isHorizontal) {
         // Swipe horizontal = changement de jour
-        const adjustedDeltaX = deltaX * sensitivity;
-        if (Math.abs(adjustedDeltaX) > 5) {
+        const adjustedDeltaX = totalDeltaX * sensitivity;
+        if (Math.abs(adjustedDeltaX) > 3) {
           handleScroll(0, adjustedDeltaX);
           touchStartRef.current = {
             x: touch.clientX,
             y: touch.clientY,
-            time: Date.now()
+            time: currentTime
           };
           isTouchScrollingRef.current = true;
         }
       } else {
-        // Swipe vertical = changement d'heure
+        // Swipe vertical = changement d'heure (INSTANTANÉ)
         const adjustedDeltaY = deltaY * sensitivity;
-        if (Math.abs(adjustedDeltaY) > 5) {
+        if (Math.abs(adjustedDeltaY) > 1) {
           handleScroll(adjustedDeltaY, 0);
-          touchStartRef.current = {
-            x: touch.clientX,
-            y: touch.clientY,
-            time: Date.now()
-          };
+          lastTouchYRef.current = touch.clientY;
+          touchStartRef.current.time = currentTime;
           isTouchScrollingRef.current = true;
         }
       }
@@ -599,6 +614,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleTouchEnd = () => {
       touchStartRef.current = null;
       isTouchScrollingRef.current = false;
+      velocityRef.current = 0;
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -1090,18 +1106,77 @@ export const CircularCalendar: React.FC<Props> = ({
         )}
 
         {showDateLabel && daysDiff !== 0 && (
-          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${innerRadius * 0.75}px)`, transform: "translateX(-50%)", zIndex: 8 }}>
-            <div className="px-3 py-1.5 rounded-lg pointer-events-none" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
-              <div className="pointer-events-none" style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
-                {formatDateLabel(virtualDateTime)}
-              </div>
-              <div className="pointer-events-none" style={{ fontSize: 9, lineHeight: 1, color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center", marginTop: "2px" }}>
-                {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? "s" : ""}` : `${daysDiff} jour${daysDiff < -1 ? "s" : ""}`}
+          <div 
+            className="absolute left-1/2 pointer-events-none" 
+            style={{ 
+              top: `calc(50% - ${innerRadius * 0.5}px)`,
+              transform: "translateX(-50%)", 
+              zIndex: 8 
+            }}
+          >
+            <div 
+              className="px-4 py-2 rounded-xl pointer-events-none relative overflow-hidden"
+              style={{ 
+                background: "rgba(15, 23, 42, 0.75)",
+                backdropFilter: "blur(16px) saturate(180%)",
+                WebkitBackdropFilter: "blur(16px) saturate(180%)",
+                boxShadow: "0 8px 32px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+            >
+              {/* Disruption temporelle : gradient animé selon direction */}
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: daysDiff > 0 
+                    ? "linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)"
+                    : "linear-gradient(-90deg, transparent 0%, rgba(251, 146, 60, 0.2) 50%, transparent 100%)",
+                  animation: "temporal-flow 2s ease-in-out infinite",
+                }}
+              />
+              
+              <div className="relative pointer-events-none">
+                <div 
+                  className="pointer-events-none" 
+                  style={{ 
+                    fontSize: 13, 
+                    lineHeight: 1.3, 
+                    color: "#e2e8f0", 
+                    fontWeight: 600, 
+                    fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", 
+                    textAlign: "center" 
+                  }}
+                >
+                  {formatDateLabel(virtualDateTime)}
+                </div>
+                <div 
+                  className="pointer-events-none mt-1" 
+                  style={{ 
+                    fontSize: 11, 
+                    lineHeight: 1, 
+                    color: daysDiff > 0 ? "#60a5fa" : "#fb923c",
+                    fontWeight: 600, 
+                    fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", 
+                    textAlign: "center",
+                    textShadow: daysDiff > 0 
+                      ? "0 0 8px rgba(96, 165, 250, 0.5)"
+                      : "0 0 8px rgba(251, 146, 60, 0.5)"
+                  }}
+                >
+                  {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? "s" : ""}` : `${daysDiff} jour${daysDiff < -1 ? "s" : ""}`}
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
+      
+      <style>{`
+        @keyframes temporal-flow {
+          0%, 100% { transform: translateX(-100%); opacity: 0.3; }
+          50% { transform: translateX(100%); opacity: 0.6; }
+        }
+      `}</style>
     </div>
   );
 };
