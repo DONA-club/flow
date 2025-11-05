@@ -99,6 +99,52 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   };
 }
 
+// Nouvelle fonction pour forcer la récupération des tokens via une nouvelle connexion
+async function forceTokenRefresh(provider: Provider) {
+  const config: Record<Provider, { supabaseProvider: string; scopes?: string; queryParams?: Record<string, string> }> = {
+    google: {
+      supabaseProvider: "google",
+      scopes: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/fitness.sleep.read",
+      queryParams: {
+        prompt: "consent",
+        access_type: "offline",
+        include_granted_scopes: "true",
+      },
+    },
+    microsoft: {
+      supabaseProvider: "azure",
+      scopes: "https://graph.microsoft.com/Calendars.Read offline_access openid profile email",
+      queryParams: { prompt: "consent" },
+    },
+    apple: { supabaseProvider: "apple" },
+    facebook: { supabaseProvider: "facebook" },
+    amazon: { supabaseProvider: "amazon" },
+  };
+
+  const providerConfig = config[provider];
+  if (!providerConfig) return;
+
+  localStorage.setItem("pending_provider_connection", provider);
+
+  const options: any = {
+    redirectTo: window.location.origin,
+    skipBrowserRedirect: false,
+  };
+
+  if (providerConfig.scopes) {
+    options.scopes = providerConfig.scopes;
+  }
+
+  if (providerConfig.queryParams) {
+    options.queryParams = providerConfig.queryParams;
+  }
+
+  await supabase.auth.linkIdentity({
+    provider: providerConfig.supabaseProvider as any,
+    options
+  } as any);
+}
+
 async function saveProviderTokens() {
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
@@ -117,7 +163,42 @@ async function saveProviderTokens() {
     }
   }
 
-  if (!accessToken || !isValidJWT(accessToken)) return;
+  if (!accessToken || !isValidJWT(accessToken)) {
+    // Vérifier si l'utilisateur a des identities sans tokens
+    const identities = user.identities || [];
+    const googleIdentity = identities.find((i: any) => i.provider === "google");
+    const microsoftIdentity = identities.find((i: any) => ["azure", "microsoft", "azure-oidc"].includes(i.provider));
+
+    // Vérifier si on a déjà les tokens en base
+    const { data: existingTokens } = await supabase
+      .from("oauth_tokens")
+      .select("provider")
+      .eq("user_id", user.id);
+
+    const existingProviders = new Set(existingTokens?.map(t => t.provider) || []);
+
+    // Si Google est connecté mais n'a pas de token, forcer la reconnexion
+    if (googleIdentity && !existingProviders.has("google")) {
+      const pendingProvider = localStorage.getItem("pending_provider_connection");
+      if (pendingProvider !== "google") {
+        toast.info("Reconnexion Google nécessaire", {
+          description: "Cliquez sur le logo Google pour obtenir les permissions.",
+        });
+      }
+    }
+
+    // Si Microsoft est connecté mais n'a pas de token, forcer la reconnexion
+    if (microsoftIdentity && !existingProviders.has("microsoft")) {
+      const pendingProvider = localStorage.getItem("pending_provider_connection");
+      if (pendingProvider !== "microsoft") {
+        toast.info("Reconnexion Microsoft nécessaire", {
+          description: "Cliquez sur le logo Microsoft pour obtenir les permissions.",
+        });
+      }
+    }
+
+    return;
+  }
 
   const pendingProvider = localStorage.getItem("pending_provider_connection") as Provider | null;
   let providerToSave: Provider | null = null;

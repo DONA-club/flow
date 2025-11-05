@@ -250,12 +250,10 @@ function getSeason(date: Date): Props["season"] {
   return "winter";
 }
 
-// Cette fonction détermine si un segment est en période diurne (sunrise/sunset)
 function isDayMinute(minute: number, sunrise: number, sunset: number) {
   const hour = minute / 60;
   
   if (sunset < sunrise) {
-    // Le jour traverse minuit (cas rare mais possible près des pôles)
     return hour >= sunrise || hour < sunset;
   }
   
@@ -313,6 +311,10 @@ export const CircularCalendar: React.FC<Props> = ({
   const onDayChangeRef = React.useRef(onDayChange);
   const onVirtualDateTimeChangeRef = React.useRef(onVirtualDateTimeChange);
   const horizontalScrollAccumulator = React.useRef<number>(0);
+  
+  // Refs pour les interactions tactiles
+  const touchStartRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
+  const isTouchScrollingRef = React.useRef(false);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
@@ -400,147 +402,223 @@ export const CircularCalendar: React.FC<Props> = ({
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
 
+  // Fonction commune pour gérer le scroll (wheel ou touch)
+  const handleScroll = React.useCallback((deltaY: number, deltaX: number) => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    setIsReturning(false);
+    setShowTimeLabel(false);
+    setIsLabelFadingOut(false);
+
+    const isHorizontalScroll = Math.abs(deltaX) > Math.abs(deltaY);
+
+    setVirtualDateTime((prev) => {
+      const nextTime = new Date(prev);
+
+      if (isHorizontalScroll) {
+        horizontalScrollAccumulator.current += deltaX;
+        
+        const threshold = 100;
+        
+        if (Math.abs(horizontalScrollAccumulator.current) >= threshold) {
+          const dayDelta = horizontalScrollAccumulator.current > 0 ? 1 : -1;
+          nextTime.setDate(nextTime.getDate() + dayDelta);
+          horizontalScrollAccumulator.current = 0;
+        } else {
+          return prev;
+        }
+      } else {
+        const deltaMinutes = deltaY > 0 ? 15 : -15;
+        nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
+        horizontalScrollAccumulator.current = 0;
+      }
+
+      const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
+      setIsScrolling(true);
+      
+      onVirtualDateTimeChangeRef.current?.(nextTime);
+
+      if (dayChanged) {
+        setShowDateLabel(true);
+        const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
+        setLastDayNotified((prevKey) => {
+          if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+          return dayKey;
+        });
+      }
+
+      let matchedIndex: number | null = null;
+      const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+      const dayStart = new Date(nextTime);
+      dayStart.setHours(0, 0, 0, 0);
+      const nextDay = new Date(dayStart);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      const dayEvents = upcomingEventsRef.current.filter((entry) => {
+        const startMs = entry.start.getTime();
+        return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
+      });
+
+      for (let i = 0; i < dayEvents.length; i += 1) {
+        const { event: arcEvent, start, end } = dayEvents[i];
+        const startHour = start.getHours() + start.getMinutes() / 60;
+        const endHour = end.getHours() + end.getMinutes() / 60;
+        if (virtualHour >= startHour && virtualHour <= endHour) {
+          matchedIndex = i;
+          setSelectedEvent(arcEvent);
+          break;
+        }
+      }
+
+      if (matchedIndex === null) setSelectedEvent(null);
+      setCursorEventIndex(matchedIndex);
+
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+
+      const randomDelay = 8000 + Math.random() * 2000;
+      const captured = new Date(nextTime);
+
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        setIsScrolling(false);
+        setIsReturning(true);
+
+        const duration = 1500;
+        const startTime = performance.now();
+
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = easeOutCubic(progress);
+
+          const target = new Date();
+          const diff = target.getTime() - captured.getTime();
+          const interpolated = new Date(captured.getTime() + diff * eased);
+          setVirtualDateTime(interpolated);
+          
+          onVirtualDateTimeChangeRef.current?.(interpolated);
+
+          if (progress < 1) {
+            animationFrameRef.current = requestAnimationFrame(animate);
+          } else {
+            setVirtualDateTime(new Date());
+            setIsReturning(false);
+            setShowTimeLabel(true);
+            setIsLabelFadingOut(false);
+            setCursorEventIndex(null);
+            setShowDateLabel(false);
+            horizontalScrollAccumulator.current = 0;
+            
+            onVirtualDateTimeChangeRef.current?.(null);
+
+            if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+            labelTimeoutRef.current = window.setTimeout(() => {
+              setIsLabelFadingOut(true);
+              window.setTimeout(() => {
+                setShowTimeLabel(false);
+                setIsLabelFadingOut(false);
+              }, 800);
+            }, 3000);
+          }
+        };
+
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }, randomDelay);
+
+      return nextTime;
+    });
+  }, []);
+
   React.useEffect(() => {
     const container = document.getElementById("calendar-container");
     if (!container) return;
 
+    // Gestion du wheel (desktop)
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+      handleScroll(event.deltaY, event.deltaX);
+    };
 
-      setIsReturning(false);
-      setShowTimeLabel(false);
-      setIsLabelFadingOut(false);
+    // Gestion du touch (mobile)
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      
+      const touch = event.touches[0];
+      touchStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        time: Date.now()
+      };
+      isTouchScrollingRef.current = false;
+    };
 
-      const isHorizontalScroll = Math.abs(event.deltaX) > Math.abs(event.deltaY);
-
-      setVirtualDateTime((prev) => {
-        const nextTime = new Date(prev);
-
-        if (isHorizontalScroll) {
-          horizontalScrollAccumulator.current += event.deltaX;
-          
-          const threshold = 100;
-          
-          if (Math.abs(horizontalScrollAccumulator.current) >= threshold) {
-            const dayDelta = horizontalScrollAccumulator.current > 0 ? 1 : -1;
-            nextTime.setDate(nextTime.getDate() + dayDelta);
-            horizontalScrollAccumulator.current = 0;
-          } else {
-            return prev;
-          }
-        } else {
-          const deltaMinutes = event.deltaY > 0 ? 15 : -15;
-          nextTime.setMinutes(nextTime.getMinutes() + deltaMinutes);
-          horizontalScrollAccumulator.current = 0;
-        }
-
-        const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
-        setIsScrolling(true);
-        
-        onVirtualDateTimeChangeRef.current?.(nextTime);
-
-        if (dayChanged) {
-          setShowDateLabel(true);
-          const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
-          setLastDayNotified((prevKey) => {
-            if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
-            return dayKey;
-          });
-        }
-
-        let matchedIndex: number | null = null;
-        const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
-        const dayStart = new Date(nextTime);
-        dayStart.setHours(0, 0, 0, 0);
-        const nextDay = new Date(dayStart);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        const dayEvents = upcomingEventsRef.current.filter((entry) => {
-          const startMs = entry.start.getTime();
-          return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
-        });
-
-        for (let i = 0; i < dayEvents.length; i += 1) {
-          const { event: arcEvent, start, end } = dayEvents[i];
-          const startHour = start.getHours() + start.getMinutes() / 60;
-          const endHour = end.getHours() + end.getMinutes() / 60;
-          if (virtualHour >= startHour && virtualHour <= endHour) {
-            matchedIndex = i;
-            setSelectedEvent(arcEvent);
-            break;
-          }
-        }
-
-        if (matchedIndex === null) setSelectedEvent(null);
-        setCursorEventIndex(matchedIndex);
-
-        if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
-
-        const randomDelay = 8000 + Math.random() * 2000;
-        const captured = new Date(nextTime);
-
-        scrollTimeoutRef.current = window.setTimeout(() => {
-          setIsScrolling(false);
-          setIsReturning(true);
-
-          const duration = 1500;
-          const startTime = performance.now();
-
-          const animate = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = easeOutCubic(progress);
-
-            const target = new Date();
-            const diff = target.getTime() - captured.getTime();
-            const interpolated = new Date(captured.getTime() + diff * eased);
-            setVirtualDateTime(interpolated);
-            
-            onVirtualDateTimeChangeRef.current?.(interpolated);
-
-            if (progress < 1) {
-              animationFrameRef.current = requestAnimationFrame(animate);
-            } else {
-              setVirtualDateTime(new Date());
-              setIsReturning(false);
-              setShowTimeLabel(true);
-              setIsLabelFadingOut(false);
-              setCursorEventIndex(null);
-              setShowDateLabel(false);
-              horizontalScrollAccumulator.current = 0;
-              
-              onVirtualDateTimeChangeRef.current?.(null);
-
-              if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
-              labelTimeoutRef.current = window.setTimeout(() => {
-                setIsLabelFadingOut(true);
-                window.setTimeout(() => {
-                  setShowTimeLabel(false);
-                  setIsLabelFadingOut(false);
-                }, 800);
-              }, 3000);
-            }
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!touchStartRef.current || event.touches.length !== 1) return;
+      
+      event.preventDefault(); // Empêcher le scroll natif
+      
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = touch.clientY - touchStartRef.current.y;
+      
+      // Déterminer la direction dominante
+      const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      
+      // Sensibilité ajustée pour mobile
+      const sensitivity = 0.5;
+      
+      if (isHorizontal) {
+        // Swipe horizontal = changement de jour
+        const adjustedDeltaX = deltaX * sensitivity;
+        if (Math.abs(adjustedDeltaX) > 5) {
+          handleScroll(0, adjustedDeltaX);
+          touchStartRef.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            time: Date.now()
           };
+          isTouchScrollingRef.current = true;
+        }
+      } else {
+        // Swipe vertical = changement d'heure
+        const adjustedDeltaY = deltaY * sensitivity;
+        if (Math.abs(adjustedDeltaY) > 5) {
+          handleScroll(adjustedDeltaY, 0);
+          touchStartRef.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            time: Date.now()
+          };
+          isTouchScrollingRef.current = true;
+        }
+      }
+    };
 
-          animationFrameRef.current = requestAnimationFrame(animate);
-        }, randomDelay);
-
-        return nextTime;
-      });
+    const handleTouchEnd = () => {
+      touchStartRef.current = null;
+      isTouchScrollingRef.current = false;
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    container.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("wheel", handleWheel as any);
+      container.removeEventListener("touchstart", handleTouchStart as any);
+      container.removeEventListener("touchmove", handleTouchMove as any);
+      container.removeEventListener("touchend", handleTouchEnd as any);
+      container.removeEventListener("touchcancel", handleTouchEnd as any);
+      
       if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
       if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, []);
+  }, [handleScroll]);
 
   const currentSeason = season || getSeason(virtualDateTime);
   const sizeScale = size / DEFAULT_SIZE;
@@ -558,7 +636,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
-  // Les wedges utilisent UNIQUEMENT sunrise/sunset pour les couleurs
   const wedges = React.useMemo(
     () =>
       Array.from({ length: SEGMENTS }, (_, i) => {
@@ -608,29 +685,23 @@ export const CircularCalendar: React.FC<Props> = ({
   let pastArc: { start: number; end: number } | null = null;
   let futureArc: { start: number; end: number } | null = null;
 
-  // Les arcs utilisent les heures de sommeil de l'utilisateur
   const hasSleepData = typeof wakeHour === "number" && typeof bedHour === "number";
   
   if (hasSleepData) {
     const userWakeAngle = angleFromHour(wakeHour);
     
-    // Calculer l'heure de coucher idéale (9h avant le réveil) - UTILISER bedHour comme base
     const idealBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
     const idealBedAngle = angleFromHour(idealBedHour);
 
-    // Arc intérieur : du réveil utilisateur au curseur (passé)
     if (hourDecimal >= wakeHour) {
       pastArc = { start: userWakeAngle, end: nowAngleDeg };
     }
 
-    // Arc extérieur : du curseur au coucher idéal (futur)
-    // Ne pas afficher si on est déjà dans une période de sommeil
     const isInSleepPeriod = sleepSessions?.some(session => {
       const bedNormalized = session.bedHour;
       const wakeNormalized = session.wakeHour;
       
       if (wakeNormalized < bedNormalized) {
-        // Période traverse minuit
         return hourDecimal >= bedNormalized || hourDecimal < wakeNormalized;
       } else {
         return hourDecimal >= bedNormalized && hourDecimal < wakeNormalized;
@@ -762,7 +833,6 @@ export const CircularCalendar: React.FC<Props> = ({
     );
   });
 
-  // Overlays de sommeil : afficher toutes les périodes distinctes
   const sleepOverlays: JSX.Element[] = [];
   
   if (sleepSessions && sleepSessions.length > 0) {
@@ -780,7 +850,6 @@ export const CircularCalendar: React.FC<Props> = ({
       );
     });
 
-    // Zone recommandée (heures manquantes avant le premier coucher)
     if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS && bedHour !== null && wakeHour !== null) {
       const missingHours = RECOMMENDED_SLEEP_HOURS - totalSleepHours;
       const recommendedBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
@@ -825,7 +894,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
+      <div id="calendar-container" style={{ position: "relative", width: size, height: size, touchAction: "none" }}>
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{ 
