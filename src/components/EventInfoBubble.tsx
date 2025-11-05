@@ -87,6 +87,16 @@ const EventInfoBubble: React.FC<Props> = ({
     setIsInteracting(false);
   };
 
+  const handleBubbleClick = (e: React.MouseEvent) => {
+    // Ne fermer que si on clique sur le fond de la bulle, pas sur les boutons
+    if (e.target === e.currentTarget) {
+      setVisible(false);
+      window.setTimeout(() => {
+        onClose && onClose();
+      }, 300);
+    }
+  };
+
   const handleCalendarClick = (e: React.MouseEvent) => {
     if (url) {
       e.stopPropagation();
@@ -109,14 +119,15 @@ const EventInfoBubble: React.FC<Props> = ({
         "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
         "rounded-full z-30",
         "flex items-center justify-center text-center",
-        "transition-opacity duration-300 select-none",
+        "transition-opacity duration-300 select-none cursor-pointer",
         visible ? "opacity-100" : "opacity-0",
       ].join(" ")}
-      style={{ width: diameter, height: diameter, pointerEvents: "none" }}
+      style={{ width: diameter, height: diameter, pointerEvents: "auto" }}
       role="dialog"
       aria-live="polite"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleBubbleClick}
     >
       {/* Liquid Glass Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-60 pointer-events-none" />
