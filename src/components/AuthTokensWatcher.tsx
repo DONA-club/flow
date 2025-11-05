@@ -103,13 +103,15 @@ async function saveProviderTokens() {
   // Essayer de capturer les tokens depuis plusieurs sources
   let accessToken: string | null = null;
   let refreshToken: string | null = null;
+  let tokenSource: string = "";
 
-  // Source 1: URL hash (PRIORITAIRE pour Google)
+  // Source 1: URL hash (PRIORITAIRE)
   const urlTokens = captureTokensFromUrl();
   if (urlTokens.accessToken) {
     console.log("📍 Tokens trouvés dans l'URL");
     accessToken = urlTokens.accessToken;
     refreshToken = urlTokens.refreshToken;
+    tokenSource = "url";
   }
 
   // Source 2: session.provider_token (si pas trouvé dans l'URL)
@@ -117,6 +119,23 @@ async function saveProviderTokens() {
     console.log("📍 Tokens trouvés dans session.provider_token");
     accessToken = session.provider_token;
     refreshToken = session.provider_refresh_token;
+    tokenSource = "session";
+  }
+
+  // Si on a un pending provider et que le token de session ne correspond pas,
+  // forcer l'attente du token depuis l'URL
+  if (pendingProvider && tokenSource === "session") {
+    const sessionTokenProvider = detectProviderFromToken(accessToken!);
+    if (sessionTokenProvider && sessionTokenProvider !== pendingProvider) {
+      console.warn(`⚠️ Token de session (${sessionTokenProvider}) ne correspond pas au pending provider (${pendingProvider})`);
+      console.log("🔄 Attente du token depuis l'URL...");
+      
+      // Vérifier si l'URL contient un token
+      if (!urlTokens.accessToken) {
+        console.log("⏳ Pas de token dans l'URL, on attend la prochaine tentative");
+        return; // Ne pas sauvegarder, attendre que l'URL contienne le bon token
+      }
+    }
   }
 
   // Source 3: Identities (pour les tokens stockés par Supabase)
@@ -174,7 +193,7 @@ async function saveProviderTokens() {
     return;
   }
 
-  console.log("✅ Token valide trouvé");
+  console.log("✅ Token valide trouvé (source:", tokenSource, ")");
 
   // Détecter le provider depuis le token si pas de pending provider
   let providerToSave: Provider | null = pendingProvider;
@@ -194,10 +213,12 @@ async function saveProviderTokens() {
     const tokenProvider = detectProviderFromToken(accessToken);
     if (tokenProvider && tokenProvider !== pendingProvider) {
       console.warn(`⚠️ Token provider mismatch: expected ${pendingProvider}, got ${tokenProvider}`);
-      // Si le token ne correspond pas, ne pas sauvegarder
+      console.log("❌ Refus de sauvegarder un token incorrect");
+      
       toast.error(`Erreur de connexion ${pendingProvider}`, {
-        description: "Le token reçu ne correspond pas au provider attendu. Réessayez.",
+        description: "Le token reçu ne correspond pas. Réessayez.",
       });
+      
       localStorage.removeItem("pending_provider_connection");
       sessionStorage.removeItem("pending_provider_connection");
       return;
