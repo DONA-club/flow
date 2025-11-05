@@ -733,6 +733,9 @@ export const CircularCalendar: React.FC<Props> = ({
 
   const daysDiff = getDaysDifference(virtualDateTime, now);
 
+  // Réduire la taille de la div centrale pour ne pas bloquer les arcs
+  const centerDivSize = innerRadius * 1.2;
+
   return (
     <div className="flex flex-col items-center justify-center">
       <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
@@ -791,7 +794,14 @@ export const CircularCalendar: React.FC<Props> = ({
 
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
-          style={{ transform: "translate(-50%, -50%)", width: innerRadius * 1.6, height: innerRadius * 1.6, cursor: currentEvent ? "pointer" : "default", pointerEvents: "auto", zIndex: 5 }}
+          style={{ 
+            transform: "translate(-50%, -50%)", 
+            width: centerDivSize, 
+            height: centerDivSize, 
+            cursor: currentEvent ? "pointer" : "default", 
+            pointerEvents: currentEvent ? "auto" : "none",
+            zIndex: 5 
+          }}
           onClick={() => {
             if (currentEvent) {
               setSelectedEvent(currentEvent);
