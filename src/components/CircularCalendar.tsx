@@ -614,7 +614,7 @@ export const CircularCalendar: React.FC<Props> = ({
   if (hasSleepData) {
     const userWakeAngle = angleFromHour(wakeHour);
     
-    // Calculer l'heure de coucher idéale (9h avant le réveil)
+    // Calculer l'heure de coucher idéale (9h avant le réveil) - UTILISER bedHour comme base
     const idealBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
     const idealBedAngle = angleFromHour(idealBedHour);
 
@@ -781,9 +781,9 @@ export const CircularCalendar: React.FC<Props> = ({
     });
 
     // Zone recommandée (heures manquantes avant le premier coucher)
-    if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS && bedHour !== null) {
+    if (totalSleepHours && totalSleepHours < RECOMMENDED_SLEEP_HOURS && bedHour !== null && wakeHour !== null) {
       const missingHours = RECOMMENDED_SLEEP_HOURS - totalSleepHours;
-      const recommendedBedHour = (bedHour - missingHours + 24) % 24;
+      const recommendedBedHour = (wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
       const recommendedAngle = angleFromHour(recommendedBedHour);
       const firstBedAngle = angleFromHour(bedHour);
       

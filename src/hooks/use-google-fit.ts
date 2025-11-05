@@ -8,11 +8,18 @@ type SleepSession = {
   wakeHour: number;
 };
 
+type SleepDebtOrCapital = {
+  type: "capital" | "debt";
+  hours: number;
+};
+
 type Result = {
   wakeHour: number | null;
   bedHour: number | null;
   totalSleepHours: number | null;
   sleepSessions: SleepSession[] | null;
+  sleepDebtOrCapital: SleepDebtOrCapital | null;
+  idealBedHour: number | null;
   loading: boolean;
   error: string | null;
   connected: boolean;
@@ -28,6 +35,8 @@ type Result = {
 type Options = {
   enabled?: boolean;
 };
+
+const RECOMMENDED_SLEEP_HOURS = 9;
 
 function toLocalDecimalHourFromMillis(ms: number): number {
   const d = new Date(ms);
@@ -156,6 +165,36 @@ function calculateSleepForDay(sessions: RawSleepSession[], targetDate: Date): {
   };
 }
 
+function calculateSleepDebtOrCapital(sessions: RawSleepSession[], referenceDate: Date): SleepDebtOrCapital | null {
+  // Calculer pour les 7 derniers jours (ou moins si pas assez de données)
+  const daysData: number[] = [];
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(referenceDate);
+    date.setDate(date.getDate() - i);
+    
+    const dayData = calculateSleepForDay(sessions, date);
+    if (dayData.totalSleepHours !== null) {
+      daysData.push(dayData.totalSleepHours);
+    }
+  }
+
+  if (daysData.length === 0) return null;
+
+  // Calculer la moyenne
+  const average = daysData.reduce((sum, h) => sum + h, 0) / daysData.length;
+
+  if (average >= RECOMMENDED_SLEEP_HOURS) {
+    // Capital : somme des heures au-dessus de 9h par jour
+    const capital = daysData.reduce((sum, h) => sum + Math.max(0, h - RECOMMENDED_SLEEP_HOURS), 0);
+    return { type: "capital", hours: Number(capital.toFixed(2)) };
+  } else {
+    // Dette : somme des écarts à 9h par jour
+    const debt = daysData.reduce((sum, h) => sum + Math.max(0, RECOMMENDED_SLEEP_HOURS - h), 0);
+    return { type: "debt", hours: Number(debt.toFixed(2)) };
+  }
+}
+
 export function useGoogleFitSleep(options?: Options): Result {
   const enabled = options?.enabled ?? true;
 
@@ -163,6 +202,8 @@ export function useGoogleFitSleep(options?: Options): Result {
   const [bedHour, setBedHour] = React.useState<number | null>(null);
   const [totalSleepHours, setTotalSleepHours] = React.useState<number | null>(null);
   const [sleepSessions, setSleepSessions] = React.useState<SleepSession[] | null>(null);
+  const [sleepDebtOrCapital, setSleepDebtOrCapital] = React.useState<SleepDebtOrCapital | null>(null);
+  const [idealBedHour, setIdealBedHour] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [connected, setConnected] = React.useState<boolean>(false);
@@ -186,6 +227,8 @@ export function useGoogleFitSleep(options?: Options): Result {
       setBedHour(null);
       setTotalSleepHours(null);
       setSleepSessions(null);
+      setSleepDebtOrCapital(null);
+      setIdealBedHour(null);
       setLoading(false);
       setConnected(false);
       setError("Google non connecté. Connectez Google depuis la page d'accueil.");
@@ -203,6 +246,8 @@ export function useGoogleFitSleep(options?: Options): Result {
       setBedHour(null);
       setTotalSleepHours(null);
       setSleepSessions(null);
+      setSleepDebtOrCapital(null);
+      setIdealBedHour(null);
       setLoading(false);
       setConnected(true);
       setError("Aucune session de sommeil trouvée dans Google Fit.");
@@ -220,6 +265,19 @@ export function useGoogleFitSleep(options?: Options): Result {
     setBedHour(todaySleep.bedHour);
     setTotalSleepHours(todaySleep.totalSleepHours);
     setSleepSessions(todaySleep.sleepSessions);
+
+    // Calculer capital/dette
+    const debtOrCapital = calculateSleepDebtOrCapital(sessions, today);
+    setSleepDebtOrCapital(debtOrCapital);
+
+    // Calculer heure de coucher idéale
+    if (todaySleep.wakeHour !== null) {
+      const ideal = (todaySleep.wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
+      setIdealBedHour(Number(ideal.toFixed(4)));
+    } else {
+      setIdealBedHour(null);
+    }
+
     setLoading(false);
   }, [enabled]);
 
@@ -260,6 +318,8 @@ export function useGoogleFitSleep(options?: Options): Result {
     bedHour, 
     totalSleepHours,
     sleepSessions,
+    sleepDebtOrCapital,
+    idealBedHour,
     loading, 
     error, 
     connected, 

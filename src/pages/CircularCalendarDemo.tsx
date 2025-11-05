@@ -78,6 +78,12 @@ function formatDateForLog(date: Date): string {
   return `${dayName} ${dayNumber} ${monthName}`;
 }
 
+function formatHourMinute(decimal: number): string {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal % 1) * 60);
+  return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
 async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
@@ -372,6 +378,8 @@ const Visualiser = () => {
     bedHour,
     totalSleepHours,
     sleepSessions,
+    sleepDebtOrCapital,
+    idealBedHour,
     loading: fitLoading,
     error: fitError,
     connected: fitConnected,
@@ -595,13 +603,27 @@ const Visualiser = () => {
       return;
     } else if (fitError) {
       setLogs([{ message: "Sommeil indisponible", type: "info" }]);
-    } else if (fitConnected && wakeHour != null && bedHour != null) {
-      const sleepMsg = totalSleepHours 
-        ? `Sommeil: ${totalSleepHours.toFixed(1)}h`
-        : "Sommeil synchronisé";
-      setLogs([{ message: sleepMsg, type: "success" }]);
+    } else if (fitConnected && wakeHour != null && bedHour != null && totalSleepHours != null) {
+      // Format: "Sommeil : 6h00｜Capital/Dette : 10h15｜Coucher : 21h45"
+      const parts: string[] = [];
+      
+      // Partie sommeil
+      parts.push(`Sommeil : ${formatHourMinute(totalSleepHours)}`);
+      
+      // Partie capital/dette
+      if (sleepDebtOrCapital) {
+        const label = sleepDebtOrCapital.type === "capital" ? "Capital" : "Dette";
+        parts.push(`${label} : ${formatHourMinute(sleepDebtOrCapital.hours)}`);
+      }
+      
+      // Partie coucher (seulement pour aujourd'hui ou demain)
+      if ((isToday || isTomorrowDay) && idealBedHour !== null) {
+        parts.push(`Coucher : ${formatHourMinute(idealBedHour)}`);
+      }
+      
+      setLogs([{ message: parts.join("｜"), type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour, totalSleepHours]);
+  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour, totalSleepHours, sleepDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
 
   useEffect(() => {
     const today = new Date();
