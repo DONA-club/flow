@@ -54,7 +54,7 @@ const EventInfoBubble: React.FC<Props> = ({
           onClose && onClose();
         }, 300);
       }
-    }, 6000);
+    }, 5000);
   }, [isInteracting, onClose]);
 
   // Démarrer le timer au montage
