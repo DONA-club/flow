@@ -39,7 +39,25 @@ const EventInfoBubble: React.FC<Props> = ({
 }) => {
   const [visible, setVisible] = React.useState(true);
   const [isInteracting, setIsInteracting] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
   const timeoutRef = React.useRef<number | null>(null);
+
+  // Détection du thème
+  React.useEffect(() => {
+    const updateTheme = () => {
+      const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(dark);
+    };
+    
+    updateTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => updateTheme();
+    
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   // Fonction pour démarrer le timer d'estompe
   const startFadeTimer = React.useCallback(() => {
@@ -113,6 +131,11 @@ const EventInfoBubble: React.FC<Props> = ({
 
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
+  // Couleurs adaptées au thème
+  const textColor = isDarkMode ? "#ffffff" : "#1e293b"; // slate-900 en clair
+  const textSecondaryColor = isDarkMode ? "rgba(255, 255, 255, 0.8)" : "#334155"; // slate-700 en clair
+  const textTertiaryColor = isDarkMode ? "rgba(255, 255, 255, 0.6)" : "#475569"; // slate-600 en clair
+
   return (
     <div
       className={[
@@ -135,29 +158,53 @@ const EventInfoBubble: React.FC<Props> = ({
       <div className="absolute inset-0 rounded-full border border-white/20 shadow-2xl pointer-events-none" />
       
       {/* Contenu - Centré verticalement */}
-      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2 pointer-events-none">
+      <div className="relative flex flex-col items-center justify-center px-6 w-full h-full gap-2.5 pointer-events-none">
         {/* Organisateur (discret en haut) */}
         {organizer && (
-          <div className="text-xs text-white/60 truncate w-full font-light pointer-events-none">
+          <div 
+            className="text-xs truncate w-full font-light pointer-events-none"
+            style={{ 
+              color: textTertiaryColor,
+              fontFamily: "'Montserrat', sans-serif"
+            }}
+          >
             {organizer}
           </div>
         )}
 
         {/* Titre de l'événement */}
-        <div className="text-white font-bold text-base leading-tight line-clamp-2 pointer-events-none">
+        <div 
+          className="font-bold text-lg leading-tight line-clamp-2 pointer-events-none"
+          style={{ 
+            color: textColor,
+            fontFamily: "'Montserrat', sans-serif"
+          }}
+        >
           {title}
         </div>
 
         {/* Date formatée */}
         {date && (
-          <div className="text-white/80 text-sm font-medium pointer-events-none">
+          <div 
+            className="text-sm font-medium pointer-events-none"
+            style={{ 
+              color: textSecondaryColor,
+              fontFamily: "'Montserrat', sans-serif"
+            }}
+          >
             {date}
           </div>
         )}
 
         {/* Temps restant */}
         {timeRemaining && (
-          <div className="text-white/70 text-xs font-semibold pointer-events-none">
+          <div 
+            className="text-xs font-semibold pointer-events-none"
+            style={{ 
+              color: textTertiaryColor,
+              fontFamily: "'Montserrat', sans-serif"
+            }}
+          >
             {timeRemaining}
           </div>
         )}
@@ -178,8 +225,24 @@ const EventInfoBubble: React.FC<Props> = ({
                 </div>
               </div>
               <div className="flex flex-col items-start pointer-events-none">
-                <span className="text-white text-xs font-semibold pointer-events-none">Rejoindre</span>
-                <span className="text-white/60 text-[10px] font-light pointer-events-none">{platform}</span>
+                <span 
+                  className="text-xs font-semibold pointer-events-none"
+                  style={{ 
+                    color: textColor,
+                    fontFamily: "'Montserrat', sans-serif"
+                  }}
+                >
+                  Rejoindre
+                </span>
+                <span 
+                  className="text-[10px] font-light pointer-events-none"
+                  style={{ 
+                    color: textTertiaryColor,
+                    fontFamily: "'Montserrat', sans-serif"
+                  }}
+                >
+                  {platform}
+                </span>
               </div>
             </button>
           )}
@@ -191,7 +254,10 @@ const EventInfoBubble: React.FC<Props> = ({
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
               aria-label="Ouvrir dans le calendrier"
             >
-              <ExternalLink className="w-4 h-4 text-white/80 pointer-events-none" />
+              <ExternalLink 
+                className="w-4 h-4 pointer-events-none" 
+                style={{ color: textSecondaryColor }}
+              />
             </button>
           )}
         </div>

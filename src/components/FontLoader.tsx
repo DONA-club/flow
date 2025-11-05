@@ -28,8 +28,8 @@ const FontLoader: React.FC = () => {
       const l = document.createElement("link");
       l.id = fontLinkId;
       l.rel = "stylesheet";
-      // Poids utiles pour vos chiffres: 600/700
-      l.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap";
+      // Tous les poids de Montserrat
+      l.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap";
       document.head.appendChild(l);
     }
   }, []);
