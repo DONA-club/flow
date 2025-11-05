@@ -594,6 +594,7 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
+  // Log de sommeil basé sur le jour pointé (effectiveWake/Bed/TotalSleep)
   useEffect(() => {
     if (fitLoading) {
       return;
@@ -603,14 +604,14 @@ const Visualiser = () => {
       return;
     } else if (fitError) {
       setLogs([{ message: "Sommeil indisponible", type: "info" }]);
-    } else if (fitConnected && wakeHour != null && bedHour != null && totalSleepHours != null) {
+    } else if (fitConnected && effectiveWake != null && effectiveBed != null && effectiveTotalSleep != null) {
       // Format: "Sommeil : 6h00｜Capital/Dette : 10h15｜Coucher : 21h45"
       const parts: string[] = [];
       
       // Partie sommeil
-      parts.push(`Sommeil : ${formatHourMinute(totalSleepHours)}`);
+      parts.push(`Sommeil : ${formatHourMinute(effectiveTotalSleep)}`);
       
-      // Partie capital/dette
+      // Partie capital/dette (toujours basé sur aujourd'hui)
       if (sleepDebtOrCapital) {
         const label = sleepDebtOrCapital.type === "capital" ? "Capital" : "Dette";
         parts.push(`${label} : ${formatHourMinute(sleepDebtOrCapital.hours)}`);
@@ -623,7 +624,7 @@ const Visualiser = () => {
       
       setLogs([{ message: parts.join("｜"), type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, wakeHour, bedHour, totalSleepHours, sleepDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
+  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, sleepDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
 
   useEffect(() => {
     const today = new Date();
