@@ -127,130 +127,138 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={handleToggle}
+      <div 
+        className="fixed top-4 left-4 pointer-events-none"
+        style={{ zIndex: 1000 }}
+      >
+        <button
+          type="button"
+          onClick={handleToggle}
+          className={[
+            "glass px-3 py-2 backdrop-blur-md rounded-lg pointer-events-auto",
+            "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
+            "relative overflow-hidden",
+            className || "",
+          ].join(" ").trim()}
+          aria-label="Afficher les événements à venir"
+        >
+          {isAnimating && (
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+              style={{
+                animation: "shimmer-once 0.4s ease-out forwards"
+              }}
+            />
+          )}
+          <Calendar className="w-4 h-4" />
+          <span className="text-sm font-semibold tracking-tight">A venir</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="fixed top-4 left-4 pointer-events-none"
+      style={{ zIndex: 1000 }}
+    >
+      <div
         className={[
-          "fixed top-4 left-4 glass px-3 py-2 backdrop-blur-md rounded-lg",
-          "flex items-center gap-2 text-slate-100 hover:bg-white/20 transition-colors",
+          "w-[88vw] sm:w-[320px] md:w-[360px] pointer-events-auto",
+          "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
           "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
-        style={{ zIndex: 1000 }}
-        aria-label="Afficher les événements à venir"
+        aria-label="Événements à venir"
       >
         {isAnimating && (
           <div 
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
             style={{
               animation: "shimmer-once 0.4s ease-out forwards"
             }}
           />
         )}
-        <Calendar className="w-4 h-4" />
-        <span className="text-sm font-semibold tracking-tight">A venir</span>
-      </button>
-    );
-  }
-
-  return (
-    <div
-      className={[
-        "fixed top-4 left-4 w-[88vw] sm:w-[320px] md:w-[360px]",
-        "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
-        "relative overflow-hidden",
-        className || "",
-      ].join(" ").trim()}
-      style={{ zIndex: 1000 }}
-      aria-label="Événements à venir"
-    >
-      {isAnimating && (
-        <div 
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none"
-          style={{
-            animation: "shimmer-once 0.4s ease-out forwards"
-          }}
-        />
-      )}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-slate-200">
-          <Calendar className="w-4 h-4" />
-          <span className="text-sm font-semibold tracking-tight">A venir</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-slate-200">
+            <Calendar className="w-4 h-4" />
+            <span className="text-sm font-semibold tracking-tight">A venir</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggle}
+            className="p-1 rounded-md hover:bg-white/10 text-slate-300 transition-transform"
+            aria-label="Fermer la liste des événements"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="p-1 rounded-md hover:bg-white/10 text-slate-300 transition-transform"
-          aria-label="Fermer la liste des événements"
-        >
-          <ChevronDown className="w-4 h-4" />
-        </button>
-      </div>
 
-      <ul className="space-y-2">
-        {upcoming.map(({ e, start, end }, idx) => {
-          const title = e.title || "Événement";
-          const place =
-            e.place ||
-            e?.raw?.location?.displayName ||
-            e?.raw?.organizer?.emailAddress?.name ||
-            "Agenda";
+        <ul className="space-y-2">
+          {upcoming.map(({ e, start, end }, idx) => {
+            const title = e.title || "Événement";
+            const place =
+              e.place ||
+              e?.raw?.location?.displayName ||
+              e?.raw?.organizer?.emailAddress?.name ||
+              "Agenda";
 
-          const startHour =
-            typeof e.start === "number"
-              ? formatHour(e.start)
-              : start
-              ? start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : "";
-          const endHour =
-            typeof e.end === "number"
-              ? formatHour(e.end!)
-              : end
-              ? end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : "";
-          const range = startHour && endHour ? `${startHour} - ${endHour}` : startHour;
+            const startHour =
+              typeof e.start === "number"
+                ? formatHour(e.start)
+                : start
+                ? start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : "";
+            const endHour =
+              typeof e.end === "number"
+                ? formatHour(e.end!)
+                : end
+                ? end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : "";
+            const range = startHour && endHour ? `${startHour} - ${endHour}` : startHour;
 
-          const dayLabel = start ? getDayLabel(start, nowRef) : "";
-          const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
+            const dayLabel = start ? getDayLabel(start, nowRef) : "";
+            const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
 
-          // Choisir l'icône selon le jour
-          let EventIcon = Clock;
-          let iconColor = cursorColor;
-          
-          if (dayDiff === 0) {
-            EventIcon = Clock;
-            iconColor = cursorColor;
-          } else if (dayDiff === 1) {
-            EventIcon = Calendar;
-            iconColor = "currentColor";
-          } else {
-            EventIcon = CalendarDays;
-            iconColor = "currentColor";
-          }
+            // Choisir l'icône selon le jour
+            let EventIcon = Clock;
+            let iconColor = cursorColor;
+            
+            if (dayDiff === 0) {
+              EventIcon = Clock;
+              iconColor = cursorColor;
+            } else if (dayDiff === 1) {
+              EventIcon = Calendar;
+              iconColor = "currentColor";
+            } else {
+              EventIcon = CalendarDays;
+              iconColor = "currentColor";
+            }
 
-          return (
-            <li key={idx}>
-              <button
-                type="button"
-                onClick={() => handleEventClick(e)}
-                className="w-full flex items-start gap-3 rounded-lg bg-white/6 hover:bg-white/10 transition-colors px-3 py-2 text-left"
-                aria-label={`Ouvrir l'événement: ${title}`}
-              >
-                <div className="shrink-0 mt-0.5">
-                  <EventIcon className="w-4 h-4" style={{ color: iconColor }} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-slate-100 text-sm font-medium truncate">{title}</div>
-                  <div className="text-slate-300 text-xs truncate">{place}</div>
-                  <div className="text-slate-400 text-xs mt-0.5">
-                    {dayLabel}{range ? ` - ${range}` : ""}
+            return (
+              <li key={idx}>
+                <button
+                  type="button"
+                  onClick={() => handleEventClick(e)}
+                  className="w-full flex items-start gap-3 rounded-lg bg-white/6 hover:bg-white/10 transition-colors px-3 py-2 text-left"
+                  aria-label={`Ouvrir l'événement: ${title}`}
+                >
+                  <div className="shrink-0 mt-0.5">
+                    <EventIcon className="w-4 h-4" style={{ color: iconColor }} />
                   </div>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                  <div className="min-w-0">
+                    <div className="text-slate-100 text-sm font-medium truncate">{title}</div>
+                    <div className="text-slate-300 text-xs truncate">{place}</div>
+                    <div className="text-slate-400 text-xs mt-0.5">
+                      {dayLabel}{range ? ` - ${range}` : ""}
+                    </div>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 };
