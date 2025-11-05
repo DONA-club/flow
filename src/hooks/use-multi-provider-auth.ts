@@ -116,7 +116,9 @@ export function useMultiProviderAuth() {
   const connectProvider = useCallback(async (provider: Provider) => {
     const config = PROVIDER_CONFIGS[provider];
     
+    // Sauvegarder dans localStorage ET sessionStorage pour plus de fiabilité
     localStorage.setItem("pending_provider_connection", provider);
+    sessionStorage.setItem("pending_provider_connection", provider);
     
     toast(`Redirection vers ${provider}…`, {
       description: "Veuillez compléter la connexion dans la fenêtre suivante.",
@@ -134,18 +136,50 @@ export function useMultiProviderAuth() {
       options.queryParams = config.queryParams;
     }
 
-    // TOUJOURS utiliser signInWithOAuth pour garantir la récupération des tokens
-    const { error } = await supabase.auth.signInWithOAuth({ 
-      provider: config.supabaseProvider as any, 
-      options 
-    });
+    // Vérifier si un utilisateur est déjà connecté
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
 
-    if (error) {
-      localStorage.removeItem("pending_provider_connection");
-      toast.error(`Connexion ${provider} indisponible`, {
-        description: error.message,
+    if (!currentUser) {
+      // Première connexion : utiliser signInWithOAuth
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider: config.supabaseProvider as any, 
+        options 
       });
-      return false;
+
+      if (error) {
+        localStorage.removeItem("pending_provider_connection");
+        sessionStorage.removeItem("pending_provider_connection");
+        toast.error(`Connexion ${provider} indisponible`, {
+          description: error.message,
+        });
+        return false;
+      }
+    } else {
+      // Utilisateur déjà connecté : utiliser linkIdentity
+      const { error } = await supabase.auth.linkIdentity({
+        provider: config.supabaseProvider as any,
+        options
+      } as any);
+
+      if (error) {
+        // Si linkIdentity échoue (identity_already_exists), utiliser signInWithOAuth
+        console.log(`LinkIdentity failed for ${provider}, trying signInWithOAuth`);
+        
+        const { error: signInError } = await supabase.auth.signInWithOAuth({ 
+          provider: config.supabaseProvider as any, 
+          options 
+        });
+
+        if (signInError) {
+          localStorage.removeItem("pending_provider_connection");
+          sessionStorage.removeItem("pending_provider_connection");
+          toast.error(`Connexion ${provider} indisponible`, {
+            description: signInError.message,
+          });
+          return false;
+        }
+      }
     }
 
     return true;
