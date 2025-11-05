@@ -334,6 +334,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const lastUpdateTimeRef = React.useRef<number>(0);
   const accumulatedAngleDeltaRef = React.useRef<number>(0);
 
+  // Ref pour stocker les callbacks à exécuter après render
+  const pendingCallbacksRef = React.useRef<Array<() => void>>([]);
+
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 640);
     checkMobile();
@@ -349,6 +352,15 @@ export const CircularCalendar: React.FC<Props> = ({
     onVirtualDateTimeChangeRef.current = onVirtualDateTimeChange;
   }, [onVirtualDateTimeChange]);
 
+  // Exécuter les callbacks en attente après chaque render
+  React.useEffect(() => {
+    if (pendingCallbacksRef.current.length > 0) {
+      const callbacks = [...pendingCallbacksRef.current];
+      pendingCallbacksRef.current = [];
+      callbacks.forEach(cb => cb());
+    }
+  });
+
   React.useEffect(() => {
     if (externalSelectedEvent) {
       setSelectedEvent(externalSelectedEvent);
@@ -362,7 +374,9 @@ export const CircularCalendar: React.FC<Props> = ({
       setNow(current);
       if (!isScrolling && !isReturning && !isDraggingCursor) {
         setVirtualDateTime(current);
-        onVirtualDateTimeChangeRef.current?.(null);
+        pendingCallbacksRef.current.push(() => {
+          onVirtualDateTimeChangeRef.current?.(null);
+        });
       }
     };
     updateNow();
@@ -465,13 +479,19 @@ export const CircularCalendar: React.FC<Props> = ({
       const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
       setIsScrolling(true);
       
-      onVirtualDateTimeChangeRef.current?.(nextTime);
+      pendingCallbacksRef.current.push(() => {
+        onVirtualDateTimeChangeRef.current?.(nextTime);
+      });
 
       if (dayChanged) {
         setShowDateLabel(true);
         const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
         setLastDayNotified((prevKey) => {
-          if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+          if (dayKey !== prevKey) {
+            pendingCallbacksRef.current.push(() => {
+              onDayChangeRef.current?.(nextTime);
+            });
+          }
           return dayKey;
         });
       }
@@ -524,7 +544,9 @@ export const CircularCalendar: React.FC<Props> = ({
           const interpolated = new Date(captured.getTime() + diff * eased);
           setVirtualDateTime(interpolated);
           
-          onVirtualDateTimeChangeRef.current?.(interpolated);
+          pendingCallbacksRef.current.push(() => {
+            onVirtualDateTimeChangeRef.current?.(interpolated);
+          });
 
           if (progress < 1) {
             animationFrameRef.current = requestAnimationFrame(animate);
@@ -537,7 +559,9 @@ export const CircularCalendar: React.FC<Props> = ({
             setShowDateLabel(false);
             horizontalScrollAccumulator.current = 0;
             
-            onVirtualDateTimeChangeRef.current?.(null);
+            pendingCallbacksRef.current.push(() => {
+              onVirtualDateTimeChangeRef.current?.(null);
+            });
 
             if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
             labelTimeoutRef.current = window.setTimeout(() => {
@@ -646,13 +670,19 @@ export const CircularCalendar: React.FC<Props> = ({
             
             const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
             
-            onVirtualDateTimeChangeRef.current?.(nextTime);
+            pendingCallbacksRef.current.push(() => {
+              onVirtualDateTimeChangeRef.current?.(nextTime);
+            });
 
             if (dayChanged) {
               setShowDateLabel(true);
               const dayKey = `${nextTime.getFullYear()}-${nextTime.getMonth()}-${nextTime.getDate()}`;
               setLastDayNotified((prevKey) => {
-                if (dayKey !== prevKey) onDayChangeRef.current?.(nextTime);
+                if (dayKey !== prevKey) {
+                  pendingCallbacksRef.current.push(() => {
+                    onDayChangeRef.current?.(nextTime);
+                  });
+                }
                 return dayKey;
               });
             }
@@ -721,7 +751,9 @@ export const CircularCalendar: React.FC<Props> = ({
             const interpolated = new Date(captured.getTime() + diff * eased);
             setVirtualDateTime(interpolated);
             
-            onVirtualDateTimeChangeRef.current?.(interpolated);
+            pendingCallbacksRef.current.push(() => {
+              onVirtualDateTimeChangeRef.current?.(interpolated);
+            });
 
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
@@ -733,7 +765,9 @@ export const CircularCalendar: React.FC<Props> = ({
               setCursorEventIndex(null);
               setShowDateLabel(false);
               
-              onVirtualDateTimeChangeRef.current?.(null);
+              pendingCallbacksRef.current.push(() => {
+                onVirtualDateTimeChangeRef.current?.(null);
+              });
 
               if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
               labelTimeoutRef.current = window.setTimeout(() => {
