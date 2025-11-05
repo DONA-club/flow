@@ -156,13 +156,22 @@ export function useMultiProviderAuth() {
         return i.provider === provider;
       });
 
-      // Si l'identity existe déjà, utiliser linkIdentity pour forcer le refresh des tokens
-      // Sinon, utiliser linkIdentity pour ajouter une nouvelle identity
-      const result = await supabase.auth.linkIdentity({
-        provider: config.supabaseProvider as any,
-        options
-      } as any);
-      error = result.error;
+      if (hasIdentity) {
+        // Si l'identity existe déjà, utiliser signInWithOAuth pour forcer le refresh des tokens
+        // Cela va créer une nouvelle session avec les nouveaux tokens
+        const result = await supabase.auth.signInWithOAuth({ 
+          provider: config.supabaseProvider as any, 
+          options 
+        });
+        error = result.error;
+      } else {
+        // Si l'identity n'existe pas, utiliser linkIdentity pour l'ajouter
+        const result = await supabase.auth.linkIdentity({
+          provider: config.supabaseProvider as any,
+          options
+        } as any);
+        error = result.error;
+      }
     }
 
     if (error) {

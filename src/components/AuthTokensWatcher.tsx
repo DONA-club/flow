@@ -99,7 +99,42 @@ function captureTokensFromUrl(): { accessToken: string | null; refreshToken: str
   };
 }
 
+function checkForOAuthError(): { hasError: boolean; errorCode: string | null; errorDescription: string | null } {
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get('error');
+  const errorCode = params.get('error_code');
+  const errorDescription = params.get('error_description');
+  
+  return {
+    hasError: !!error,
+    errorCode,
+    errorDescription
+  };
+}
+
 async function saveProviderTokens() {
+  // Vérifier s'il y a une erreur OAuth dans l'URL
+  const { hasError, errorCode, errorDescription } = checkForOAuthError();
+  
+  if (hasError) {
+    const pendingProvider = localStorage.getItem("pending_provider_connection");
+    localStorage.removeItem("pending_provider_connection");
+    
+    if (errorCode === "identity_already_exists") {
+      // L'identity existe déjà, on va forcer une reconnexion
+      console.log("Identity already exists, will retry with signInWithOAuth");
+      // Ne pas afficher d'erreur, juste nettoyer l'URL
+    } else {
+      toast.error("Erreur de connexion", {
+        description: errorDescription || "Une erreur est survenue lors de la connexion.",
+      });
+    }
+    
+    // Nettoyer l'URL
+    window.history.replaceState(null, '', window.location.pathname);
+    return;
+  }
+
   const { data } = await supabase.auth.getSession();
   const session: any = data?.session ?? null;
   const user = session?.user ?? null;
