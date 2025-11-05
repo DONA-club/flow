@@ -54,6 +54,7 @@ type SleepSession = {
 type SleepDebtOrCapital = {
   type: "capital" | "debt";
   hours: number;
+  daysCount: number;
 };
 
 function toHourDecimal(iso: string): number {
@@ -411,6 +412,7 @@ const Visualiser = () => {
   const [currentDayTotalSleep, setCurrentDayTotalSleep] = useState<number | null>(null);
   const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
   const [currentDayDebtOrCapital, setCurrentDayDebtOrCapital] = useState<SleepDebtOrCapital | null>(null);
+  const [isHoveringRing, setIsHoveringRing] = useState(false);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -610,8 +612,12 @@ const Visualiser = () => {
     }
   }, [oLoading, oError, oConnected, oEvents.length]);
 
-  // Log de sommeil basé sur le jour pointé (effectiveWake/Bed/TotalSleep/DebtOrCapital)
+  // Log de sommeil basé sur le jour pointé et le survol de l'anneau
   useEffect(() => {
+    if (!isHoveringRing) {
+      return;
+    }
+
     if (fitLoading) {
       return;
     } else if (fitError && fitError.includes("non connecté")) {
@@ -622,6 +628,7 @@ const Visualiser = () => {
       setLogs([{ message: "Sommeil indisponible", type: "info" }]);
     } else if (fitConnected && effectiveWake != null && effectiveBed != null && effectiveTotalSleep != null) {
       // Format: "Sommeil : 6h00｜Capital/Dette : 10h15｜Coucher : 21h45"
+      // ou "Sommeil : 6h00｜Dette : 4h00 sur 3 jours｜Coucher : 21h45"
       const parts: string[] = [];
       
       // Partie sommeil
@@ -630,7 +637,15 @@ const Visualiser = () => {
       // Partie capital/dette (basé sur le jour pointé)
       if (effectiveDebtOrCapital) {
         const label = effectiveDebtOrCapital.type === "capital" ? "Capital" : "Dette";
-        parts.push(`${label} : ${formatHourMinute(effectiveDebtOrCapital.hours)}`);
+        const hoursFormatted = formatHourMinute(effectiveDebtOrCapital.hours);
+        
+        if (effectiveDebtOrCapital.daysCount === 7) {
+          // Si 7 jours disponibles, format court
+          parts.push(`${label} : ${hoursFormatted}`);
+        } else {
+          // Sinon, préciser le nombre de jours
+          parts.push(`${label} : ${hoursFormatted} sur ${effectiveDebtOrCapital.daysCount} jour${effectiveDebtOrCapital.daysCount > 1 ? 's' : ''}`);
+        }
       }
       
       // Partie coucher (seulement pour aujourd'hui ou demain)
@@ -640,7 +655,7 @@ const Visualiser = () => {
       
       setLogs([{ message: parts.join("｜"), type: "success" }]);
     }
-  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
+  }, [isHoveringRing, fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
 
   useEffect(() => {
     const today = new Date();
@@ -772,6 +787,8 @@ const Visualiser = () => {
         <div
           className="relative flex items-center justify-center"
           style={{ width: size + outerPad * 2, height: size + outerPad * 2 }}
+          onMouseEnter={() => setIsHoveringRing(true)}
+          onMouseLeave={() => setIsHoveringRing(false)}
         >
           <CircularCalendar
             sunrise={displaySunrise}

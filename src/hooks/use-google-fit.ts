@@ -11,6 +11,7 @@ type SleepSession = {
 type SleepDebtOrCapital = {
   type: "capital" | "debt";
   hours: number;
+  daysCount: number;
 };
 
 type Result = {
@@ -196,11 +197,11 @@ function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referen
   if (average >= RECOMMENDED_SLEEP_HOURS) {
     // Capital : somme des heures au-dessus de 9h par jour
     const capital = daysData.reduce((sum, h) => sum + Math.max(0, h - RECOMMENDED_SLEEP_HOURS), 0);
-    return { type: "capital", hours: Number(capital.toFixed(2)) };
+    return { type: "capital", hours: Number(capital.toFixed(2)), daysCount: daysData.length };
   } else {
     // Dette : somme des écarts à 9h par jour
     const debt = daysData.reduce((sum, h) => sum + Math.max(0, RECOMMENDED_SLEEP_HOURS - h), 0);
-    return { type: "debt", hours: Number(debt.toFixed(2)) };
+    return { type: "debt", hours: Number(debt.toFixed(2)), daysCount: daysData.length };
   }
 }
 
