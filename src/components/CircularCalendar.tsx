@@ -339,13 +339,9 @@ export const CircularCalendar: React.FC<Props> = ({
   const nowIntervalRef = React.useRef<number | null>(null);
   const lastLogTimeRef = React.useRef<number>(0);
   
-  // Refs stables pour les callbacks
+  // Refs stables pour les callbacks et données
   const upcomingEventsRef = React.useRef<any[]>([]);
   const onDayChangeRef = React.useRef(onDayChange);
-
-  React.useEffect(() => {
-    upcomingEventsRef.current = upcomingEvents;
-  }, [upcomingEvents]);
 
   React.useEffect(() => {
     onDayChangeRef.current = onDayChange;
@@ -358,28 +354,19 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
-  // Interval pour mettre à jour 'now' - DÉSACTIVÉ pendant scroll et retour
+  // Interval 'now'
   React.useEffect(() => {
     const updateNow = () => {
       const newNow = new Date();
       setNow(newNow);
-      
-      // Synchroniser virtualDateTime avec now SEULEMENT si on n'est pas en train de scroller ou revenir
       if (!isScrolling && !isReturning) {
         setVirtualDateTime(newNow);
       }
     };
-
-    // Mettre à jour immédiatement
     updateNow();
-
-    // Puis toutes les secondes
     nowIntervalRef.current = window.setInterval(updateNow, 1000);
-
     return () => {
-      if (nowIntervalRef.current) {
-        window.clearInterval(nowIntervalRef.current);
-      }
+      if (nowIntervalRef.current) window.clearInterval(nowIntervalRef.current);
     };
   }, [isScrolling, isReturning]);
 
@@ -400,17 +387,14 @@ export const CircularCalendar: React.FC<Props> = ({
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     const pageContainer = document.getElementById('calendar-page-container');
-    
     if (!container || !pageContainer) return;
 
     const updateGradientCenter = () => {
       const rect = container.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      
       const percentX = (centerX / window.innerWidth) * 100;
       const percentY = (centerY / window.innerHeight) * 100;
-      
       pageContainer.style.setProperty('--calendar-center-x', `${percentX}%`);
       pageContainer.style.setProperty('--calendar-center-y', `${percentY}%`);
     };
@@ -418,18 +402,16 @@ export const CircularCalendar: React.FC<Props> = ({
     updateGradientCenter();
     window.addEventListener('resize', updateGradientCenter);
     window.addEventListener('scroll', updateGradientCenter);
-    
     return () => {
       window.removeEventListener('resize', updateGradientCenter);
       window.removeEventListener('scroll', updateGradientCenter);
     };
   }, [size]);
 
-  // Filtrer les événements pour les afficher sur la roue (3 jours à partir de virtualDateTime)
+  // Filtrer les événements pour 3 jours depuis virtualDateTime
   const upcomingEvents = React.useMemo(() => {
     const virtualDayStart = new Date(virtualDateTime);
     virtualDayStart.setHours(0, 0, 0, 0);
-    
     const threeDaysLater = new Date(virtualDayStart);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
@@ -441,11 +423,15 @@ export const CircularCalendar: React.FC<Props> = ({
       })
       .filter((x) => x.start && x.end) as { e: Event; start: Date; end: Date }[];
 
-    return eventsWithDates.filter((x) => {
-      return x.start.getTime() >= virtualDayStart.getTime() && 
-             x.start.getTime() < threeDaysLater.getTime();
-    }).sort((a, b) => a.start.getTime() - b.start.getTime());
+    return eventsWithDates
+      .filter((x) => x.start.getTime() >= virtualDayStart.getTime() && x.start.getTime() < threeDaysLater.getTime())
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, virtualDateTime, now]);
+
+  // IMPORTANT: mettre à jour la ref APRÈS la déclaration de upcomingEvents
+  React.useEffect(() => {
+    upcomingEventsRef.current = upcomingEvents;
+  }, [upcomingEvents]);
 
   const hourDecimal = virtualDateTime.getHours() + virtualDateTime.getMinutes() / 60 + virtualDateTime.getSeconds() / 3600;
   const hour = virtualDateTime.getHours();
@@ -470,26 +456,15 @@ export const CircularCalendar: React.FC<Props> = ({
     const endAngle = startAngle + blockAngle;
 
     if (i % 60 === 0) {
-      return {
-        d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
-        fill: "none",
-        key: i,
-      };
+      return { d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle), fill: "none", key: i };
     }
-
     const isDayBlock = isDayMinute(i, sunrise, sunset);
-    return {
-      d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle),
-      fill: isDayBlock ? SEASON_COLORS[currentSeason] : NIGHT_COLOR,
-      key: i,
-    };
+    return { d: getWedgePath(cx, cy, RADIUS, INNER_RADIUS, startAngle, endAngle), fill: isDayBlock ? SEASON_COLORS[currentSeason] : NIGHT_COLOR, key: i };
   });
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
-  
   const cursorAngle = (hourDecimal / 24) * 360 - 90;
   const cursorRad = (Math.PI / 180) * cursorAngle;
-  
   const cursorExtension = RING_THICKNESS * 0.2;
   const cursorX1 = cx + (INNER_RADIUS - cursorExtension) * Math.cos(cursorRad);
   const cursorY1 = cy + (INNER_RADIUS - cursorExtension) * Math.sin(cursorRad);
@@ -560,17 +535,7 @@ export const CircularCalendar: React.FC<Props> = ({
     const y1 = cy + INNER_RADIUS * Math.sin(angle);
     const x2 = cx + RADIUS * Math.cos(angle);
     const y2 = cy + RADIUS * Math.sin(angle);
-    return (
-      <line
-        key={i}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke="black"
-        strokeWidth={dividerWidth}
-      />
-    );
+    return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="black" strokeWidth={dividerWidth} />;
   });
 
   const hourNumbers = Array.from({ length: 24 }).map((_, i) => {
@@ -579,7 +544,6 @@ export const CircularCalendar: React.FC<Props> = ({
     const r = (RADIUS + INNER_RADIUS) / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
-
     const isCurrent = i === hour;
     return (
       <text
@@ -594,9 +558,7 @@ export const CircularCalendar: React.FC<Props> = ({
         style={{
           pointerEvents: "none",
           userSelect: "none",
-          filter: isCurrent
-            ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)"
-            : "drop-shadow(0 1px 0 #0008)",
+          filter: isCurrent ? "drop-shadow(0 0 6px #2563ebcc) drop-shadow(0 1px 0 #0008)" : "drop-shadow(0 1px 0 #0008)",
           opacity: isCurrent ? 1 : 0.92,
           fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
           paintOrder: "stroke",
@@ -619,43 +581,37 @@ export const CircularCalendar: React.FC<Props> = ({
     isDarkMode ? "#60a5fa" : "#2563eb",
   ];
 
-  // useEffect pour le listener wheel - SANS DÉPENDANCES pour éviter les re-attachements
+  // Listener wheel: attaché une seule fois, utilise des refs stables
   React.useEffect(() => {
     const container = document.getElementById('calendar-container');
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      
       console.log("🖱️ Wheel event détecté");
-      
-      // Annuler toute animation en cours
+
       if (animationFrameRef.current) {
         console.log("❌ Annulation animation en cours");
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
-      
+
       setIsReturning(false);
       setShowTimeLabel(false);
       setIsLabelFadingOut(false);
-      
+
       const deltaMinutes = e.deltaY > 0 ? 15 : -15;
-      
+
       setVirtualDateTime((prev) => {
         const newVirtualTime = new Date(prev);
         newVirtualTime.setMinutes(newVirtualTime.getMinutes() + deltaMinutes);
-        
         console.log(`📅 Nouveau virtualDateTime: ${newVirtualTime.toLocaleTimeString()}`);
-        
+
         const dayChanged = newVirtualTime.getDate() !== prev.getDate();
-        
         setIsScrolling(true);
-        
+
         if (dayChanged) {
           setShowDateLabel(true);
-          
-          // Notifier le changement de jour pour précharger les événements
           const dayKey = `${newVirtualTime.getFullYear()}-${newVirtualTime.getMonth()}-${newVirtualTime.getDate()}`;
           setLastDayNotified((prevKey) => {
             if (dayKey !== prevKey && onDayChangeRef.current) {
@@ -664,83 +620,72 @@ export const CircularCalendar: React.FC<Props> = ({
             return dayKey;
           });
         }
-        
-        // Recherche d'événement
+
+        // Chercher un événement au curseur virtuel
         let foundEventIndex: number | null = null;
         const virtualHour = newVirtualTime.getHours() + newVirtualTime.getMinutes() / 60;
-        
+
         const virtualDayStart = new Date(newVirtualTime);
         virtualDayStart.setHours(0, 0, 0, 0);
         const nextDay = new Date(virtualDayStart);
         nextDay.setDate(nextDay.getDate() + 1);
-        
+
         const dayEvents = upcomingEventsRef.current.filter((x: any) => {
-          return x.start.getTime() >= virtualDayStart.getTime() && 
-                 x.start.getTime() < nextDay.getTime();
+          return x.start.getTime() >= virtualDayStart.getTime() && x.start.getTime() < nextDay.getTime();
         });
-        
+
         for (let i = 0; i < dayEvents.length; i++) {
           const { e, start, end } = dayEvents[i];
-          
           const startHour = start.getHours() + start.getMinutes() / 60;
           const endHour = end.getHours() + end.getMinutes() / 60;
-          
           if (virtualHour >= startHour && virtualHour <= endHour) {
             foundEventIndex = i;
             setSelectedEvent(e);
             break;
           }
         }
-        
-        if (foundEventIndex === null) {
-          setSelectedEvent(null);
-        }
-        
+
+        if (foundEventIndex === null) setSelectedEvent(null);
         setCursorEventIndex(foundEventIndex);
-        
-        // Annuler le timeout précédent
+
+        // Timeout de retour au présent
         if (scrollTimeoutRef.current) {
           console.log("⏱️ Annulation timeout précédent");
           window.clearTimeout(scrollTimeoutRef.current);
         }
-        
+
         const randomDelay = 8000 + Math.random() * 2000;
         console.log(`⏰ Timeout programmé dans ${Math.round(randomDelay)}ms`);
-        
         const capturedVirtualTime = new Date(newVirtualTime);
-        
+
         scrollTimeoutRef.current = window.setTimeout(() => {
           console.log("🔄 Début retour au présent");
           setIsScrolling(false);
           setIsReturning(true);
-          
+
           const duration = 1500;
           const startTime = performance.now();
-          
+
           const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const easedProgress = easeOutCubic(progress);
-            
-            // Calculer la nouvelle heure cible (maintenant)
+
             const targetTime = new Date();
             const timeDiff = targetTime.getTime() - capturedVirtualTime.getTime();
             const interpolatedTime = new Date(capturedVirtualTime.getTime() + timeDiff * easedProgress);
-            
-            // Log toutes les 200ms pour éviter le flood
+
             const nowMs = performance.now();
             if (nowMs - lastLogTimeRef.current > 200) {
               console.log(`⏱️ Animation: ${Math.round(progress * 100)}% | virtualDateTime: ${interpolatedTime.toLocaleTimeString()}`);
               lastLogTimeRef.current = nowMs;
             }
-            
-            // CRUCIAL: Mettre à jour virtualDateTime à chaque frame
+
             setVirtualDateTime(interpolatedTime);
-            
+
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-              // Animation terminée
               console.log("✅ Retour terminé");
               setVirtualDateTime(new Date());
               setIsReturning(false);
@@ -748,7 +693,7 @@ export const CircularCalendar: React.FC<Props> = ({
               setIsLabelFadingOut(false);
               setCursorEventIndex(null);
               setShowDateLabel(false);
-              
+
               if (labelTimeoutRef.current) {
                 window.clearTimeout(labelTimeoutRef.current);
               }
@@ -761,35 +706,29 @@ export const CircularCalendar: React.FC<Props> = ({
               }, 3000);
             }
           };
-          
+
           animationFrameRef.current = requestAnimationFrame(animate);
         }, randomDelay);
-        
+
         return newVirtualTime;
       });
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    
+
     return () => {
       container.removeEventListener('wheel', handleWheel);
-      if (scrollTimeoutRef.current) {
-        window.clearTimeout(scrollTimeoutRef.current);
-      }
-      if (labelTimeoutRef.current) {
-        window.clearTimeout(labelTimeoutRef.current);
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, []); // AUCUNE DÉPENDANCE - le listener est attaché une seule fois
+  }, []); // attaché une seule fois
 
   const eventArcs = upcomingEvents.map((item, idx) => {
     const { e, start, end } = item;
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
-    
+
     const startAngle = angleFromHour(startHour);
     const endAngle = angleFromHour(endHour);
 
@@ -797,20 +736,18 @@ export const CircularCalendar: React.FC<Props> = ({
     const isCurrent = start.getTime() <= virtualMs && end.getTime() > virtualMs;
     const isHovered = hoveredEventIndex === idx;
     const isCursorEvent = cursorEventIndex === idx;
-    
+
     const dayDiff = getDaysDifference(start, virtualDateTime);
     const colorIndex = Math.min(Math.abs(dayDiff), dayColors.length - 1);
     const color = dayColors[colorIndex];
-    
+
     const totalEvents = upcomingEvents.length;
     const radiusStep = RING_THICKNESS / Math.max(totalEvents, 1);
     const eventRadius = INNER_RADIUS + radiusStep * idx + radiusStep / 2;
 
     const baseOpacity = isCurrent ? 1 : 0.7;
     const opacity = (isHovered || isCursorEvent) ? 1 : baseOpacity;
-    const strokeWidth = (isHovered || isCursorEvent)
-      ? Math.max(3, radiusStep * 1.2) 
-      : Math.max(2, radiusStep * 0.8);
+    const strokeWidth = (isHovered || isCursorEvent) ? Math.max(3, radiusStep * 1.2) : Math.max(2, radiusStep * 0.8);
 
     return (
       <g key={`event-${idx}`}>
@@ -821,13 +758,9 @@ export const CircularCalendar: React.FC<Props> = ({
             stroke="rgba(255, 255, 255, 0.3)"
             strokeWidth={strokeWidth + 4}
             strokeLinecap="round"
-            style={{
-              pointerEvents: "none",
-              filter: "blur(4px)",
-            }}
+            style={{ pointerEvents: "none", filter: "blur(4px)" }}
           />
         )}
-        
         <path
           d={getArcPath(cx, cy, eventRadius, startAngle, endAngle)}
           fill="none"
@@ -835,12 +768,10 @@ export const CircularCalendar: React.FC<Props> = ({
           strokeOpacity={opacity}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          style={{ 
-            pointerEvents: "stroke", 
+          style={{
+            pointerEvents: "stroke",
             cursor: "pointer",
-            filter: (isHovered || isCursorEvent)
-              ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)`
-              : "none",
+            filter: (isHovered || isCursorEvent) ? `drop-shadow(0 0 8px ${color}88) drop-shadow(0 0 12px ${color}44)` : "none",
             transition: "all 0.2s ease-out",
           }}
           onClick={() => handleEventClick(e)}
@@ -852,48 +783,29 @@ export const CircularCalendar: React.FC<Props> = ({
   });
 
   const sleepOverlays: JSX.Element[] = [];
-  
   if (typeof wakeHour === "number" && typeof bedHour === "number") {
     const bedAngle = angleFromHour(bedHour);
     const wakeAngle = angleFromHour(wakeHour);
-    
     sleepOverlays.push(
-      <path
-        key="sleep-main"
-        d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, bedAngle, wakeAngle)}
-        fill="rgba(0, 0, 0, 0.4)"
-        style={{ pointerEvents: "none" }}
-      />
+      <path key="sleep-main" d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, bedAngle, wakeAngle)} fill="rgba(0, 0, 0, 0.4)" style={{ pointerEvents: "none" }} />
     );
-
     const recommendedSleepStart = (wakeHour - 9 + 24) % 24;
     const recommendedAngle = angleFromHour(recommendedSleepStart);
-    
     sleepOverlays.push(
-      <path
-        key="sleep-recommended"
-        d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, recommendedAngle, bedAngle)}
-        fill="rgba(0, 0, 0, 0.2)"
-        style={{ pointerEvents: "none" }}
-      />
+      <path key="sleep-recommended" d={getWedgePath(cx, cy, RADIUS, INNER_RADIUS, recommendedAngle, bedAngle)} fill="rgba(0, 0, 0, 0.2)" style={{ pointerEvents: "none" }} />
     );
   }
 
   const handleEventClick = (evt: Event) => {
     setSelectedEvent(evt);
     setCursorEventIndex(null);
-    
-    if (onEventClick) {
-      onEventClick(evt);
-    }
+    if (onEventClick) onEventClick(evt);
   };
 
   const handleBubbleClose = () => {
     setSelectedEvent(null);
     setCursorEventIndex(null);
-    if (onEventBubbleClosed) {
-      onEventBubbleClosed();
-    }
+    if (onEventBubbleClosed) onEventBubbleClosed();
   };
 
   let eventOrganizer = "";
@@ -904,17 +816,11 @@ export const CircularCalendar: React.FC<Props> = ({
 
   if (selectedEvent) {
     const startDate = getEventStartDate(selectedEvent, virtualDateTime);
-    
     if (startDate) {
       eventDate = formatEventDate(startDate);
       timeRemaining = formatTimeRemaining(startDate, virtualDateTime);
     }
-
-    eventOrganizer = selectedEvent.raw?.organizer?.displayName || 
-                     selectedEvent.raw?.organizer?.emailAddress?.name || 
-                     selectedEvent.place || 
-                     "";
-    
+    eventOrganizer = selectedEvent.raw?.organizer?.displayName || selectedEvent.raw?.organizer?.emailAddress?.name || selectedEvent.place || "";
     eventUrl = selectedEvent.url || selectedEvent.raw?.htmlLink || selectedEvent.raw?.webLink || "";
     videoLink = extractVideoConferenceLink(selectedEvent) || "";
   }
@@ -922,9 +828,7 @@ export const CircularCalendar: React.FC<Props> = ({
   let centerTimeIndicator = "";
   if (event) {
     const startDate = getEventStartDate(event, virtualDateTime);
-    if (startDate) {
-      centerTimeIndicator = getTimeIndicator(startDate, virtualDateTime);
-    }
+    if (startDate) centerTimeIndicator = getTimeIndicator(startDate, virtualDateTime);
   }
 
   const bubbleDiameter = INNER_RADIUS * 1.8;
@@ -939,99 +843,36 @@ export const CircularCalendar: React.FC<Props> = ({
   return (
     <div className="flex flex-col items-center justify-center">
       <div id="calendar-container" style={{ position: "relative", width: SIZE, height: SIZE }}>
-        <svg
-          width={SIZE}
-          height={SIZE}
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
-          style={{ overflow: "visible", position: "relative", zIndex: 1 }}
-        >
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ overflow: "visible", position: "relative", zIndex: 1 }}>
           <defs>
-            <filter
-              id="ringEdgeBlur"
-              filterUnits="userSpaceOnUse"
-              x={cx - (RADIUS + RING_THICKNESS)}
-              y={cy - (RADIUS + RING_THICKNESS)}
-              width={(RADIUS + RING_THICKNESS) * 2}
-              height={(RADIUS + RING_THICKNESS) * 2}
-            >
+            <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (RADIUS + RING_THICKNESS)} y={cy - (RADIUS + RING_THICKNESS)} width={(RADIUS + RING_THICKNESS) * 2} height={(RADIUS + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
             </filter>
-            <mask
-              id="ringFadeMask"
-              maskUnits="userSpaceOnUse"
-              maskContentUnits="userSpaceOnUse"
-              x={0}
-              y={0}
-              width={SIZE}
-              height={SIZE}
-            >
+            <mask id="ringFadeMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x={0} y={0} width={SIZE} height={SIZE}>
               <rect x={0} y={0} width={SIZE} height={SIZE} fill="black" />
               <g filter="url(#ringEdgeBlur)">
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={(INNER_RADIUS + RADIUS) / 2}
-                  stroke="white"
-                  strokeWidth={RING_THICKNESS}
-                  fill="none"
-                />
+                <circle cx={cx} cy={cy} r={(INNER_RADIUS + RADIUS) / 2} stroke="white" strokeWidth={RING_THICKNESS} fill="none" />
               </g>
-              <g>
-                {hourSlits}
-              </g>
+              <g>{hourSlits}</g>
             </mask>
           </defs>
 
-          <g
-            mask="url(#ringFadeMask)"
-            onMouseEnter={() => setHoverRing(true)}
-            onMouseLeave={() => setHoverRing(false)}
-          >
-            {wedges.map((w) => (
-              <path
-                key={w.key}
-                d={w.d}
-                fill={w.fill}
-                stroke="none"
-              />
-            ))}
+          <g mask="url(#ringFadeMask)" onMouseEnter={() => setHoverRing(true)} onMouseLeave={() => setHoverRing(false)}>
+            {wedges.map((w) => <path key={w.key} d={w.d} fill={w.fill} stroke="none" />)}
           </g>
 
-          <g mask="url(#ringFadeMask)">
-            {sleepOverlays}
-          </g>
+          <g mask="url(#ringFadeMask)">{sleepOverlays}</g>
 
           {hoverRing && pastArc && (
-            <path
-              d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)}
-              fill="none"
-              stroke={SEASON_COLORS[currentSeason]}
-              strokeOpacity={0.95}
-              strokeWidth={arcStroke}
-              strokeLinecap="round"
-              style={{ pointerEvents: "none" }}
-            />
+            <path d={getArcPath(cx, cy, innerArcRadius, pastArc.start, pastArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.95} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
           {hoverRing && futureArc && (
-            <path
-              d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)}
-              fill="none"
-              stroke={SEASON_COLORS[currentSeason]}
-              strokeOpacity={0.6}
-              strokeWidth={arcStroke}
-              strokeLinecap="round"
-              style={{ pointerEvents: "none" }}
-            />
+            <path d={getArcPath(cx, cy, outsideArcRadius, futureArc.start, futureArc.end)} fill="none" stroke={SEASON_COLORS[currentSeason]} strokeOpacity={0.6} strokeWidth={arcStroke} strokeLinecap="round" style={{ pointerEvents: "none" }} />
           )}
 
-          <g style={{ position: "relative", zIndex: 2 }}>
-            {hoverRing && hourNumbers}
-          </g>
-
-          <g style={{ position: "relative", zIndex: 3 }}>
-            {eventArcs}
-          </g>
+          <g style={{ position: "relative", zIndex: 2 }}>{hoverRing && hourNumbers}</g>
+          <g style={{ position: "relative", zIndex: 3 }}>{eventArcs}</g>
 
           {isScrolling && (
             <line
@@ -1042,10 +883,7 @@ export const CircularCalendar: React.FC<Props> = ({
               stroke="rgba(255, 255, 255, 0.4)"
               strokeWidth={8}
               strokeLinecap="round"
-              style={{ 
-                pointerEvents: "none",
-                filter: "blur(3px)",
-              }}
+              style={{ pointerEvents: "none", filter: "blur(3px)" }}
             />
           )}
 
@@ -1057,10 +895,8 @@ export const CircularCalendar: React.FC<Props> = ({
             stroke={cursorColor}
             strokeWidth={isScrolling ? 4 : 3}
             strokeLinecap="round"
-            style={{ 
-              filter: isScrolling 
-                ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)`
-                : `drop-shadow(0 0 4px ${cursorColor}88)`,
+            style={{
+              filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
             }}
           />
@@ -1068,36 +904,20 @@ export const CircularCalendar: React.FC<Props> = ({
 
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
-          style={{
-            transform: `translate(-50%, -50%)`,
-            width: INNER_RADIUS * 1.6,
-            height: INNER_RADIUS * 1.6,
-            cursor: event ? "pointer" : "default",
-            pointerEvents: "auto",
-            zIndex: 5,
-          }}
+          style={{ transform: `translate(-50%, -50%)`, width: INNER_RADIUS * 1.6, height: INNER_RADIUS * 1.6, cursor: event ? "pointer" : "default", pointerEvents: "auto", zIndex: 5 }}
           onClick={() => event && handleEventClick(event)}
           role={event ? "button" : undefined}
           aria-label={event ? `Voir les détails: ${event.title}` : undefined}
         >
           {event ? (
             <>
-              <div className="text-xs calendar-center-meta opacity-60 mb-2">
-                {centerTimeIndicator}
-              </div>
-
-              <div className="calendar-center-title font-bold text-base leading-tight px-4">
-                {event.title}
-              </div>
+              <div className="text-xs calendar-center-meta opacity-60 mb-2">{centerTimeIndicator}</div>
+              <div className="calendar-center-title font-bold text-base leading-tight px-4">{event.title}</div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
-              <div className="text-sm calendar-center-meta">
-                {formatHour(hourDecimal)}
-              </div>
-              <div className="calendar-center-title font-semibold">
-                Aucun événement
-              </div>
+              <div className="text-sm calendar-center-meta">{formatHour(hourDecimal)}</div>
+              <div className="calendar-center-title font-semibold">Aucun événement</div>
             </div>
           )}
         </div>
@@ -1125,16 +945,14 @@ export const CircularCalendar: React.FC<Props> = ({
               top: timeLabelPt.y,
               transform: `translate(-50%, -50%) rotate(${timeLabelRotation}deg)`,
               transformOrigin: "center",
-              animation: isLabelFadingOut 
-                ? "quantum-fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards"
-                : "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              animation: isLabelFadingOut ? "quantum-fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards" : "quantum-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
               zIndex: 7,
             }}
           >
-            <span 
-              style={{ 
-                fontSize: 13, 
-                lineHeight: 1, 
+            <span
+              style={{
+                fontSize: 13,
+                lineHeight: 1,
                 color: cursorColor,
                 fontWeight: 700,
                 fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
@@ -1148,44 +966,12 @@ export const CircularCalendar: React.FC<Props> = ({
         )}
 
         {showDateLabel && daysDiff !== 0 && (
-          <div
-            className="absolute left-1/2 pointer-events-none"
-            style={{
-              top: `calc(50% - ${INNER_RADIUS * 0.5}px)`,
-              transform: `translateX(-50%)`,
-              zIndex: 8,
-            }}
-          >
-            <div 
-              className="px-3 py-1.5 rounded-lg"
-              style={{ 
-                background: "rgba(0, 0, 0, 0.7)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <div
-                style={{ 
-                  fontSize: 11, 
-                  lineHeight: 1.2, 
-                  color: "#fff",
-                  fontWeight: 600,
-                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
-                  textAlign: "center",
-                }}
-              >
+          <div className="absolute left-1/2 pointer-events-none" style={{ top: `calc(50% - ${INNER_RADIUS * 0.5}px)`, transform: `translateX(-50%)`, zIndex: 8 }}>
+            <div className="px-3 py-1.5 rounded-lg" style={{ background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(8px)" }}>
+              <div style={{ fontSize: 11, lineHeight: 1.2, color: "#fff", fontWeight: 600, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center" }}>
                 {formatDateLabel(virtualDateTime)}
               </div>
-              <div
-                style={{ 
-                  fontSize: 9, 
-                  lineHeight: 1, 
-                  color: "rgba(255, 255, 255, 0.7)",
-                  fontWeight: 500,
-                  fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif",
-                  textAlign: "center",
-                  marginTop: "2px",
-                }}
-              >
+              <div style={{ fontSize: 9, lineHeight: 1, color: "rgba(255, 255, 255, 0.7)", fontWeight: 500, fontFamily: "'Montserrat', 'Inter', Arial, Helvetica, sans-serif", textAlign: "center", marginTop: "2px" }}>
                 {daysDiff > 0 ? `+${daysDiff} jour${daysDiff > 1 ? 's' : ''}` : `${daysDiff} jour${daysDiff < -1 ? 's' : ''}`}
               </div>
             </div>
@@ -1198,13 +984,7 @@ export const CircularCalendar: React.FC<Props> = ({
               <TooltipTrigger asChild>
                 <div
                   className="absolute"
-                  style={{
-                    left: sunrisePt.x - metaIconSize / 2,
-                    top: sunrisePt.y - metaIconSize / 2,
-                    transform: `rotate(${sunriseRotation}deg)`,
-                    transformOrigin: "center",
-                    zIndex: 1,
-                  }}
+                  style={{ left: sunrisePt.x - metaIconSize / 2, top: sunrisePt.y - metaIconSize / 2, transform: `rotate(${sunriseRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
                   aria-label={`Sunrise at ${formatHour(sunrise)}`}
                 >
                   <Sunrise className="text-yellow-400" size={metaIconSize} />
@@ -1220,9 +1000,7 @@ export const CircularCalendar: React.FC<Props> = ({
                 sideOffset={6}
                 className="bg-transparent border-0 shadow-none p-0 font-light"
               >
-                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#facc15" }}>
-                  {formatHour(sunrise)}
-                </span>
+                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#facc15" }}>{formatHour(sunrise)}</span>
               </TooltipContent>
             </Tooltip>
 
@@ -1230,13 +1008,7 @@ export const CircularCalendar: React.FC<Props> = ({
               <TooltipTrigger asChild>
                 <div
                   className="absolute"
-                  style={{
-                    left: sunsetPt.x - metaIconSize / 2,
-                    top: sunsetPt.y - metaIconSize / 2,
-                    transform: `rotate(${sunsetRotation}deg)`,
-                    transformOrigin: "center",
-                    zIndex: 1,
-                  }}
+                  style={{ left: sunsetPt.x - metaIconSize / 2, top: sunsetPt.y - metaIconSize / 2, transform: `rotate(${sunsetRotation}deg)`, transformOrigin: "center", zIndex: 1 }}
                   aria-label={`Sunset at ${formatHour(sunset)}`}
                 >
                   <Sunset className="text-orange-400" size={metaIconSize} />
@@ -1252,9 +1024,7 @@ export const CircularCalendar: React.FC<Props> = ({
                 sideOffset={6}
                 className="bg-transparent border-0 shadow-none p-0 font-light"
               >
-                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#fb923c" }}>
-                  {formatHour(sunset)}
-                </span>
+                <span style={{ fontSize: 11, lineHeight: 1.1, color: "#fb923c" }}>{formatHour(sunset)}</span>
               </TooltipContent>
             </Tooltip>
           </>
