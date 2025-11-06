@@ -352,7 +352,7 @@ function getVignetteGradient(isDarkMode: boolean): string {
     return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 0, 0, 0.3) 100%)';
   } else {
     // En mode clair, vignettage avec des tons cyan/bleu cohérents
-    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 151, 167, 0.25) 100%)';
+    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 51, 67, 0.4) 100%)';
   }
 }
 
