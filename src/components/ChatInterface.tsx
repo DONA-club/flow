@@ -295,7 +295,8 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         className="flex flex-col items-end gap-0.5 w-full max-h-[280px] mb-1"
         style={{ 
           overflowY: "hidden",
-          overflowX: "hidden"
+          overflowX: "hidden",
+          paddingRight: "calc(14px + 0.5rem + 3.5px + 0.5rem)"
         }}
       >
         {messages.map((message, index) => {
@@ -315,12 +316,12 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
                   : "rgba(255, 255, 255, 0.45)",
                 backgroundColor: "transparent",
                 transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
-                paddingRight: message.type === "agent" ? "20px" : "0px",
+                position: "relative",
               }}
             >
               <span>{message.text}</span>
               {message.type === "agent" && (
-                <Volume2 className="w-3.5 h-3.5 flex-shrink-0 absolute right-2" style={{ opacity: 0.6 }} />
+                <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6, marginLeft: "auto" }} />
               )}
             </div>
           );
@@ -339,7 +340,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex items-center gap-2 w-full justify-end relative">
+      <div className="flex items-center gap-2 w-full justify-end">
         <input
           ref={inputRef}
           type="text"
