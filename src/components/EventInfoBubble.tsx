@@ -12,6 +12,8 @@ type Props = {
   videoLink?: string;
   onClose?: () => void;
   diameter?: number;
+  eventEnd?: Date;
+  referenceDate?: Date;
 };
 
 function detectPlatform(url: string): string {
@@ -27,6 +29,32 @@ function detectPlatform(url: string): string {
   return "Vidéoconférence";
 }
 
+function formatUntilTime(endDate: Date, referenceDate: Date): string {
+  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  
+  const refDay = new Date(referenceDate);
+  refDay.setHours(0, 0, 0, 0);
+  const endDay = new Date(endDate);
+  endDay.setHours(0, 0, 0, 0);
+  
+  const isSameDay = refDay.getTime() === endDay.getTime();
+  
+  const hours = endDate.getHours().toString().padStart(2, "0");
+  const minutes = endDate.getMinutes().toString().padStart(2, "0");
+  const timeStr = `${hours}h${minutes}`;
+  
+  if (isSameDay) {
+    return `Jusqu'à ${timeStr}`;
+  }
+  
+  const dayName = days[endDate.getDay()];
+  const dayNum = endDate.getDate();
+  const monthName = months[endDate.getMonth()];
+  
+  return `Jusqu'au ${dayName} ${dayNum} ${monthName}, ${timeStr}`;
+}
+
 const EventInfoBubble: React.FC<Props> = ({ 
   title, 
   organizer,
@@ -35,7 +63,9 @@ const EventInfoBubble: React.FC<Props> = ({
   url,
   videoLink,
   onClose, 
-  diameter = 200 
+  diameter = 200,
+  eventEnd,
+  referenceDate
 }) => {
   const [visible, setVisible] = React.useState(true);
   const [isInteracting, setIsInteracting] = React.useState(false);
@@ -145,6 +175,12 @@ const EventInfoBubble: React.FC<Props> = ({
 
   const platform = videoLink ? detectPlatform(videoLink) : "";
 
+  // Calculer le texte "Jusqu'à" si l'événement est en cours
+  let displayTimeRemaining = timeRemaining;
+  if (timeRemaining === "En cours" && eventEnd && referenceDate) {
+    displayTimeRemaining = formatUntilTime(eventEnd, referenceDate);
+  }
+
   // Couleurs adaptées au thème
   const textColor = isDarkMode ? "#bfdbfe" : "#1e40af";
   const textSecondaryColor = isDarkMode ? "#93c5fd" : "#2563eb";
@@ -220,8 +256,8 @@ const EventInfoBubble: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Temps restant */}
-        {timeRemaining && (
+        {/* Temps restant ou "Jusqu'à" */}
+        {displayTimeRemaining && (
           <div 
             className={`${timeSize} font-semibold pointer-events-none mb-2`}
             style={{ 
@@ -229,7 +265,7 @@ const EventInfoBubble: React.FC<Props> = ({
               fontFamily: "'Inter', 'Aptos', Arial, Helvetica, sans-serif"
             }}
           >
-            {timeRemaining}
+            {displayTimeRemaining}
           </div>
         )}
 

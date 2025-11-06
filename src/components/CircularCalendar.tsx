@@ -243,40 +243,32 @@ function extractVideoConferenceLink(event: Event) {
 }
 
 function getSeason(date: Date, isNorthernHemisphere: boolean = true): Props["season"] {
-  const month = date.getMonth(); // 0-11
+  const month = date.getMonth();
   const day = date.getDate();
   
-  // Dates approximatives des équinoxes et solstices (varient légèrement chaque année)
-  // Équinoxe de printemps : ~20 mars
-  // Solstice d'été : ~21 juin
-  // Équinoxe d'automne : ~22 septembre
-  // Solstice d'hiver : ~21 décembre
-  
   if (isNorthernHemisphere) {
-    // Hémisphère Nord
     if (month < 2 || (month === 2 && day < 20)) {
-      return "winter"; // Janvier, février, début mars
+      return "winter";
     } else if (month < 5 || (month === 5 && day < 21)) {
-      return "spring"; // 20 mars - 20 juin
+      return "spring";
     } else if (month < 8 || (month === 8 && day < 22)) {
-      return "summer"; // 21 juin - 21 septembre
+      return "summer";
     } else if (month < 11 || (month === 11 && day < 21)) {
-      return "autumn"; // 22 septembre - 20 décembre
+      return "autumn";
     } else {
-      return "winter"; // 21 décembre - 31 décembre
+      return "winter";
     }
   } else {
-    // Hémisphère Sud (saisons inversées)
     if (month < 2 || (month === 2 && day < 20)) {
-      return "summer"; // Janvier, février, début mars
+      return "summer";
     } else if (month < 5 || (month === 5 && day < 21)) {
-      return "autumn"; // 20 mars - 20 juin
+      return "autumn";
     } else if (month < 8 || (month === 8 && day < 22)) {
-      return "winter"; // 21 juin - 21 septembre
+      return "winter";
     } else if (month < 11 || (month === 11 && day < 21)) {
-      return "spring"; // 22 septembre - 20 décembre
+      return "spring";
     } else {
-      return "summer"; // 21 décembre - 31 décembre
+      return "summer";
     }
   }
 }
@@ -529,7 +521,6 @@ export const CircularCalendar: React.FC<Props> = ({
         });
       }
 
-      // Calcul événement matché - SYNCHRONE
       let matchedIndex: number | null = null;
       const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
       const dayStart = new Date(nextTime);
@@ -710,7 +701,6 @@ export const CircularCalendar: React.FC<Props> = ({
               });
             }
 
-            // Calcul événement matché - SYNCHRONE
             let matchedIndex: number | null = null;
             const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
             const dayStart = new Date(nextTime);
@@ -825,7 +815,6 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [handleScroll]);
 
-  // Déterminer l'hémisphère basé sur la latitude
   const isNorthernHemisphere = (latitude ?? 0) >= 0;
   const currentSeason = season || getSeason(virtualDateTime, isNorthernHemisphere);
   
@@ -1079,6 +1068,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const centerTimeIndicator = currentEventStart ? getTimeIndicator(currentEventStart, virtualDateTime) : "";
 
   const selectedStart = selectedEvent ? getEventStartDate(selectedEvent, virtualDateTime) : null;
+  const selectedEnd = selectedEvent && selectedStart ? getEventEndDate(selectedEvent, selectedStart) : null;
   const selectedDateLabel = selectedStart ? formatEventDate(selectedStart) : "";
   const selectedTimeRemaining = selectedStart ? formatTimeRemaining(selectedStart, virtualDateTime) : "";
   const selectedOrganizer = selectedEvent?.raw?.organizer?.displayName || selectedEvent?.raw?.organizer?.emailAddress?.name || selectedEvent?.place || "";
@@ -1268,6 +1258,8 @@ export const CircularCalendar: React.FC<Props> = ({
                 timeRemaining={selectedTimeRemaining}
                 url={selectedUrl}
                 videoLink={videoLink ?? undefined}
+                eventEnd={selectedEnd ?? undefined}
+                referenceDate={virtualDateTime}
                 onClose={() => {
                   setSelectedEvent(null);
                   setCursorEventIndex(null);
