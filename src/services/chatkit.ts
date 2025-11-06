@@ -24,30 +24,18 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
       content: userMessage,
     });
 
-    // Get auth token (optional - depends on your Edge Function config)
-    const { data: sess } = await supabase.auth.getSession();
-    const supaAccess = sess?.session?.access_token;
+    console.log("📡 [Chat] Calling 'chat' edge function with", conversationHistory.length, "messages");
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (supaAccess) {
-      headers["Authorization"] = `Bearer ${supaAccess}`;
-    }
-
-    console.log("📡 [Chat] Calling edge function");
-
-    // Call the simplified chat function
+    // Call the chat function (NOT chatkit-proxy!)
     const { data, error } = await supabase.functions.invoke("chat", {
       body: { 
         messages: conversationHistory 
       },
-      headers,
     });
 
     if (error) {
       console.error("❌ [Chat] Edge function error:", error);
+      console.error("❌ [Chat] Error details:", JSON.stringify(error, null, 2));
       throw new Error(error.message || "Edge function invocation failed");
     }
 
@@ -55,6 +43,7 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
 
     if (!data || !data.output_text) {
       console.warn("⚠️ [Chat] No output_text in response");
+      console.warn("⚠️ [Chat] Full response:", JSON.stringify(data, null, 2));
       
       if (data?.error) {
         return {
