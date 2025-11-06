@@ -272,7 +272,6 @@ function isSameDay(date1: Date, date2: Date): boolean {
   );
 }
 
-// Calculer l'angle depuis le centre vers un point
 function getAngleFromCenter(cx: number, cy: number, x: number, y: number): number {
   const dx = x - cx;
   const dy = y - cy;
@@ -281,7 +280,6 @@ function getAngleFromCenter(cx: number, cy: number, x: number, y: number): numbe
   return angle;
 }
 
-// Convertir un angle en heure décimale
 function angleToHour(angle: number): number {
   return (angle / 360) * 24;
 }
@@ -328,14 +326,12 @@ export const CircularCalendar: React.FC<Props> = ({
   const onVirtualDateTimeChangeRef = React.useRef(onVirtualDateTimeChange);
   const horizontalScrollAccumulator = React.useRef<number>(0);
   
-  // Refs pour les interactions tactiles
   const touchStartRef = React.useRef<{ x: number; y: number; time: number } | null>(null);
   const lastAngleRef = React.useRef<number>(0);
   const lastUpdateTimeRef = React.useRef<number>(0);
   const accumulatedAngleDeltaRef = React.useRef<number>(0);
-  const isDraggingCursorRef = React.useRef<boolean>(false); // REF pour capturer la vraie valeur
+  const isDraggingCursorRef = React.useRef<boolean>(false);
 
-  // Ref pour stocker les callbacks à exécuter après render
   const pendingCallbacksRef = React.useRef<Array<() => void>>([]);
 
   React.useEffect(() => {
@@ -353,12 +349,10 @@ export const CircularCalendar: React.FC<Props> = ({
     onVirtualDateTimeChangeRef.current = onVirtualDateTimeChange;
   }, [onVirtualDateTimeChange]);
 
-  // Synchroniser la ref avec le state
   React.useEffect(() => {
     isDraggingCursorRef.current = isDraggingCursor;
   }, [isDraggingCursor]);
 
-  // Exécuter les callbacks en attente après chaque render
   React.useEffect(() => {
     if (pendingCallbacksRef.current.length > 0) {
       const callbacks = [...pendingCallbacksRef.current];
@@ -374,44 +368,21 @@ export const CircularCalendar: React.FC<Props> = ({
     }
   }, [externalSelectedEvent]);
 
-  // Mise à jour de `now` toutes les secondes
   React.useEffect(() => {
-    const updateNow = () => {
-      const newNow = new Date();
-      setNow(newNow);
-      console.log("🕐 NOW updated:", newNow.toLocaleTimeString(), {
-        isScrolling,
-        isReturning,
-        isDraggingCursor,
-        shouldSync: !isScrolling && !isReturning && !isDraggingCursor
-      });
-    };
+    const updateNow = () => setNow(new Date());
     updateNow();
     nowIntervalRef.current = window.setInterval(updateNow, 1000);
     return () => {
       if (nowIntervalRef.current) window.clearInterval(nowIntervalRef.current);
     };
-  }, [isScrolling, isReturning, isDraggingCursor]);
+  }, []);
 
-  // Synchronisation automatique de virtualDateTime avec now quand on n'interagit pas
   React.useEffect(() => {
-    console.log("🔄 Sync check:", {
-      isScrolling,
-      isReturning,
-      isDraggingCursor,
-      shouldSync: !isScrolling && !isReturning && !isDraggingCursor,
-      nowTime: now.toLocaleTimeString(),
-      virtualTime: virtualDateTime.toLocaleTimeString()
-    });
-    
     if (!isScrolling && !isReturning && !isDraggingCursor) {
-      console.log("✅ SYNCING virtualDateTime with now");
       setVirtualDateTime(now);
       pendingCallbacksRef.current.push(() => {
         onVirtualDateTimeChangeRef.current?.(null);
       });
-    } else {
-      console.log("❌ NOT syncing - interaction in progress");
     }
   }, [now, isScrolling, isReturning, isDraggingCursor]);
 
@@ -470,17 +441,12 @@ export const CircularCalendar: React.FC<Props> = ({
     upcomingEventsRef.current = upcomingEvents;
   }, [upcomingEvents]);
 
-  // Fonction commune pour gérer le scroll (wheel ou touch horizontal)
   const handleScroll = React.useCallback((deltaY: number, deltaX: number) => {
-    console.log("🖱️ WHEEL handleScroll called", { deltaY, deltaX });
-    
     if (animationFrameRef.current) {
-      console.log("🛑 Canceling previous animation");
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
 
-    console.log("🔧 Setting states: isReturning=false, isScrolling will be true");
     setIsReturning(false);
     setShowTimeLabel(false);
     setIsLabelFadingOut(false);
@@ -511,7 +477,6 @@ export const CircularCalendar: React.FC<Props> = ({
 
       const dayChanged = nextTime.getDate() !== prev.getDate() || nextTime.getMonth() !== prev.getMonth() || nextTime.getFullYear() !== prev.getFullYear();
       
-      console.log("📝 Setting isScrolling=true");
       setIsScrolling(true);
       
       pendingCallbacksRef.current.push(() => {
@@ -531,6 +496,7 @@ export const CircularCalendar: React.FC<Props> = ({
         });
       }
 
+      // Calcul événement matché - optimisé
       let matchedIndex: number | null = null;
       const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
       const dayStart = new Date(nextTime);
@@ -558,16 +524,12 @@ export const CircularCalendar: React.FC<Props> = ({
       setCursorEventIndex(matchedIndex);
 
       if (scrollTimeoutRef.current) {
-        console.log("⏱️ Clearing previous timeout");
         window.clearTimeout(scrollTimeoutRef.current);
       }
 
       const randomDelay = 8000 + Math.random() * 2000;
-      console.log(`⏱️ Setting timeout for ${randomDelay}ms`);
 
       scrollTimeoutRef.current = window.setTimeout(() => {
-        console.log("⏰ TIMEOUT FIRED - Starting return animation");
-        console.log("📝 Setting isScrolling=false, isReturning=true");
         setIsScrolling(false);
         setIsReturning(true);
 
@@ -592,7 +554,6 @@ export const CircularCalendar: React.FC<Props> = ({
           if (progress < 1) {
             animationFrameRef.current = requestAnimationFrame(animate);
           } else {
-            console.log("✨ Animation complete - Setting isReturning=false");
             setIsReturning(false);
             setShowTimeLabel(true);
             setIsLabelFadingOut(false);
@@ -622,18 +583,14 @@ export const CircularCalendar: React.FC<Props> = ({
     const container = document.getElementById("calendar-container");
     if (!container) return;
 
-    // Gestion du wheel (desktop)
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
-      console.log("🖱️ WHEEL event detected");
       handleScroll(event.deltaY, event.deltaX);
     };
 
-    // Gestion du touch (mobile) - FLUIDIFIÉE
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       
-      console.log("👆 TOUCH START");
       const touch = event.touches[0];
       const rect = container.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -666,8 +623,6 @@ export const CircularCalendar: React.FC<Props> = ({
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
       if (isHorizontal) {
-        console.log("👉 TOUCH HORIZONTAL (day change)");
-        // Swipe horizontal = changement de jour
         const sensitivity = 0.3;
         const adjustedDeltaX = totalDeltaX * sensitivity;
         if (Math.abs(adjustedDeltaX) > 3) {
@@ -679,31 +634,25 @@ export const CircularCalendar: React.FC<Props> = ({
           };
         }
       } else {
-        console.log("👆 TOUCH VERTICAL (cursor drag)");
-        // Drag vertical = rotation fluide du curseur
-        console.log("📝 Setting isDraggingCursor=true, isScrolling=true");
         setIsDraggingCursor(true);
         setIsScrolling(true);
         
         const currentAngle = getAngleFromCenter(cx, cy, touch.clientX, touch.clientY);
         let angleDelta = currentAngle - lastAngleRef.current;
         
-        // Gérer le passage de 360° à 0°
         if (angleDelta > 180) angleDelta -= 360;
         if (angleDelta < -180) angleDelta += 360;
         
         lastAngleRef.current = currentAngle;
-        
-        // Accumuler les petits deltas pour une rotation fluide
         accumulatedAngleDeltaRef.current += angleDelta;
         
         const currentTime = Date.now();
         const timeSinceLastUpdate = currentTime - lastUpdateTimeRef.current;
         
-        // Throttling réduit pour plus de fluidité
-        const updateThreshold = 8; // ~120fps au lieu de 60fps
+        // Priorité curseur : mise à jour immédiate
+        const updateThreshold = 0;
         
-        if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 2) {
+        if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 1) {
           const minutesDelta = (accumulatedAngleDeltaRef.current / 360) * 1440;
           
           setVirtualDateTime((prev) => {
@@ -729,31 +678,34 @@ export const CircularCalendar: React.FC<Props> = ({
               });
             }
 
-            let matchedIndex: number | null = null;
-            const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
-            const dayStart = new Date(nextTime);
-            dayStart.setHours(0, 0, 0, 0);
-            const nextDay = new Date(dayStart);
-            nextDay.setDate(nextDay.getDate() + 1);
+            // Calcul événement matché - différé pour ne pas bloquer le curseur
+            requestIdleCallback(() => {
+              let matchedIndex: number | null = null;
+              const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+              const dayStart = new Date(nextTime);
+              dayStart.setHours(0, 0, 0, 0);
+              const nextDay = new Date(dayStart);
+              nextDay.setDate(nextDay.getDate() + 1);
 
-            const dayEvents = upcomingEventsRef.current.filter((entry) => {
-              const startMs = entry.start.getTime();
-              return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
-            });
+              const dayEvents = upcomingEventsRef.current.filter((entry) => {
+                const startMs = entry.start.getTime();
+                return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
+              });
 
-            for (let i = 0; i < dayEvents.length; i += 1) {
-              const { event: arcEvent, start, end } = dayEvents[i];
-              const startHour = start.getHours() + start.getMinutes() / 60;
-              const endHour = end.getHours() + end.getMinutes() / 60;
-              if (virtualHour >= startHour && virtualHour <= endHour) {
-                matchedIndex = i;
-                setSelectedEvent(arcEvent);
-                break;
+              for (let i = 0; i < dayEvents.length; i += 1) {
+                const { event: arcEvent, start, end } = dayEvents[i];
+                const startHour = start.getHours() + start.getMinutes() / 60;
+                const endHour = end.getHours() + end.getMinutes() / 60;
+                if (virtualHour >= startHour && virtualHour <= endHour) {
+                  matchedIndex = i;
+                  setSelectedEvent(arcEvent);
+                  break;
+                }
               }
-            }
 
-            if (matchedIndex === null) setSelectedEvent(null);
-            setCursorEventIndex(matchedIndex);
+              if (matchedIndex === null) setSelectedEvent(null);
+              setCursorEventIndex(matchedIndex);
+            });
             
             return nextTime;
           });
@@ -765,26 +717,19 @@ export const CircularCalendar: React.FC<Props> = ({
     };
 
     const handleTouchEnd = () => {
-      console.log("👋 TOUCH END");
       touchStartRef.current = null;
       accumulatedAngleDeltaRef.current = 0;
       
-      // Utiliser la REF au lieu du state pour avoir la vraie valeur
       if (isDraggingCursorRef.current) {
-        console.log("📝 Was dragging - Setting isDraggingCursor=false");
         setIsDraggingCursor(false);
         
         if (scrollTimeoutRef.current) {
-          console.log("⏱️ Clearing previous timeout");
           window.clearTimeout(scrollTimeoutRef.current);
         }
 
         const randomDelay = 8000 + Math.random() * 2000;
-        console.log(`⏱️ Setting TOUCH timeout for ${randomDelay}ms`);
 
         scrollTimeoutRef.current = window.setTimeout(() => {
-          console.log("⏰ TOUCH TIMEOUT FIRED - Starting return animation");
-          console.log("📝 Setting isScrolling=false, isReturning=true");
           setIsScrolling(false);
           setIsReturning(true);
 
@@ -809,7 +754,6 @@ export const CircularCalendar: React.FC<Props> = ({
             if (progress < 1) {
               animationFrameRef.current = requestAnimationFrame(animate);
             } else {
-              console.log("✨ TOUCH Animation complete - Setting isReturning=false");
               setIsReturning(false);
               setShowTimeLabel(true);
               setIsLabelFadingOut(false);
@@ -867,6 +811,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
+  // Optimisation: Memoization des wedges avec will-change CSS
   const wedges = React.useMemo(
     () =>
       Array.from({ length: SEGMENTS }, (_, i) => {
@@ -1166,7 +1111,7 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
         </div>
 
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none" }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none", willChange: "transform" }}>
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />
@@ -1222,7 +1167,8 @@ export const CircularCalendar: React.FC<Props> = ({
             style={{
               filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
-              pointerEvents: "none"
+              pointerEvents: "none",
+              willChange: "transform"
             }}
           />
         </svg>
@@ -1339,7 +1285,6 @@ export const CircularCalendar: React.FC<Props> = ({
                 border: "1px solid rgba(255, 255, 255, 0.1)",
               }}
             >
-              {/* Disruption temporelle : gradient animé selon direction */}
               <div 
                 className="absolute inset-0 pointer-events-none"
                 style={{
