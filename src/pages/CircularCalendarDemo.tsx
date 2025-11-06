@@ -794,6 +794,16 @@ const Visualiser = () => {
         id="calendar-page-container"
       />
 
+      {/* Vignettage subtil en bas à droite pour les logs - z-index 0.5 */}
+      <div 
+        className="fixed inset-0 pointer-events-none"
+        style={{ 
+          zIndex: 0.5,
+          background: 'radial-gradient(ellipse 800px 600px at 100% 100%, rgba(0, 0, 0, 0.25) 0%, transparent 50%)',
+          mixBlendMode: 'multiply',
+        }}
+      />
+
       {/* Logs - z-index 1 */}
       <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none" }}>
         <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />

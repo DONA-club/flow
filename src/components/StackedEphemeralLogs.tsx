@@ -181,14 +181,10 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   const baseTextClass =
     "text-xs leading-tight tracking-tight select-none transition-all italic px-2 py-1 rounded";
   
-  // Couleur adaptée au thème avec fond vignetté pour meilleure lisibilité
+  // Couleur adaptée au thème - texte clair qui se fond sur le fond vignetté
   const textColor = isDarkMode 
     ? "rgba(255, 255, 255, 0.35)" 
-    : "rgba(30, 41, 59, 0.75)"; // Beaucoup plus foncé en mode clair
-  
-  const backgroundColor = isDarkMode
-    ? "transparent"
-    : "rgba(255, 255, 255, 0.4)"; // Fond blanc semi-transparent en mode clair
+    : "rgba(255, 255, 255, 0.85)"; // Texte blanc en mode clair pour contraster avec le vignettage sombre
 
   return (
     <div
@@ -207,12 +203,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
             transition: `opacity ${log.fading ? fadeMs : 300}ms ease, transform ${log.fading ? fadeMs : 220}ms ease`,
             willChange: "transform, opacity",
             color: textColor,
-            backgroundColor: backgroundColor,
-            backdropFilter: isDarkMode ? "none" : "blur(8px)",
-            WebkitBackdropFilter: isDarkMode ? "none" : "blur(8px)",
-            boxShadow: isDarkMode 
-              ? "none" 
-              : "0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)",
+            backgroundColor: "transparent",
           }}
         >
           {sanitizeMessage(log.message)}
