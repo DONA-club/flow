@@ -315,11 +315,12 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
                   : "rgba(255, 255, 255, 0.45)",
                 backgroundColor: "transparent",
                 transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
+                paddingRight: message.type === "agent" ? "20px" : "0px",
               }}
             >
               <span>{message.text}</span>
               {message.type === "agent" && (
-                <Volume2 className="w-3 h-3 flex-shrink-0" style={{ opacity: 0.6 }} />
+                <Volume2 className="w-3.5 h-3.5 flex-shrink-0 absolute right-2" style={{ opacity: 0.6 }} />
               )}
             </div>
           );
@@ -338,7 +339,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex items-center gap-2 w-full justify-end">
+      <div className="flex items-center gap-2 w-full justify-end relative">
         <input
           ref={inputRef}
           type="text"
@@ -351,7 +352,6 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           style={{
             color: "rgba(255, 255, 255, 0.65)",
             caretColor: "rgba(255, 255, 255, 0.65)",
-            paddingRight: "32px",
           }}
         />
         <span
@@ -361,7 +361,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           &lt;
         </span>
         <Mic 
-          className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity absolute right-2" 
+          className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
           style={{ color: "rgba(255, 255, 255, 0.45)" }}
         />
       </div>
