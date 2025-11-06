@@ -17,6 +17,12 @@ function getLocalTimezoneOffset(): number {
   return -offsetMinutes / 60;
 }
 
+function formatHour(decimal: number): string {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal % 1) * 60);
+  return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
 export function useSunTimes(): SunTimes {
   const [sunrise, setSunrise] = useState<number | null>(null);
   const [sunset, setSunset] = useState<number | null>(null);
@@ -66,6 +72,8 @@ export function useSunTimes(): SunTimes {
         setSunrise(Number(sunriseDecimal.toFixed(2)));
         setSunset(Number(sunsetDecimal.toFixed(2)));
         setLoading(false);
+        
+        return { sunrise: sunriseDecimal, sunset: sunsetDecimal };
       } catch (err) {
         throw err;
       }
@@ -75,17 +83,21 @@ export function useSunTimes(): SunTimes {
       const { lat, lon } = DEFAULT_COORDS;
       setLatitude(lat);
       setLongitude(lon);
-      window.dispatchEvent(new CustomEvent("app-log", { 
-        detail: { message: "Localisation Paris (défaut)", type: "info" } 
-      }));
+      
       try {
-        await fetchFromAPI(lat, lon);
+        const times = await fetchFromAPI(lat, lon);
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Localisation Paris (défaut) | ☀️ ${formatHour(times.sunrise)} | 🌙 ${formatHour(times.sunset)}`, type: "info" } 
+        }));
       } catch (err) {
         const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
         const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
         setSunrise(Number(sunriseCalc.toFixed(2)));
         setSunset(Number(sunsetCalc.toFixed(2)));
         setLoading(false);
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Localisation Paris (défaut) | ☀️ ${formatHour(sunriseCalc)} | 🌙 ${formatHour(sunsetCalc)}`, type: "info" } 
+        }));
       }
       return;
     }
@@ -97,18 +109,20 @@ export function useSunTimes(): SunTimes {
         setLatitude(lat);
         setLongitude(lon);
         
-        window.dispatchEvent(new CustomEvent("app-log", { 
-          detail: { message: `Localisation: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, type: "success" } 
-        }));
-        
         try {
-          await fetchFromAPI(lat, lon);
+          const times = await fetchFromAPI(lat, lon);
+          window.dispatchEvent(new CustomEvent("app-log", { 
+            detail: { message: `Localisation: ${lat.toFixed(2)}°, ${lon.toFixed(2)}° | ☀️ ${formatHour(times.sunrise)} | 🌙 ${formatHour(times.sunset)}`, type: "success" } 
+          }));
         } catch (err) {
           const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
           const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
           setSunrise(Number(sunriseCalc.toFixed(2)));
           setSunset(Number(sunsetCalc.toFixed(2)));
           setLoading(false);
+          window.dispatchEvent(new CustomEvent("app-log", { 
+            detail: { message: `Localisation: ${lat.toFixed(2)}°, ${lon.toFixed(2)}° | ☀️ ${formatHour(sunriseCalc)} | 🌙 ${formatHour(sunsetCalc)}`, type: "success" } 
+          }));
         }
       },
       async (err) => {
@@ -116,18 +130,20 @@ export function useSunTimes(): SunTimes {
         setLatitude(lat);
         setLongitude(lon);
         
-        window.dispatchEvent(new CustomEvent("app-log", { 
-          detail: { message: "Localisation Paris (défaut)", type: "info" } 
-        }));
-        
         try {
-          await fetchFromAPI(lat, lon);
+          const times = await fetchFromAPI(lat, lon);
+          window.dispatchEvent(new CustomEvent("app-log", { 
+            detail: { message: `Localisation Paris (défaut) | ☀️ ${formatHour(times.sunrise)} | 🌙 ${formatHour(times.sunset)}`, type: "info" } 
+          }));
         } catch (apiErr) {
           const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
           const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
           setSunrise(Number(sunriseCalc.toFixed(2)));
           setSunset(Number(sunsetCalc.toFixed(2)));
           setLoading(false);
+          window.dispatchEvent(new CustomEvent("app-log", { 
+            detail: { message: `Localisation Paris (défaut) | ☀️ ${formatHour(sunriseCalc)} | 🌙 ${formatHour(sunsetCalc)}`, type: "info" } 
+          }));
         }
       },
       {

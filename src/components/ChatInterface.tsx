@@ -185,12 +185,12 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
   return (
     <div
-      className={`fixed bottom-4 right-4 flex flex-col items-end gap-0.5 z-50 ${className || ""}`}
-      style={{ pointerEvents: "auto", maxWidth: "90vw", width: "320px" }}
+      className={`fixed bottom-4 right-4 flex flex-col items-end gap-1 z-50 ${className || ""}`}
+      style={{ pointerEvents: "auto", maxWidth: "90vw", width: "340px" }}
     >
       {/* Messages (système + chat) - SANS ASCENSEUR */}
       <div 
-        className="flex flex-col items-end gap-0.5 w-full max-h-[240px] mb-1"
+        className="flex flex-col items-end gap-1 w-full max-h-[280px] mb-1.5"
         style={{ 
           overflowY: "hidden",
           overflowX: "hidden"
@@ -199,28 +199,28 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`text-[10px] leading-snug tracking-tight select-none transition-all italic px-1.5 py-0.5 rounded flex items-center gap-1.5 ${
+            className={`text-xs leading-snug tracking-tight select-none transition-all italic px-2 py-1 rounded flex items-center gap-2 ${
               message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
             }`}
             style={{
               color: message.type === "user" 
-                ? "rgba(255, 255, 255, 0.55)" 
-                : "rgba(255, 255, 255, 0.35)",
+                ? "rgba(255, 255, 255, 0.65)" 
+                : "rgba(255, 255, 255, 0.45)",
               backgroundColor: "transparent",
               transition: `opacity ${message.fading ? fadeMs : 300}ms ease, transform ${message.fading ? fadeMs : 220}ms ease`,
             }}
           >
             <span>{message.text}</span>
             {message.type === "agent" && (
-              <Volume2 className="w-2.5 h-2.5 flex-shrink-0" style={{ opacity: 0.5 }} />
+              <Volume2 className="w-3 h-3 flex-shrink-0" style={{ opacity: 0.6 }} />
             )}
           </div>
         ))}
         {isLoading && (
           <div
-            className="text-[10px] leading-snug tracking-tight select-none italic px-1.5 py-0.5 rounded"
+            className="text-xs leading-snug tracking-tight select-none italic px-2 py-1 rounded"
             style={{
-              color: "rgba(255, 255, 255, 0.35)",
+              color: "rgba(255, 255, 255, 0.45)",
               backgroundColor: "transparent",
             }}
           >
@@ -230,8 +230,8 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input avec < et microphone à droite */}
-      <div className="flex items-center gap-1.5 w-full justify-end">
+      {/* Input avec < et microphone à droite - TOUJOURS VISIBLE */}
+      <div className="flex items-center gap-2 w-full justify-end">
         <input
           ref={inputRef}
           type="text"
@@ -240,21 +240,22 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           onKeyPress={handleKeyPress}
           placeholder="Posez votre question..."
           disabled={isLoading}
-          className="flex-1 bg-transparent border-none outline-none text-[10px] italic px-1.5 py-0.5 text-right"
+          className="flex-1 bg-transparent border-none outline-none text-xs italic px-2 py-1 text-right"
           style={{
-            color: "rgba(255, 255, 255, 0.55)",
-            caretColor: "rgba(255, 255, 255, 0.55)",
+            color: "rgba(255, 255, 255, 0.65)",
+            caretColor: "rgba(255, 255, 255, 0.65)",
+            fontSize: "12px",
           }}
         />
         <span
-          className="text-[10px] select-none"
-          style={{ color: "rgba(255, 255, 255, 0.35)" }}
+          className="text-xs select-none flex-shrink-0"
+          style={{ color: "rgba(255, 255, 255, 0.45)" }}
         >
           &lt;
         </span>
         <Mic 
-          className="w-3 h-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
-          style={{ color: "rgba(255, 255, 255, 0.35)" }}
+          className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+          style={{ color: "rgba(255, 255, 255, 0.45)" }}
         />
       </div>
     </div>
