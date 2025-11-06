@@ -471,6 +471,12 @@ const Visualiser = () => {
     document.title = "DONA.club Visualiser";
     document.body.classList.add("visualiser-page");
     
+    // Reset du zoom sur mobile
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    }
+    
     return () => {
       document.body.classList.remove("visualiser-page");
     };

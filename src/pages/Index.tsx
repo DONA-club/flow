@@ -12,6 +12,12 @@ const Index = () => {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Reset du zoom sur mobile
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    }
+
     const mq = window.matchMedia("(max-width: 640px)");
     const applyNoScroll = () => {
       if (mq.matches) {
