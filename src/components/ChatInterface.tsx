@@ -60,6 +60,8 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erreur API:", response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
