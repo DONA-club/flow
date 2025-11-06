@@ -337,11 +337,11 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
   return (
     <div
-      className={`fixed bottom-4 right-4 flex flex-col items-end gap-0.5 z-50 ${className || ""}`}
+      className={`fixed bottom-4 right-4 flex flex-col items-end gap-0 z-50 ${className || ""}`}
       style={{ pointerEvents: "auto", maxWidth: "90vw", width: "340px" }}
     >
       <div 
-        className="flex flex-col items-end gap-0.5 w-full max-h-[280px] mb-1"
+        className="flex flex-col items-end gap-0 w-full max-h-[280px] mb-2"
         style={{ 
           overflowY: "hidden",
           overflowX: "hidden",
@@ -350,28 +350,70 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       >
         {messages.map((message, index) => {
           const prevMessage = index > 0 ? messages[index - 1] : null;
+          const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+          
           const isFirstOfPair = message.pairId !== undefined && 
             (!prevMessage || prevMessage.pairId !== message.pairId);
+          
+          const isUserInPair = message.type === "user" && message.pairId !== undefined;
+          const isAgentInPair = message.type === "agent" && message.pairId !== undefined;
+          const hasAgentAfter = isUserInPair && nextMessage?.pairId === message.pairId && nextMessage?.type === "agent";
+          
+          // Spacing logic
+          let marginTop = "0";
+          let marginBottom = "0";
+          
+          if (message.type === "system") {
+            // System messages: normal spacing
+            marginTop = index > 0 ? "0.125rem" : "0";
+          } else if (isUserInPair) {
+            // User message in pair: larger top margin, small bottom if agent follows
+            marginTop = index > 0 ? "0.5rem" : "0";
+            marginBottom = hasAgentAfter ? "0.125rem" : "0";
+          } else if (isAgentInPair) {
+            // Agent message in pair: small top margin (already set by user), normal bottom
+            marginTop = "0";
+            marginBottom = "0";
+          }
           
           return (
             <div
               key={message.id}
-              className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 ${
-                message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
-              } ${isFirstOfPair && message.type === "user" ? "mt-1" : ""}`}
+              className="w-full"
               style={{
-                color: message.type === "user" 
-                  ? "rgba(255, 255, 255, 0.65)" 
-                  : "rgba(255, 255, 255, 0.45)",
-                backgroundColor: "transparent",
-                transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
-                position: "relative",
+                marginTop,
+                marginBottom,
               }}
             >
-              <span>{message.text}{message.streaming && "▊"}</span>
-              {message.type === "agent" && !message.streaming && (
-                <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6, marginLeft: "auto" }} />
+              {/* Liquid glass connector for Q&A pairs */}
+              {isUserInPair && hasAgentAfter && (
+                <div 
+                  className="w-full h-px mb-0.5"
+                  style={{
+                    background: "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
+                    opacity: message.fading ? 0.2 : 0.6,
+                    transition: "opacity 300ms ease",
+                  }}
+                />
               )}
+              
+              <div
+                className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
+                  message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
+                }`}
+                style={{
+                  color: message.type === "user" 
+                    ? "rgba(255, 255, 255, 0.65)" 
+                    : "rgba(255, 255, 255, 0.45)",
+                  backgroundColor: "transparent",
+                  transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
+                }}
+              >
+                <span className="text-right">{message.text}{message.streaming && "▊"}</span>
+                {message.type === "agent" && !message.streaming && (
+                  <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6 }} />
+                )}
+              </div>
             </div>
           );
         })}
@@ -387,15 +429,19 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           onKeyPress={handleKeyPress}
           placeholder="Prenez le contrôle..."
           disabled={isLoading}
-          className="flex-1 bg-transparent border-none outline-none text-[13px] italic px-2 py-1 text-right"
+          className="flex-1 bg-transparent border-none outline-none text-[13px] italic py-1 text-right pr-2"
           style={{
             color: "rgba(255, 255, 255, 0.65)",
             caretColor: "rgba(255, 255, 255, 0.65)",
+            paddingLeft: "0.5rem",
           }}
         />
         <span
-          className="text-xs select-none flex-shrink-0"
-          style={{ color: "rgba(255, 255, 255, 0.45)" }}
+          className="text-xs select-none flex-shrink-0 animate-pulse-soft"
+          style={{ 
+            color: "rgba(255, 255, 255, 0.45)",
+            animation: "pulse-soft 2s ease-in-out infinite",
+          }}
         >
           &lt;
         </span>
@@ -412,6 +458,13 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           />
         )}
       </div>
+
+      <style>{`
+        @keyframes pulse-soft {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.15; }
+        }
+      `}</style>
     </div>
   );
 };
