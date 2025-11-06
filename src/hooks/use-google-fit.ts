@@ -204,6 +204,12 @@ function calculateSleepDebtOrCapitalForDate(sessions: RawSleepSession[], referen
   }
 }
 
+function formatHour(decimal: number): string {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal % 1) * 60);
+  return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
 export function useGoogleFitSleep(options?: Options): Result {
   const enabled = options?.enabled ?? true;
 
@@ -294,6 +300,19 @@ export function useGoogleFitSleep(options?: Options): Result {
       setIdealBedHour(Number(ideal.toFixed(4)));
     } else {
       setIdealBedHour(null);
+    }
+
+    // Log formaté
+    if (todaySleep.totalSleepHours !== null && debtOrCapital && todaySleep.bedHour !== null) {
+      const sleepStr = formatHour(todaySleep.totalSleepHours);
+      const debtStr = debtOrCapital.type === "debt" 
+        ? `Dette : ${formatHour(debtOrCapital.hours)}`
+        : `Capital : ${formatHour(debtOrCapital.hours)}`;
+      const bedStr = formatHour(todaySleep.bedHour);
+      
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: `Sommeil : ${sleepStr} | ${debtStr} | Coucher : ${bedStr}`, type: "success" } 
+      }));
     }
 
     setLoading(false);

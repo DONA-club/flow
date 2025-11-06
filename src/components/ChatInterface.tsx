@@ -3,11 +3,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Volume2 } from "lucide-react";
 
+type LogType = "info" | "success" | "error";
+
 type Message = {
   id: number;
   text: string;
   type: "user" | "agent" | "system";
   timestamp: Date;
+  fading?: boolean;
 };
 
 type Props = {
@@ -21,6 +24,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
+  const timersRef = useRef<Map<number, { fadeTimeout?: number; removeTimeout?: number }>>(new Map());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,21 +34,85 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Écouter les logs système
+  // Écouter les logs système (éphémères)
   useEffect(() => {
     const handleLog = (event: Event) => {
-      const customEvent = event as CustomEvent<{ message: string; type?: "info" | "success" | "error" }>;
-      const systemMessage: Message = {
-        id: ++idCounter.current,
-        text: customEvent.detail.message,
-        type: "system",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, systemMessage]);
+      const customEvent = event as CustomEvent<{ message: string; type?: LogType }>;
+      const isEllipsis = customEvent.detail.message.includes("...");
+      const lastMessage = messages[messages.length - 1];
+
+      setMessages((prev) => {
+        // Si le dernier message contient "..." et le nouveau n'en a pas, on remplace
+        if (lastMessage && lastMessage.text.includes("...") && !isEllipsis) {
+          return prev.map((msg, idx) =>
+            idx === prev.length - 1
+              ? { ...msg, text: customEvent.detail.message, fading: false }
+              : msg
+          );
+        }
+
+        // Si le nouveau message contient "..." et est identique au dernier, on ignore
+        if (isEllipsis && lastMessage && lastMessage.text === customEvent.detail.message) {
+          return prev;
+        }
+
+        // Sinon on ajoute un nouveau message
+        return [
+          ...prev,
+          {
+            id: ++idCounter.current,
+            text: customEvent.detail.message,
+            type: "system",
+            timestamp: new Date(),
+            fading: false,
+          },
+        ];
+      });
     };
 
     window.addEventListener("app-log", handleLog);
     return () => window.removeEventListener("app-log", handleLog);
+  }, [messages]);
+
+  // Gestion du fade out et suppression des messages système
+  const visibleMs = 10000;
+  const fadeMs = 5000;
+  const totalMs = visibleMs + fadeMs;
+
+  useEffect(() => {
+    messages.forEach((msg) => {
+      if (msg.type !== "system") return;
+      const isEllipsis = msg.text.includes("...");
+      if (isEllipsis) return;
+
+      const already = timersRef.current.get(msg.id);
+      if (already) return;
+
+      const fadeTimeout = window.setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
+        );
+      }, visibleMs);
+
+      const removeTimeout = window.setTimeout(() => {
+        setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+        timersRef.current.delete(msg.id);
+      }, totalMs);
+
+      timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
+    });
+
+    return () => {};
+  }, [messages, visibleMs, fadeMs, totalMs]);
+
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((t) => {
+        if (t.fadeTimeout) window.clearTimeout(t.fadeTimeout);
+        if (t.removeTimeout) window.clearTimeout(t.removeTimeout);
+      });
+      timersRef.current.clear();
+    };
   }, []);
 
   const sendMessage = async () => {
@@ -115,6 +183,17 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     }
   };
 
+  // Remplacer les caractères spéciaux par ASCII
+  const sanitizeMessage = (msg: string) => {
+    return msg
+      .replace(/✔️/g, "[OK]")
+      .replace(/✅/g, "[OK]")
+      .replace(/❌/g, "[X]")
+      .replace(/⚠️/g, "[!]")
+      .replace(/🔄/g, "[~]")
+      .replace(/…/g, "...");
+  };
+
   return (
     <div
       className={`fixed bottom-6 right-6 flex flex-col items-end gap-1 z-50 ${className || ""}`}
@@ -125,16 +204,18 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         {messages.map((message) => (
           <div
             key={message.id}
-            className="text-xs leading-tight tracking-tight select-none transition-all italic px-2 py-1 rounded flex items-center gap-2"
+            className={`text-xs leading-tight tracking-tight select-none transition-all italic px-2 py-1 rounded flex items-center gap-2 ${
+              message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
+            }`}
             style={{
               color: message.type === "user" 
                 ? "rgba(255, 255, 255, 0.55)" 
                 : "rgba(255, 255, 255, 0.35)",
               backgroundColor: "transparent",
-              opacity: 1,
+              transition: `opacity ${message.fading ? fadeMs : 300}ms ease, transform ${message.fading ? fadeMs : 220}ms ease`,
             }}
           >
-            <span>{message.text}</span>
+            <span>{sanitizeMessage(message.text)}</span>
             {message.type === "agent" && (
               <Volume2 className="w-3 h-3 flex-shrink-0" style={{ opacity: 0.5 }} />
             )}
