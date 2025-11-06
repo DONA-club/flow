@@ -301,10 +301,9 @@ export function useGoogleFitSleep(options?: Options): Result {
     const debtOrCapital = calculateSleepDebtOrCapitalForDate(sessions, today);
     setSleepDebtOrCapital(debtOrCapital);
 
-    // Calcul heure idéale de coucher : première heure de coucher - (9h - somme des périodes de sommeil)
-    if (todaySleep.bedHour !== null && todaySleep.totalSleepHours !== null) {
-      const missingSleep = Math.max(0, RECOMMENDED_SLEEP_HOURS - todaySleep.totalSleepHours);
-      const ideal = (todaySleep.bedHour - missingSleep + 24) % 24;
+    // Calcul heure idéale de coucher : heure de réveil - 9h
+    if (todaySleep.wakeHour !== null) {
+      const ideal = (todaySleep.wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
       setIdealBedHour(Number(ideal.toFixed(4)));
     } else {
       setIdealBedHour(null);
