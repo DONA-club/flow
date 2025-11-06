@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Volume2, Mic } from "lucide-react";
-import { runChatkitWorkflow } from "@/services/chatkit";
+import { Volume2, Mic, Square } from "lucide-react";
+import { chatStream, resetChatkitSession } from "@/services/chatkit";
 
 type LogType = "info" | "success" | "error";
 
@@ -13,6 +13,7 @@ type Message = {
   timestamp: Date;
   fading?: boolean;
   pairId?: number;
+  streaming?: boolean;
 };
 
 type Props = {
@@ -30,6 +31,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const pairIdCounter = useRef(0);
   const timersRef = useRef<Map<number, { fadeTimeout?: number; removeTimeout?: number }>>(new Map());
   const activityListenersAttached = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -213,6 +215,15 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     };
   }, []);
 
+  const stopStreaming = () => {
+    if (abortControllerRef.current) {
+      console.log("🛑 [Chat] Stopping stream");
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -233,42 +244,87 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     setIsLoading(true);
     setLastUserActivity(Date.now());
 
-    console.log("⏳ [Chat] Calling ChatKit workflow...");
+    // Create agent message placeholder
+    const agentMessageId = ++idCounter.current;
+    const agentMessage: Message = {
+      id: agentMessageId,
+      text: "",
+      type: "agent",
+      timestamp: new Date(),
+      pairId: currentPairId,
+      streaming: true,
+    };
+
+    setMessages((prev) => [...prev, agentMessage]);
+
+    // Create abort controller
+    abortControllerRef.current = new AbortController();
+
+    console.log("🌊 [Chat] Starting stream...");
 
     try {
-      const response = await runChatkitWorkflow(userMessage.text);
-      
-      console.log("📨 [Chat] Received response from ChatKit");
+      // Build conversation history
+      const conversationMessages = messages
+        .filter(m => m.type === "user" || m.type === "agent")
+        .map(m => ({
+          role: m.type === "user" ? "user" as const : "assistant" as const,
+          content: m.text,
+        }));
 
-      if (response.error) {
-        console.warn("⚠️ [Chat] Response contains error:", response.error);
-      }
+      conversationMessages.push({
+        role: "user",
+        content: userMessage.text,
+      });
 
-      const agentMessage: Message = {
-        id: ++idCounter.current,
-        text: response.output_text,
-        type: "agent",
-        timestamp: new Date(),
-        pairId: currentPairId,
-      };
-
-      console.log("✅ [Chat] Adding agent message to UI:", agentMessage.text);
-      setMessages((prev) => [...prev, agentMessage]);
+      await chatStream({
+        messages: conversationMessages,
+        onToken: (token) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === agentMessageId
+                ? { ...msg, text: msg.text + token }
+                : msg
+            )
+          );
+        },
+        onDone: () => {
+          console.log("✅ [Chat] Stream completed");
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === agentMessageId
+                ? { ...msg, streaming: false }
+                : msg
+            )
+          );
+          setIsLoading(false);
+          abortControllerRef.current = null;
+        },
+        onError: (error) => {
+          console.error("💥 [Chat] Stream error:", error);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === agentMessageId
+                ? { ...msg, text: "Une erreur est survenue.", streaming: false }
+                : msg
+            )
+          );
+          setIsLoading(false);
+          abortControllerRef.current = null;
+        },
+        signal: abortControllerRef.current.signal,
+      });
     } catch (error) {
       console.error("💥 [Chat] Error:", error);
       
-      const errorMessage: Message = {
-        id: ++idCounter.current,
-        text: "Une erreur est survenue. Veuillez réessayer.",
-        type: "agent",
-        timestamp: new Date(),
-        pairId: currentPairId,
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === agentMessageId
+            ? { ...msg, text: "Une erreur est survenue.", streaming: false }
+            : msg
+        )
+      );
       setIsLoading(false);
-      console.log("🏁 [Chat] Message flow complet");
+      abortControllerRef.current = null;
     }
   };
 
@@ -312,24 +368,13 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
                 position: "relative",
               }}
             >
-              <span>{message.text}</span>
-              {message.type === "agent" && (
+              <span>{message.text}{message.streaming && "▊"}</span>
+              {message.type === "agent" && !message.streaming && (
                 <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6, marginLeft: "auto" }} />
               )}
             </div>
           );
         })}
-        {isLoading && (
-          <div
-            className="text-[13px] leading-snug tracking-tight select-none italic px-2 py-0.5 rounded"
-            style={{
-              color: "rgba(255, 255, 255, 0.45)",
-              backgroundColor: "transparent",
-            }}
-          >
-            ...
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -354,10 +399,18 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         >
           &lt;
         </span>
-        <Mic 
-          className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
-          style={{ color: "rgba(255, 255, 255, 0.45)" }}
-        />
+        {isLoading ? (
+          <Square 
+            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+            style={{ color: "rgba(255, 255, 255, 0.45)" }}
+            onClick={stopStreaming}
+          />
+        ) : (
+          <Mic 
+            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+            style={{ color: "rgba(255, 255, 255, 0.45)" }}
+          />
+        )}
       </div>
     </div>
   );

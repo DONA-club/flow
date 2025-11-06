@@ -16,6 +16,24 @@ declare module "https://deno.land/std@0.190.0/http/server.ts" {
 
 // Ambient module declaration for OpenAI npm import in Deno
 declare module "npm:openai@4" {
+  type ChatCompletionChunk = {
+    choices: Array<{
+      delta?: {
+        content?: string;
+      };
+    }>;
+  };
+
+  type ChatCompletionResponse = {
+    choices: Array<{
+      message?: {
+        content?: string;
+      };
+    }>;
+  };
+
+  type StreamingResponse = AsyncIterable<ChatCompletionChunk>;
+
   export default class OpenAI {
     constructor(config: { apiKey: string | undefined });
     chat: {
@@ -24,13 +42,14 @@ declare module "npm:openai@4" {
           model: string;
           messages: Array<{ role: string; content: string }>;
           temperature?: number;
-        }): Promise<{
-          choices: Array<{
-            message?: {
-              content?: string;
-            };
-          }>;
-        }>;
+          stream: true;
+        }): Promise<StreamingResponse>;
+        create(params: {
+          model: string;
+          messages: Array<{ role: string; content: string }>;
+          temperature?: number;
+          stream?: false;
+        }): Promise<ChatCompletionResponse>;
       };
     };
   }
