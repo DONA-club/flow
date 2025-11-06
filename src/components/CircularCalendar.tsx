@@ -773,7 +773,6 @@ export const CircularCalendar: React.FC<Props> = ({
         }
 
         const randomDelay = 8000 + Math.random() * 2000;
-        const capturedTime = virtualDateTime.getTime();
         console.log(`⏱️ Setting TOUCH timeout for ${randomDelay}ms`);
 
         scrollTimeoutRef.current = window.setTimeout(() => {
@@ -784,6 +783,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
           const duration = 1500;
           const startTime = performance.now();
+          const capturedTime = new Date().getTime();
 
           const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
@@ -842,7 +842,7 @@ export const CircularCalendar: React.FC<Props> = ({
       if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [handleScroll, isDraggingCursor, virtualDateTime]);
+  }, [handleScroll, isDraggingCursor]); // RETIRÉ virtualDateTime des dépendances !
 
   const currentSeason = season || getSeason(virtualDateTime);
   const sizeScale = size / DEFAULT_SIZE;
