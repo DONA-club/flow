@@ -609,7 +609,8 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleTouchMove = (event: TouchEvent) => {
       if (!touchStartRef.current || event.touches.length !== 1) return;
       
-      event.preventDefault();
+      // NE PAS preventDefault ici - laisser le navigateur gérer le scroll de la page
+      // event.preventDefault();
       
       const touch = event.touches[0];
       const rect = container.getBoundingClientRect();
@@ -622,6 +623,8 @@ export const CircularCalendar: React.FC<Props> = ({
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
       if (isHorizontal) {
+        // Swipe horizontal = changement de jour
+        event.preventDefault(); // Empêcher le scroll horizontal uniquement
         const sensitivity = 0.3;
         const adjustedDeltaX = totalDeltaX * sensitivity;
         if (Math.abs(adjustedDeltaX) > 3) {
@@ -633,6 +636,8 @@ export const CircularCalendar: React.FC<Props> = ({
           };
         }
       } else {
+        // Drag vertical = rotation du curseur
+        event.preventDefault(); // Empêcher le scroll vertical uniquement
         setIsDraggingCursor(true);
         setIsScrolling(true);
         
@@ -1066,7 +1071,7 @@ export const CircularCalendar: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div id="calendar-container" style={{ position: "relative", width: size, height: size, touchAction: "none" }}>
+      <div id="calendar-container" style={{ position: "relative", width: size, height: size, touchAction: "pan-y" }}>
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{ 
@@ -1116,8 +1121,7 @@ export const CircularCalendar: React.FC<Props> = ({
             position: "relative", 
             zIndex: 1, 
             pointerEvents: "none", 
-            willChange: "transform",
-            touchAction: "none" // IMPORTANT: empêche le navigateur de gérer le touch
+            willChange: "transform"
           }}
         >
           <defs>
