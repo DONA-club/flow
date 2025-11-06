@@ -54,7 +54,6 @@ async function getMicrosoftTokens(): Promise<MicrosoftTokens | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("❌ Outlook Calendar: Erreur lecture tokens:", error);
     return null;
   }
   
@@ -89,7 +88,6 @@ async function refreshMicrosoftToken(refreshToken: string): Promise<RefreshRespo
   });
 
   if (error || !data) {
-    console.error("❌ Outlook Calendar: Erreur refresh token:", error);
     return null;
   }
 
@@ -153,7 +151,6 @@ export function useOutlookCalendar(options?: Options): Result {
     let refreshToken = tokens?.refresh_token ?? null;
 
     if (accessToken && !isValidJWT(accessToken)) {
-      console.warn("⚠️ Outlook Calendar: Token invalide détecté, nettoyage...");
       await clearInvalidMicrosoftTokens();
       setConnected(false);
       setEvents([]);
@@ -245,7 +242,6 @@ export function useOutlookCalendar(options?: Options): Result {
         // ignore parse error
       }
       setError(errMsg);
-      console.error("❌ Outlook Calendar:", errMsg);
       window.dispatchEvent(new CustomEvent("app-log", { 
         detail: { message: errMsg, type: "error" } 
       }));
@@ -254,7 +250,7 @@ export function useOutlookCalendar(options?: Options): Result {
 
     setConnected(true);
     window.dispatchEvent(new CustomEvent("app-log", { 
-      detail: { message: "Outlook Calendar synchronisé", type: "success" } 
+      detail: { message: "Outlook synchronisé", type: "success" } 
     }));
     
     const json = await res.json();

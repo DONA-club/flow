@@ -207,9 +207,9 @@ export function useGoogleCalendar(options?: Options): Result {
           detail: { message: "Google non connecté", type: "error" } 
         }));
       } else {
-        setError(`Erreur Google Calendar (${res.status})`);
+        setError(`Erreur Google (${res.status})`);
         window.dispatchEvent(new CustomEvent("app-log", { 
-          detail: { message: `Erreur Google Calendar (${res.status})`, type: "error" } 
+          detail: { message: `Erreur Google (${res.status})`, type: "error" } 
         }));
       }
       return;
@@ -217,7 +217,7 @@ export function useGoogleCalendar(options?: Options): Result {
 
     setConnected(true);
     window.dispatchEvent(new CustomEvent("app-log", { 
-      detail: { message: "Google Calendar synchronisé", type: "success" } 
+      detail: { message: "Google synchronisé", type: "success" } 
     }));
     
     const json = await res.json();

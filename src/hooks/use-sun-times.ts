@@ -66,10 +66,6 @@ export function useSunTimes(): SunTimes {
         setSunrise(Number(sunriseDecimal.toFixed(2)));
         setSunset(Number(sunsetDecimal.toFixed(2)));
         setLoading(false);
-        
-        window.dispatchEvent(new CustomEvent("app-log", { 
-          detail: { message: `Lever: ${sunriseLocal.getHours()}h${sunriseLocal.getMinutes().toString().padStart(2, '0')} | Coucher: ${sunsetLocal.getHours()}h${sunsetLocal.getMinutes().toString().padStart(2, '0')}`, type: "success" } 
-        }));
       } catch (err) {
         throw err;
       }
