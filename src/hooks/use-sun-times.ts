@@ -66,6 +66,10 @@ export function useSunTimes(): SunTimes {
         setSunrise(Number(sunriseDecimal.toFixed(2)));
         setSunset(Number(sunsetDecimal.toFixed(2)));
         setLoading(false);
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Lever: ${sunriseLocal.getHours()}h${sunriseLocal.getMinutes().toString().padStart(2, '0')} | Coucher: ${sunsetLocal.getHours()}h${sunsetLocal.getMinutes().toString().padStart(2, '0')}`, type: "success" } 
+        }));
       } catch (err) {
         throw err;
       }
@@ -75,6 +79,9 @@ export function useSunTimes(): SunTimes {
       const { lat, lon } = DEFAULT_COORDS;
       setLatitude(lat);
       setLongitude(lon);
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: "Localisation Paris (défaut)", type: "info" } 
+      }));
       try {
         await fetchFromAPI(lat, lon);
       } catch (err) {
@@ -94,6 +101,10 @@ export function useSunTimes(): SunTimes {
         setLatitude(lat);
         setLongitude(lon);
         
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Localisation: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, type: "success" } 
+        }));
+        
         try {
           await fetchFromAPI(lat, lon);
         } catch (err) {
@@ -105,10 +116,13 @@ export function useSunTimes(): SunTimes {
         }
       },
       async (err) => {
-        // Permission refusée ou erreur : utiliser Paris SANS message d'erreur
         const { lat, lon } = DEFAULT_COORDS;
         setLatitude(lat);
         setLongitude(lon);
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: "Localisation Paris (défaut)", type: "info" } 
+        }));
         
         try {
           await fetchFromAPI(lat, lon);
@@ -121,9 +135,9 @@ export function useSunTimes(): SunTimes {
         }
       },
       {
-        enableHighAccuracy: false, // Moins précis mais plus rapide
+        enableHighAccuracy: false,
         timeout: 10000,
-        maximumAge: 600000, // Cache 10min
+        maximumAge: 600000,
       }
     );
   }, []);

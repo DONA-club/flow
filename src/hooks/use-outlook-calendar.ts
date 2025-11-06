@@ -152,7 +152,6 @@ export function useOutlookCalendar(options?: Options): Result {
     let accessToken = tokens?.access_token ?? null;
     let refreshToken = tokens?.refresh_token ?? null;
 
-    // Vérifier si le token est valide
     if (accessToken && !isValidJWT(accessToken)) {
       console.warn("⚠️ Outlook Calendar: Token invalide détecté, nettoyage...");
       await clearInvalidMicrosoftTokens();
@@ -160,6 +159,9 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Microsoft non connecté correctement. Veuillez reconnecter votre compte Microsoft.");
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: "Microsoft non connecté", type: "error" } 
+      }));
       return;
     }
 
@@ -176,6 +178,9 @@ export function useOutlookCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Microsoft non connecté. Connectez Microsoft depuis la page d'accueil.");
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: "Microsoft non connecté", type: "info" } 
+      }));
       return;
     }
 
@@ -211,7 +216,6 @@ export function useOutlookCalendar(options?: Options): Result {
           });
           return retryRes;
         } else {
-          // Si le refresh échoue, nettoyer les tokens invalides
           await clearInvalidMicrosoftTokens();
         }
       }
@@ -232,7 +236,6 @@ export function useOutlookCalendar(options?: Options): Result {
         if (json?.error) {
           errMsg += `: ${typeof json.error === "string" ? json.error : JSON.stringify(json.error)}`;
           
-          // Si c'est une erreur d'authentification, nettoyer les tokens
           if (res.status === 401) {
             await clearInvalidMicrosoftTokens();
             errMsg = "Microsoft non connecté correctement. Veuillez reconnecter votre compte Microsoft.";
@@ -243,10 +246,17 @@ export function useOutlookCalendar(options?: Options): Result {
       }
       setError(errMsg);
       console.error("❌ Outlook Calendar:", errMsg);
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: errMsg, type: "error" } 
+      }));
       return;
     }
 
     setConnected(true);
+    window.dispatchEvent(new CustomEvent("app-log", { 
+      detail: { message: "Outlook Calendar synchronisé", type: "success" } 
+    }));
+    
     const json = await res.json();
     const items: any[] = json?.value ?? [];
 

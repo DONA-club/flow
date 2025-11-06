@@ -141,12 +141,14 @@ export function useGoogleCalendar(options?: Options): Result {
       if (refreshed?.access_token) {
         accessToken = refreshed.access_token;
       } else {
-        // Refresh token invalide, nettoyer
         await clearInvalidGoogleTokens();
         setConnected(false);
         setEvents([]);
         setLoading(false);
         setError("Google non connecté. Veuillez reconnecter votre compte Google.");
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: "Google non connecté", type: "error" } 
+        }));
         return;
       }
     }
@@ -156,6 +158,9 @@ export function useGoogleCalendar(options?: Options): Result {
       setEvents([]);
       setLoading(false);
       setError("Google non connecté. Cliquez sur le logo Google sur la page d'accueil.");
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: "Google non connecté", type: "info" } 
+      }));
       return;
     }
 
@@ -181,7 +186,6 @@ export function useGoogleCalendar(options?: Options): Result {
           });
           return retryRes;
         } else {
-          // Refresh token invalide
           await clearInvalidGoogleTokens();
         }
       }
@@ -199,13 +203,23 @@ export function useGoogleCalendar(options?: Options): Result {
       if (res.status === 401) {
         await clearInvalidGoogleTokens();
         setError("Google non connecté. Veuillez reconnecter votre compte Google.");
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: "Google non connecté", type: "error" } 
+        }));
       } else {
         setError(`Erreur Google Calendar (${res.status})`);
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Erreur Google Calendar (${res.status})`, type: "error" } 
+        }));
       }
       return;
     }
 
     setConnected(true);
+    window.dispatchEvent(new CustomEvent("app-log", { 
+      detail: { message: "Google Calendar synchronisé", type: "success" } 
+    }));
+    
     const json = await res.json();
     const items: any[] = json?.items ?? [];
 

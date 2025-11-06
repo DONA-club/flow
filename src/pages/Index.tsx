@@ -3,13 +3,11 @@ import { useEffect, useState } from "react";
 import LogoScroller from "@/components/LogoScroller";
 import SparkBurst from "@/components/SparkBurst";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
-import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
 
 const Index = () => {
   const navigate = useNavigate();
   const [burstActive, setBurstActive] = useState(false);
   const { connectedProviders } = useMultiProviderAuth();
-  const [logs, setLogs] = useState<{ message: string; type?: "info" | "success" | "error" }[]>([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,16 +33,6 @@ const Index = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const handleLog = (event: Event) => {
-      const customEvent = event as CustomEvent<{ message: string; type?: "info" | "success" | "error" }>;
-      setLogs((prev) => [...prev, customEvent.detail]);
-    };
-
-    window.addEventListener("app-log", handleLog);
-    return () => window.removeEventListener("app-log", handleLog);
-  }, []);
-
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
   const handleChange = () => {
@@ -54,7 +42,9 @@ const Index = () => {
 
   const handleOpenCalendar = () => {
     if (!hasAnyConnection) {
-      setLogs((prev) => [...prev, { message: "Connectez un compte pour accéder au calendrier", type: "info" }]);
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: "Connectez un compte pour accéder au calendrier", type: "info" } 
+      }));
       setBurstActive(true);
       setTimeout(() => setBurstActive(false), 500);
       return;
@@ -66,8 +56,6 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
-      
       <div className="fixed inset-0 flex items-center justify-center z-10">
         <div className="relative">
           <button
