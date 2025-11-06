@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
-import { StackedEphemeralLogs } from "@/components/StackedEphemeralLogs";
+import ChatInterface from "@/components/ChatInterface";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
@@ -351,8 +351,7 @@ function getVignetteGradient(isDarkMode: boolean): string {
   if (isDarkMode) {
     return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 0, 0, 0.3) 100%)';
   } else {
-    // En mode clair, vignettage avec des tons cyan/bleu cohérents
-    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 51, 67, 0.4) 100%)';
+    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 151, 167, 0.25) 100%)';
   }
 }
 
@@ -413,7 +412,6 @@ const Visualiser = () => {
   const [displaySunset, setDisplaySunset] = useState(DEFAULT_SUNSET);
   const size = useGoldenCircleSize();
 
-  const [logs, setLogs] = useState<{ message: string; type?: LogType }[]>([]);
   const [selectedEventFromList, setSelectedEventFromList] = useState<any>(null);
 
   const [eventsByDay, setEventsByDay] = useState<Map<string, CalendarEvent[]>>(new Map());
@@ -594,107 +592,6 @@ const Visualiser = () => {
   }, [fitConnected, getSleepForDate, getDebtOrCapitalForDate]);
 
   useEffect(() => {
-    if (sunLoading) {
-      return;
-    } else if (sunError) {
-      setLogs([{ message: "Position approximative", type: "info" }]);
-    } else if (todaySunrise !== null && todaySunset !== null) {
-      setLogs([{ message: "Position détectée", type: "success" }]);
-    }
-  }, [sunLoading, sunError, todaySunrise, todaySunset]);
-
-  useEffect(() => {
-    if (gLoading) {
-      return;
-    } else if (gError && gError.includes("non connecté")) {
-      return;
-    } else if (gError) {
-      setLogs([{ message: "Google indisponible", type: "error" }]);
-    } else if (gConnected && gEvents.length > 0) {
-      setLogs([{ message: `${gEvents.length} événement${gEvents.length > 1 ? 's' : ''} Google`, type: "success" }]);
-    } else if (gConnected && gEvents.length === 0) {
-      setLogs([{ message: "Google synchronisé", type: "success" }]);
-    }
-  }, [gLoading, gError, gConnected, gEvents.length]);
-
-  useEffect(() => {
-    if (oLoading) {
-      return;
-    } else if (oError && oError.includes("non connecté")) {
-      return;
-    } else if (oError) {
-      setLogs([{ message: "Outlook indisponible", type: "error" }]);
-    } else if (oConnected && oEvents.length > 0) {
-      setLogs([{ message: `${oEvents.length} événement${oEvents.length > 1 ? 's' : ''} Outlook`, type: "success" }]);
-    } else if (oConnected && oEvents.length === 0) {
-      setLogs([{ message: "Outlook synchronisé", type: "success" }]);
-    }
-  }, [oLoading, oError, oConnected, oEvents.length]);
-
-  const showSleepLog = useCallback(() => {
-    if (fitLoading) {
-      return;
-    } else if (fitError && fitError.includes("non connecté")) {
-      return;
-    } else if (fitError && fitError.includes("Aucune session")) {
-      return;
-    } else if (fitError) {
-      setLogs([{ message: "Sommeil indisponible", type: "info" }]);
-    } else if (fitConnected && effectiveWake != null && effectiveBed != null && effectiveTotalSleep != null) {
-      const parts: string[] = [];
-      
-      parts.push(`Sommeil : ${formatHourMinute(effectiveTotalSleep)}`);
-      
-      if (effectiveDebtOrCapital) {
-        const label = effectiveDebtOrCapital.type === "capital" ? "Capital" : "Dette";
-        const hoursFormatted = formatHourMinute(effectiveDebtOrCapital.hours);
-        
-        if (effectiveDebtOrCapital.daysCount === 7) {
-          parts.push(`${label} : ${hoursFormatted}`);
-        } else {
-          parts.push(`${label} : ${hoursFormatted} sur ${effectiveDebtOrCapital.daysCount} jour${effectiveDebtOrCapital.daysCount > 1 ? 's' : ''}`);
-        }
-      }
-      
-      if ((isToday || isTomorrowDay) && idealBedHour !== null) {
-        parts.push(`Coucher : ${formatHourMinute(idealBedHour)}`);
-      }
-      
-      setLogs([{ message: parts.join("｜"), type: "success" }]);
-      lastSleepLogTimeRef.current = Date.now();
-    }
-  }, [fitLoading, fitError, fitConnected, effectiveWake, effectiveBed, effectiveTotalSleep, effectiveDebtOrCapital, idealBedHour, isToday, isTomorrowDay]);
-
-  useEffect(() => {
-    if (isHoveringRing) {
-      const timeSinceLastLog = Date.now() - lastSleepLogTimeRef.current;
-      if (timeSinceLastLog >= 6000) {
-        showSleepLog();
-      }
-
-      if (sleepLogTimerRef.current) {
-        window.clearInterval(sleepLogTimerRef.current);
-      }
-
-      sleepLogTimerRef.current = window.setInterval(() => {
-        showSleepLog();
-      }, 6000);
-    } else {
-      if (sleepLogTimerRef.current) {
-        window.clearInterval(sleepLogTimerRef.current);
-        sleepLogTimerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (sleepLogTimerRef.current) {
-        window.clearInterval(sleepLogTimerRef.current);
-        sleepLogTimerRef.current = null;
-      }
-    };
-  }, [isHoveringRing, showSleepLog]);
-
-  useEffect(() => {
     const today = new Date();
     const newCache = new Map<string, CalendarEvent[]>();
 
@@ -741,11 +638,6 @@ const Visualiser = () => {
         newMap.set(key, allEvents);
         return newMap;
       });
-
-      if (allEvents.length > 0) {
-        const formattedDate = formatDateForLog(date);
-        setLogs([{ message: `${formattedDate} : ${allEvents.length} événement${allEvents.length > 1 ? 's' : ''}`, type: "success" }]);
-      }
     } catch (err) {
       // Pas de log d'erreur
     } finally {
@@ -814,10 +706,8 @@ const Visualiser = () => {
         }}
       />
 
-      {/* Logs - z-index 1 */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none" }}>
-        <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
-      </div>
+      {/* Chat Interface - z-index 1 */}
+      <ChatInterface />
 
       {/* Liste événements - z-index 1000 */}
       {hasAnyConnection && (
