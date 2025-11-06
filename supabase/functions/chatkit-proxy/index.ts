@@ -19,7 +19,21 @@ serve(async (req) => {
   console.log("🚀 [ChatKit Proxy] Received request");
 
   try {
-    const { message } = await req.json();
+    // Parse request body
+    let body;
+    try {
+      const text = await req.text();
+      console.log("📦 [ChatKit Proxy] Raw body:", text);
+      body = JSON.parse(text);
+    } catch (parseError) {
+      console.error("❌ [ChatKit Proxy] Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { message } = body;
     
     if (!message) {
       return new Response(
