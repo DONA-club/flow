@@ -496,7 +496,6 @@ export const CircularCalendar: React.FC<Props> = ({
         });
       }
 
-      // Calcul événement matché - optimisé
       let matchedIndex: number | null = null;
       const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
       const dayStart = new Date(nextTime);
@@ -649,7 +648,6 @@ export const CircularCalendar: React.FC<Props> = ({
         const currentTime = Date.now();
         const timeSinceLastUpdate = currentTime - lastUpdateTimeRef.current;
         
-        // Priorité curseur : mise à jour immédiate
         const updateThreshold = 0;
         
         if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 1) {
@@ -678,7 +676,6 @@ export const CircularCalendar: React.FC<Props> = ({
               });
             }
 
-            // Calcul événement matché - différé pour ne pas bloquer le curseur
             requestIdleCallback(() => {
               let matchedIndex: number | null = null;
               const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
@@ -811,7 +808,6 @@ export const CircularCalendar: React.FC<Props> = ({
   const strokeWidthNormal = Math.max(0.3, 0.5 * sizeScale);
   const metaIconSize = Math.round(Math.max(12, Math.min(16 * sizeScale, 16)));
 
-  // Optimisation: Memoization des wedges avec will-change CSS
   const wedges = React.useMemo(
     () =>
       Array.from({ length: SEGMENTS }, (_, i) => {
@@ -1111,7 +1107,19 @@ export const CircularCalendar: React.FC<Props> = ({
           )}
         </div>
 
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: "visible", position: "relative", zIndex: 1, pointerEvents: "none", willChange: "transform" }}>
+        <svg 
+          width={size} 
+          height={size} 
+          viewBox={`0 0 ${size} ${size}`} 
+          style={{ 
+            overflow: "visible", 
+            position: "relative", 
+            zIndex: 1, 
+            pointerEvents: "none", 
+            willChange: "transform",
+            touchAction: "none" // IMPORTANT: empêche le navigateur de gérer le touch
+          }}
+        >
           <defs>
             <filter id="ringEdgeBlur" filterUnits="userSpaceOnUse" x={cx - (radius + RING_THICKNESS)} y={cy - (radius + RING_THICKNESS)} width={(radius + RING_THICKNESS) * 2} height={(radius + RING_THICKNESS) * 2}>
               <feGaussianBlur stdDeviation={Math.max(2, RING_THICKNESS * 0.15)} />

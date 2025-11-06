@@ -8,15 +8,12 @@ export type SunTimes = {
   retry: () => void;
   latitude: number | null;
   longitude: number | null;
-  timezoneOffset: number; // Offset en heures (ex: +1 ou +2 pour la France)
+  timezoneOffset: number;
 };
 
-// Fonction pour obtenir l'offset du fuseau horaire local en heures
 function getLocalTimezoneOffset(): number {
   const now = new Date();
   const offsetMinutes = now.getTimezoneOffset();
-  // getTimezoneOffset retourne la différence en minutes entre UTC et l'heure locale
-  // Valeur négative si on est en avance sur UTC (ex: -60 pour UTC+1)
   return -offsetMinutes / 60;
 }
 
@@ -33,7 +30,6 @@ export function useSunTimes(): SunTimes {
     setLoading(true);
     setError(null);
 
-    // Mettre à jour l'offset au moment du fetch (pour gérer les changements DST)
     const currentOffset = getLocalTimezoneOffset();
     setTimezoneOffset(currentOffset);
 
@@ -58,11 +54,9 @@ export function useSunTimes(): SunTimes {
           throw new Error('API returned error status');
         }
         
-        // L'API retourne les heures en UTC, on les convertit en heure locale
         const sunriseUTC = new Date(data.results.sunrise);
         const sunsetUTC = new Date(data.results.sunset);
         
-        // Conversion en heure locale en utilisant les méthodes locales de Date
         const sunriseLocal = new Date(sunriseUTC.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
         const sunsetLocal = new Date(sunsetUTC.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
         
@@ -84,7 +78,6 @@ export function useSunTimes(): SunTimes {
       try {
         await fetchFromAPI(lat, lon);
       } catch (err) {
-        setError("API indisponible. Utilisation de valeurs approximatives.");
         const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
         const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
         setSunrise(Number(sunriseCalc.toFixed(2)));
@@ -104,7 +97,6 @@ export function useSunTimes(): SunTimes {
         try {
           await fetchFromAPI(lat, lon);
         } catch (err) {
-          setError("API indisponible. Utilisation de valeurs approximatives.");
           const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
           const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
           setSunrise(Number(sunriseCalc.toFixed(2)));
@@ -112,16 +104,15 @@ export function useSunTimes(): SunTimes {
           setLoading(false);
         }
       },
-      async () => {
+      async (err) => {
+        // Permission refusée ou erreur : utiliser Paris SANS message d'erreur
         const { lat, lon } = DEFAULT_COORDS;
         setLatitude(lat);
         setLongitude(lon);
         
         try {
           await fetchFromAPI(lat, lon);
-          setError("Position indisponible (permission refusée). Utilisation de Paris par défaut.");
-        } catch (err) {
-          setError("Position et API indisponibles. Utilisation de valeurs approximatives.");
+        } catch (apiErr) {
           const sunriseCalc = 6 + (lat / 90) * 2 + currentOffset;
           const sunsetCalc = 21 - (lat / 90) * 2 + currentOffset;
           setSunrise(Number(sunriseCalc.toFixed(2)));
@@ -130,9 +121,9 @@ export function useSunTimes(): SunTimes {
         }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 300000,
+        enableHighAccuracy: false, // Moins précis mais plus rapide
+        timeout: 10000,
+        maximumAge: 600000, // Cache 10min
       }
     );
   }, []);
