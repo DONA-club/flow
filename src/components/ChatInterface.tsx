@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Volume2, Mic } from "lucide-react";
+import { runChatkitWorkflow } from "@/services/chatkit";
 
 type LogType = "info" | "success" | "error";
 
@@ -215,6 +216,8 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    console.log("💬 [Chat] User sending message:", input.trim());
+
     const currentPairId = ++pairIdCounter.current;
 
     const userMessage: Message = {
@@ -230,40 +233,29 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     setIsLoading(true);
     setLastUserActivity(Date.now());
 
-    try {
-      const response = await fetch("https://chatkit.openai.com/api/v1/workflows/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4`,
-        },
-        body: JSON.stringify({
-          workflow_id: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
-          input: {
-            input_as_text: userMessage.text,
-          },
-        }),
-      });
+    console.log("⏳ [Chat] Calling ChatKit workflow...");
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erreur API:", response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const result = await runChatkitWorkflow(userMessage.text);
+      
+      console.log("📨 [Chat] Received response from ChatKit");
+
+      if (result.error) {
+        console.error("⚠️ [Chat] Response contains error:", result.error);
       }
 
-      const data = await response.json();
-      
       const agentMessage: Message = {
         id: ++idCounter.current,
-        text: data.output_text || "Désolé, je n'ai pas pu traiter votre demande.",
+        text: result.output_text,
         type: "agent",
         timestamp: new Date(),
         pairId: currentPairId,
       };
 
+      console.log("✅ [Chat] Adding agent message to UI:", agentMessage.text);
       setMessages((prev) => [...prev, agentMessage]);
     } catch (error) {
-      console.error("Erreur lors de l'envoi du message:", error);
+      console.error("💥 [Chat] Unhandled error in sendMessage:", error);
       
       const errorMessage: Message = {
         id: ++idCounter.current,
@@ -276,6 +268,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      console.log("🏁 [Chat] Message flow complete");
     }
   };
 
