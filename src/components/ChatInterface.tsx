@@ -315,7 +315,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
                   : "rgba(255, 255, 255, 0.45)",
                 backgroundColor: "transparent",
                 transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
-                paddingRight: message.type === "agent" ? "-20px" : "0px",
+                paddingRight: message.type === "agent" ? "20px" : "0px",
               }}
             >
               <span>{message.text}</span>
