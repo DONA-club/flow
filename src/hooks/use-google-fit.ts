@@ -210,6 +210,14 @@ function formatHour(decimal: number): string {
   return `${h}h${m.toString().padStart(2, '0')}`;
 }
 
+function isSameDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+}
+
 export function useGoogleFitSleep(options?: Options): Result {
   const enabled = options?.enabled ?? true;
 
@@ -229,6 +237,10 @@ export function useGoogleFitSleep(options?: Options): Result {
 
     setLoading(true);
     setError(null);
+
+    window.dispatchEvent(new CustomEvent("app-log", { 
+      detail: { message: "Récupération données sommeil Google Fit...", type: "info" } 
+    }));
 
     const tokens = await getGoogleTokens();
     let accessToken = tokens?.access_token;
@@ -295,14 +307,16 @@ export function useGoogleFitSleep(options?: Options): Result {
     const debtOrCapital = calculateSleepDebtOrCapitalForDate(sessions, today);
     setSleepDebtOrCapital(debtOrCapital);
 
-    if (todaySleep.wakeHour !== null) {
-      const ideal = (todaySleep.wakeHour - RECOMMENDED_SLEEP_HOURS + 24) % 24;
+    // Calcul heure idéale de coucher : première heure de coucher - (9h - somme des périodes de sommeil)
+    if (todaySleep.bedHour !== null && todaySleep.totalSleepHours !== null) {
+      const missingSleep = Math.max(0, RECOMMENDED_SLEEP_HOURS - todaySleep.totalSleepHours);
+      const ideal = (todaySleep.bedHour - missingSleep + 24) % 24;
       setIdealBedHour(Number(ideal.toFixed(4)));
     } else {
       setIdealBedHour(null);
     }
 
-    // Log formaté
+    // Log formaté pour AUJOURD'HUI uniquement
     if (todaySleep.totalSleepHours !== null && debtOrCapital && todaySleep.bedHour !== null) {
       const sleepStr = formatHour(todaySleep.totalSleepHours);
       const debtStr = debtOrCapital.type === "debt" 
@@ -337,10 +351,46 @@ export function useGoogleFitSleep(options?: Options): Result {
       end.setDate(end.getDate() + 3);
 
       const sessions = await fetchSleepSessions(accessToken, start, end);
-      return calculateSleepForDay(sessions, date);
+      const result = calculateSleepForDay(sessions, date);
+      
+      // Log formaté pour les AUTRES JOURS (avec "sur X jours")
+      const today = new Date();
+      if (!isSameDay(date, today) && result.totalSleepHours !== null) {
+        const debtOrCapital = await getDebtOrCapitalForDate(date);
+        if (debtOrCapital) {
+          const sleepStr = formatHour(result.totalSleepHours);
+          const debtStr = debtOrCapital.type === "debt" 
+            ? `Dette : ${formatHour(debtOrCapital.hours)} sur ${debtOrCapital.daysCount} jours`
+            : `Capital : ${formatHour(debtOrCapital.hours)} sur ${debtOrCapital.daysCount} jours`;
+          
+          window.dispatchEvent(new CustomEvent("app-log", { 
+            detail: { message: `Sommeil : ${sleepStr} | ${debtStr}`, type: "success" } 
+          }));
+        }
+      }
+      
+      return result;
     }
 
-    return calculateSleepForDay(allSessions, date);
+    const result = calculateSleepForDay(allSessions, date);
+    
+    // Log formaté pour les AUTRES JOURS (avec "sur X jours")
+    const today = new Date();
+    if (!isSameDay(date, today) && result.totalSleepHours !== null) {
+      const debtOrCapital = await getDebtOrCapitalForDate(date);
+      if (debtOrCapital) {
+        const sleepStr = formatHour(result.totalSleepHours);
+        const debtStr = debtOrCapital.type === "debt" 
+          ? `Dette : ${formatHour(debtOrCapital.hours)} sur ${debtOrCapital.daysCount} jours`
+          : `Capital : ${formatHour(debtOrCapital.hours)} sur ${debtOrCapital.daysCount} jours`;
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Sommeil : ${sleepStr} | ${debtStr}`, type: "success" } 
+        }));
+      }
+    }
+    
+    return result;
   }, [enabled, allSessions]);
 
   const getDebtOrCapitalForDate = React.useCallback(async (date: Date) => {

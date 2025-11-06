@@ -70,9 +70,14 @@ function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function formatDateLabel(date: Date): string {
+function formatDateLabel(date: Date, includeYear: boolean = false): string {
   const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
   const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  
+  if (includeYear) {
+    return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  }
+  
   return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
@@ -616,13 +621,17 @@ const Visualiser = () => {
         return newMap;
       });
       
-      // Log du nombre d'événements chargés
-      const dateLabel = formatDateLabel(date);
-      const eventCount = allEvents.length;
-      const eventWord = eventCount > 1 ? "événements" : "événement";
-      window.dispatchEvent(new CustomEvent("app-log", { 
-        detail: { message: `${dateLabel} : ${eventCount} ${eventWord}`, type: "info" } 
-      }));
+      // Log du nombre d'événements chargés SEULEMENT si > 0
+      if (allEvents.length > 0) {
+        const today = new Date();
+        const includeYear = date.getFullYear() !== today.getFullYear();
+        const dateLabel = formatDateLabel(date, includeYear);
+        const eventCount = allEvents.length;
+        const eventWord = eventCount > 1 ? "événements" : "événement";
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `${dateLabel} : ${eventCount} ${eventWord}`, type: "info" } 
+        }));
+      }
     } catch (err) {
       // Pas de log d'erreur
     } finally {
