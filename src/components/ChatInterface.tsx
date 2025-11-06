@@ -6,7 +6,7 @@ import { Volume2 } from "lucide-react";
 type Message = {
   id: number;
   text: string;
-  type: "user" | "agent";
+  type: "user" | "agent" | "system";
   timestamp: Date;
 };
 
@@ -29,6 +29,23 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Écouter les logs système
+  useEffect(() => {
+    const handleLog = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message: string; type?: "info" | "success" | "error" }>;
+      const systemMessage: Message = {
+        id: ++idCounter.current,
+        text: customEvent.detail.message,
+        type: "system",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, systemMessage]);
+    };
+
+    window.addEventListener("app-log", handleLog);
+    return () => window.removeEventListener("app-log", handleLog);
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -103,7 +120,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       className={`fixed bottom-6 right-6 flex flex-col items-end gap-1 z-50 ${className || ""}`}
       style={{ pointerEvents: "auto", maxWidth: "90vw", width: "400px" }}
     >
-      {/* Messages */}
+      {/* Messages (système + chat) */}
       <div className="flex flex-col items-end gap-1 w-full max-h-[300px] overflow-y-auto mb-2">
         {messages.map((message) => (
           <div
@@ -137,14 +154,8 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="flex items-center gap-2 w-full">
-        <span
-          className="text-xs select-none"
-          style={{ color: "rgba(255, 255, 255, 0.35)" }}
-        >
-          &lt;
-        </span>
+      {/* Input avec < à droite */}
+      <div className="flex items-center gap-2 w-full justify-end">
         <input
           ref={inputRef}
           type="text"
@@ -153,12 +164,18 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           onKeyPress={handleKeyPress}
           placeholder="Posez votre question..."
           disabled={isLoading}
-          className="flex-1 bg-transparent border-none outline-none text-xs italic px-2 py-1"
+          className="flex-1 bg-transparent border-none outline-none text-xs italic px-2 py-1 text-right"
           style={{
             color: "rgba(255, 255, 255, 0.55)",
             caretColor: "rgba(255, 255, 255, 0.55)",
           }}
         />
+        <span
+          className="text-xs select-none"
+          style={{ color: "rgba(255, 255, 255, 0.35)" }}
+        >
+          &lt;
+        </span>
       </div>
     </div>
   );

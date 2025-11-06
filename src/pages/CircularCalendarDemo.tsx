@@ -41,8 +41,6 @@ function useGoldenCircleSize() {
   return size;
 }
 
-type LogType = "info" | "success" | "error";
-
 type CalendarEvent = {
   title: string;
   place: string;
@@ -70,30 +68,6 @@ function toHourDecimal(iso: string): number {
 
 function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function formatDateForLog(date: Date): string {
-  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-  
-  const currentYear = new Date().getFullYear();
-  const dateYear = date.getFullYear();
-  
-  const dayName = days[date.getDay()];
-  const dayNumber = date.getDate();
-  const monthName = months[date.getMonth()];
-  
-  if (dateYear !== currentYear) {
-    return `${dayName} ${dayNumber} ${monthName} ${dateYear}`;
-  }
-  
-  return `${dayName} ${dayNumber} ${monthName}`;
-}
-
-function formatHourMinute(decimal: number): string {
-  const h = Math.floor(decimal);
-  const m = Math.round((decimal % 1) * 60);
-  return `${h}h${m.toString().padStart(2, '0')}`;
 }
 
 async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
@@ -706,7 +680,7 @@ const Visualiser = () => {
         }}
       />
 
-      {/* Chat Interface - z-index 1 */}
+      {/* Chat Interface (remplace les logs) - z-index 1 */}
       <ChatInterface />
 
       {/* Liste événements - z-index 1000 */}
