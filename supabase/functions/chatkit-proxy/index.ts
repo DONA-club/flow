@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CHATKIT_API_BASE = "https://chatkit.openai.com/api/v1";
+const CHATKIT_API_BASE = "https://api.openai.com";
 const WORKFLOW_ID = "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
@@ -26,7 +26,7 @@ serve(async (req) => {
     const body = await req.json();
     console.log("📦 [ChatKit Proxy] Body:", JSON.stringify(body));
 
-    const { message } = body;
+    const { message, session_id } = body;
     
     if (!message) {
       return new Response(
@@ -37,40 +37,58 @@ serve(async (req) => {
 
     console.log("📝 [ChatKit Proxy] User message:", message);
 
-    // Step 1: Create a session
-    console.log("🔑 [ChatKit Proxy] Creating session...");
-    const sessionResponse = await fetch(`${CHATKIT_API_BASE}/sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({ workflow_id: WORKFLOW_ID }),
-    });
+    let sessionId = session_id;
 
-    if (!sessionResponse.ok) {
-      const errorText = await sessionResponse.text();
-      console.error("❌ [ChatKit Proxy] Session creation failed:", errorText);
-      return new Response(
-        JSON.stringify({ 
-          error: `Failed to create session (${sessionResponse.status})`,
-          details: errorText 
+    // Step 1: Create a session if we don't have one
+    if (!sessionId) {
+      console.log("🔑 [ChatKit Proxy] Creating new session...");
+      
+      // Generate a user ID (in production, use actual user ID)
+      const userId = crypto.randomUUID();
+      
+      const sessionResponse = await fetch(`${CHATKIT_API_BASE}/v1/chatkit/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "OpenAI-Beta": "chatkit_beta=v1",
+        },
+        body: JSON.stringify({
+          workflow: { id: WORKFLOW_ID },
+          user: userId,
+          chatkit_configuration: {
+            file_upload: {
+              enabled: false,
+            },
+          },
         }),
-        { status: sessionResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      });
+
+      if (!sessionResponse.ok) {
+        const errorText = await sessionResponse.text();
+        console.error("❌ [ChatKit Proxy] Session creation failed:", errorText);
+        return new Response(
+          JSON.stringify({ 
+            error: `Failed to create session (${sessionResponse.status})`,
+            details: errorText 
+          }),
+          { status: sessionResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const sessionData = await sessionResponse.json();
+      sessionId = sessionData.id;
+      console.log("✅ [ChatKit Proxy] Session created:", sessionId);
     }
 
-    const sessionData = await sessionResponse.json();
-    const sessionId = sessionData.id;
-    console.log("✅ [ChatKit Proxy] Session created:", sessionId);
-
     // Step 2: Send message to the session
-    console.log("💬 [ChatKit Proxy] Sending message to session...");
-    const messageResponse = await fetch(`${CHATKIT_API_BASE}/sessions/${sessionId}/messages`, {
+    console.log("💬 [ChatKit Proxy] Sending message to session:", sessionId);
+    const messageResponse = await fetch(`${CHATKIT_API_BASE}/v1/chatkit/sessions/${sessionId}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "OpenAI-Beta": "chatkit_beta=v1",
       },
       body: JSON.stringify({
         role: "user",
@@ -91,11 +109,18 @@ serve(async (req) => {
     }
 
     const messageData = await messageResponse.json();
-    console.log("✅ [ChatKit Proxy] Message sent, response:", JSON.stringify(messageData));
+    console.log("✅ [ChatKit Proxy] Message response:", JSON.stringify(messageData));
 
-    // Step 3: Get the assistant's response
-    // The response should contain the assistant's message
-    const assistantMessage = messageData.content || messageData.output_text || "Pas de réponse";
+    // Extract the assistant's response
+    let assistantMessage = "Pas de réponse";
+    
+    if (messageData.content) {
+      assistantMessage = messageData.content;
+    } else if (messageData.output_text) {
+      assistantMessage = messageData.output_text;
+    } else if (messageData.text) {
+      assistantMessage = messageData.text;
+    }
 
     return new Response(
       JSON.stringify({ 
