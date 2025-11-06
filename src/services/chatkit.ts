@@ -7,66 +7,54 @@ export type ChatkitMessage = {
 
 export type ChatkitResponse = {
   output_text: string;
-  session_id?: string;
   error?: string;
 };
 
-// Store session ID in memory (could be localStorage for persistence)
-let currentSessionId: string | null = null;
+// Store conversation history in memory
+let conversationHistory: ChatkitMessage[] = [];
 
 export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitResponse> {
-  console.log("🚀 [ChatKit] Starting workflow request via proxy");
-  console.log("📝 [ChatKit] User message:", userMessage);
-  console.log("🔑 [ChatKit] Current session ID:", currentSessionId);
+  console.log("🚀 [Chat] Starting chat request");
+  console.log("📝 [Chat] User message:", userMessage);
 
   try {
+    // Add user message to history
+    conversationHistory.push({
+      role: "user",
+      content: userMessage,
+    });
+
+    // Get auth token (optional - depends on your Edge Function config)
     const { data: sess } = await supabase.auth.getSession();
     const supaAccess = sess?.session?.access_token;
-    
-    if (!supaAccess) {
-      console.warn("⚠️ [ChatKit] No auth token, proceeding without authentication");
-    }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    
+
     if (supaAccess) {
       headers["Authorization"] = `Bearer ${supaAccess}`;
     }
 
-    console.log("📡 [ChatKit] Calling edge function proxy");
+    console.log("📡 [Chat] Calling edge function");
 
-    const { data, error } = await supabase.functions.invoke("chatkit-proxy", {
+    // Call the simplified chat function
+    const { data, error } = await supabase.functions.invoke("chat", {
       body: { 
-        message: userMessage,
-        session_id: currentSessionId 
+        messages: conversationHistory 
       },
       headers,
     });
 
     if (error) {
-      console.error("❌ [ChatKit] Edge function error:", error);
-      console.error("❌ [ChatKit] Error details:", JSON.stringify(error, null, 2));
-      
-      if (data) {
-        console.error("❌ [ChatKit] Error data:", JSON.stringify(data, null, 2));
-      }
-      
+      console.error("❌ [Chat] Edge function error:", error);
       throw new Error(error.message || "Edge function invocation failed");
     }
 
-    console.log("✅ [ChatKit] Success response:", data);
-
-    // Store session ID for next message
-    if (data?.session_id) {
-      currentSessionId = data.session_id;
-      console.log("💾 [ChatKit] Stored session ID:", currentSessionId);
-    }
+    console.log("✅ [Chat] Success response:", data);
 
     if (!data || !data.output_text) {
-      console.warn("⚠️ [ChatKit] No output_text in response");
-      console.warn("⚠️ [ChatKit] Full response:", JSON.stringify(data, null, 2));
+      console.warn("⚠️ [Chat] No output_text in response");
       
       if (data?.error) {
         return {
@@ -81,17 +69,22 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
       };
     }
 
-    console.log("✨ [ChatKit] Final output:", data.output_text);
+    // Add assistant response to history
+    conversationHistory.push({
+      role: "assistant",
+      content: data.output_text,
+    });
+
+    console.log("✨ [Chat] Final output:", data.output_text);
     return {
       output_text: data.output_text,
-      session_id: data.session_id,
     };
   } catch (error) {
-    console.error("💥 [ChatKit] Exception caught:", error);
+    console.error("💥 [Chat] Exception caught:", error);
     
     if (error instanceof Error) {
-      console.error("💥 [ChatKit] Error message:", error.message);
-      console.error("💥 [ChatKit] Error stack:", error.stack);
+      console.error("💥 [Chat] Error message:", error.message);
+      console.error("💥 [Chat] Error stack:", error.stack);
     }
 
     return {
@@ -101,8 +94,13 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
   }
 }
 
-// Reset session (useful for starting fresh conversation)
+// Reset conversation (useful for starting fresh)
 export function resetChatkitSession() {
-  console.log("🔄 [ChatKit] Resetting session");
-  currentSessionId = null;
+  console.log("🔄 [Chat] Resetting conversation");
+  conversationHistory = [];
+}
+
+// Get conversation history (useful for debugging)
+export function getConversationHistory(): ChatkitMessage[] {
+  return [...conversationHistory];
 }

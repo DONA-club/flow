@@ -13,3 +13,25 @@ declare module "https://deno.land/std@0.190.0/http/server.ts" {
     handler: (req: Request) => Response | Promise<Response>
   ): void;
 }
+
+// Ambient module declaration for OpenAI npm import in Deno
+declare module "npm:openai@4" {
+  export default class OpenAI {
+    constructor(config: { apiKey: string | undefined });
+    chat: {
+      completions: {
+        create(params: {
+          model: string;
+          messages: Array<{ role: string; content: string }>;
+          temperature?: number;
+        }): Promise<{
+          choices: Array<{
+            message?: {
+              content?: string;
+            };
+          }>;
+        }>;
+      };
+    };
+  }
+}
