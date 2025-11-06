@@ -407,9 +407,6 @@ const Visualiser = () => {
   const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
   const [currentDayDebtOrCapital, setCurrentDayDebtOrCapital] = useState<SleepDebtOrCapital | null>(null);
   const [isHoveringRing, setIsHoveringRing] = useState(false);
-  
-  const sleepLogTimerRef = useRef<number | null>(null);
-  const lastSleepLogTimeRef = useRef<number>(0);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -562,25 +559,6 @@ const Visualiser = () => {
       setCurrentDayTotalSleep(sleepData.totalSleepHours);
       setCurrentDaySleepSessions(sleepData.sleepSessions);
       setCurrentDayDebtOrCapital(debtOrCapital);
-      
-      // Log sommeil pour le jour sélectionné
-      if (sleepData.totalSleepHours !== null && debtOrCapital && sleepData.bedHour !== null) {
-        const formatHour = (decimal: number): string => {
-          const h = Math.floor(decimal);
-          const m = Math.round((decimal % 1) * 60);
-          return `${h}h${m.toString().padStart(2, '0')}`;
-        };
-        
-        const sleepStr = formatHour(sleepData.totalSleepHours);
-        const debtStr = debtOrCapital.type === "debt" 
-          ? `Dette : ${formatHour(debtOrCapital.hours)}`
-          : `Capital : ${formatHour(debtOrCapital.hours)}`;
-        const bedStr = formatHour(sleepData.bedHour);
-        
-        window.dispatchEvent(new CustomEvent("app-log", { 
-          detail: { message: `Sommeil : ${sleepStr} | ${debtStr} | Coucher : ${bedStr}`, type: "success" } 
-        }));
-      }
     } else {
       setCurrentDayWake(null);
       setCurrentDayBed(null);
