@@ -331,6 +331,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const lastUpdateTimeRef = React.useRef<number>(0);
   const accumulatedAngleDeltaRef = React.useRef<number>(0);
   const isDraggingCursorRef = React.useRef<boolean>(false);
+  const touchInteractionLayerRef = React.useRef<HTMLDivElement>(null);
 
   const pendingCallbacksRef = React.useRef<Array<() => void>>([]);
 
@@ -587,10 +588,32 @@ export const CircularCalendar: React.FC<Props> = ({
       handleScroll(event.deltaY, event.deltaX);
     };
 
+    container.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel as any);
+      
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [handleScroll]);
+
+  // Gestion touch ISOLÉE sur une couche dédiée
+  React.useEffect(() => {
+    const touchLayer = touchInteractionLayerRef.current;
+    if (!touchLayer) return;
+
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
       
+      event.preventDefault();
+      event.stopPropagation();
+      
       const touch = event.touches[0];
+      const container = document.getElementById("calendar-container");
+      if (!container) return;
+      
       const rect = container.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
@@ -609,10 +632,13 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleTouchMove = (event: TouchEvent) => {
       if (!touchStartRef.current || event.touches.length !== 1) return;
       
-      // NE PAS preventDefault ici - laisser le navigateur gérer le scroll de la page
-      // event.preventDefault();
+      event.preventDefault();
+      event.stopPropagation();
       
       const touch = event.touches[0];
+      const container = document.getElementById("calendar-container");
+      if (!container) return;
+      
       const rect = container.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
@@ -623,8 +649,6 @@ export const CircularCalendar: React.FC<Props> = ({
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
       if (isHorizontal) {
-        // Swipe horizontal = changement de jour
-        event.preventDefault(); // Empêcher le scroll horizontal uniquement
         const sensitivity = 0.3;
         const adjustedDeltaX = totalDeltaX * sensitivity;
         if (Math.abs(adjustedDeltaX) > 3) {
@@ -636,8 +660,6 @@ export const CircularCalendar: React.FC<Props> = ({
           };
         }
       } else {
-        // Drag vertical = rotation du curseur
-        event.preventDefault(); // Empêcher le scroll vertical uniquement
         setIsDraggingCursor(true);
         setIsScrolling(true);
         
@@ -718,7 +740,10 @@ export const CircularCalendar: React.FC<Props> = ({
       }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (event: TouchEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
       touchStartRef.current = null;
       accumulatedAngleDeltaRef.current = 0;
       
@@ -778,22 +803,16 @@ export const CircularCalendar: React.FC<Props> = ({
       }
     };
 
-    container.addEventListener("wheel", handleWheel, { passive: false });
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
-    container.addEventListener("touchend", handleTouchEnd, { passive: true });
-    container.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    touchLayer.addEventListener("touchstart", handleTouchStart, { passive: false });
+    touchLayer.addEventListener("touchmove", handleTouchMove, { passive: false });
+    touchLayer.addEventListener("touchend", handleTouchEnd, { passive: false });
+    touchLayer.addEventListener("touchcancel", handleTouchEnd, { passive: false });
 
     return () => {
-      container.removeEventListener("wheel", handleWheel as any);
-      container.removeEventListener("touchstart", handleTouchStart as any);
-      container.removeEventListener("touchmove", handleTouchMove as any);
-      container.removeEventListener("touchend", handleTouchEnd as any);
-      container.removeEventListener("touchcancel", handleTouchEnd as any);
-      
-      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
-      if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      touchLayer.removeEventListener("touchstart", handleTouchStart as any);
+      touchLayer.removeEventListener("touchmove", handleTouchMove as any);
+      touchLayer.removeEventListener("touchend", handleTouchEnd as any);
+      touchLayer.removeEventListener("touchcancel", handleTouchEnd as any);
     };
   }, [handleScroll]);
 
@@ -1071,7 +1090,21 @@ export const CircularCalendar: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div id="calendar-container" style={{ position: "relative", width: size, height: size, touchAction: "pan-y" }}>
+      <div id="calendar-container" style={{ position: "relative", width: size, height: size }}>
+        {/* Couche d'interaction touch ISOLÉE - au-dessus de tout */}
+        <div
+          ref={touchInteractionLayerRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 100,
+            touchAction: "none",
+            WebkitTouchCallout: "none",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+          }}
+        />
+
         <div
           className="absolute left-1/2 top-1/2 flex flex-col items-center justify-center text-center select-none"
           style={{ 
