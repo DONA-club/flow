@@ -188,8 +188,14 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       className={`fixed bottom-4 right-4 flex flex-col items-end gap-0.5 z-50 ${className || ""}`}
       style={{ pointerEvents: "auto", maxWidth: "90vw", width: "320px" }}
     >
-      {/* Messages (système + chat) */}
-      <div className="flex flex-col items-end gap-0.5 w-full max-h-[240px] overflow-y-auto mb-1">
+      {/* Messages (système + chat) - SANS ASCENSEUR */}
+      <div 
+        className="flex flex-col items-end gap-0.5 w-full max-h-[240px] mb-1"
+        style={{ 
+          overflowY: "hidden",
+          overflowX: "hidden"
+        }}
+      >
         {messages.map((message) => (
           <div
             key={message.id}

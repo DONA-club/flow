@@ -70,6 +70,12 @@ function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function formatDateLabel(date: Date): string {
+  const days = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+}
+
 async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
@@ -556,6 +562,25 @@ const Visualiser = () => {
       setCurrentDayTotalSleep(sleepData.totalSleepHours);
       setCurrentDaySleepSessions(sleepData.sleepSessions);
       setCurrentDayDebtOrCapital(debtOrCapital);
+      
+      // Log sommeil pour le jour sélectionné
+      if (sleepData.totalSleepHours !== null && debtOrCapital && sleepData.bedHour !== null) {
+        const formatHour = (decimal: number): string => {
+          const h = Math.floor(decimal);
+          const m = Math.round((decimal % 1) * 60);
+          return `${h}h${m.toString().padStart(2, '0')}`;
+        };
+        
+        const sleepStr = formatHour(sleepData.totalSleepHours);
+        const debtStr = debtOrCapital.type === "debt" 
+          ? `Dette : ${formatHour(debtOrCapital.hours)}`
+          : `Capital : ${formatHour(debtOrCapital.hours)}`;
+        const bedStr = formatHour(sleepData.bedHour);
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Sommeil : ${sleepStr} | ${debtStr} | Coucher : ${bedStr}`, type: "success" } 
+        }));
+      }
     } else {
       setCurrentDayWake(null);
       setCurrentDayBed(null);
@@ -612,6 +637,14 @@ const Visualiser = () => {
         newMap.set(key, allEvents);
         return newMap;
       });
+      
+      // Log du nombre d'événements chargés
+      const dateLabel = formatDateLabel(date);
+      const eventCount = allEvents.length;
+      const eventWord = eventCount > 1 ? "événements" : "événement";
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: `${dateLabel} : ${eventCount} ${eventWord}`, type: "info" } 
+      }));
     } catch (err) {
       // Pas de log d'erreur
     } finally {
