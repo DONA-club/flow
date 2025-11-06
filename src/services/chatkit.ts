@@ -95,7 +95,8 @@ export async function chatStream({
   console.log("🌊 [Chat] Starting streaming request");
   
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    // Use the Supabase URL from the client (already configured)
+    const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
     
     const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
       method: "POST",
