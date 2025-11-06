@@ -19,23 +19,14 @@ serve(async (req) => {
   console.log("🚀 [ChatKit Proxy] Received request");
 
   try {
-    // Parse request body
-    let body;
-    try {
-      const text = await req.text();
-      console.log("📦 [ChatKit Proxy] Raw body:", text);
-      body = JSON.parse(text);
-    } catch (parseError) {
-      console.error("❌ [ChatKit Proxy] Failed to parse request body:", parseError);
-      return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    // Parse request body using req.json() directly
+    const body = await req.json();
+    console.log("📦 [ChatKit Proxy] Parsed body:", JSON.stringify(body));
 
     const { message } = body;
     
     if (!message) {
+      console.error("❌ [ChatKit Proxy] Missing message in body");
       return new Response(
         JSON.stringify({ error: "Missing message parameter" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -52,6 +43,7 @@ serve(async (req) => {
     };
 
     console.log("📦 [ChatKit Proxy] Forwarding to ChatKit API");
+    console.log("📦 [ChatKit Proxy] Request body:", JSON.stringify(requestBody));
 
     const response = await fetch(CHATKIT_API_URL, {
       method: "POST",
@@ -81,7 +73,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("✅ [ChatKit Proxy] Success response");
+    console.log("✅ [ChatKit Proxy] Success response:", JSON.stringify(data));
 
     return new Response(
       JSON.stringify(data),
@@ -92,11 +84,13 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("💥 [ChatKit Proxy] Exception:", error);
+    console.error("💥 [ChatKit Proxy] Error stack:", error.stack);
     
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
-        message: error instanceof Error ? error.message : String(error)
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       }),
       { 
         status: 500, 
