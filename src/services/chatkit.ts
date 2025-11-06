@@ -39,6 +39,13 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
 
     if (error) {
       console.error("❌ [ChatKit] Edge function error:", error);
+      console.error("❌ [ChatKit] Error details:", JSON.stringify(error, null, 2));
+      
+      // Essayer de récupérer plus de détails depuis data
+      if (data) {
+        console.error("❌ [ChatKit] Error data:", JSON.stringify(data, null, 2));
+      }
+      
       throw new Error(error.message || "Edge function invocation failed");
     }
 
@@ -46,6 +53,16 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
 
     if (!data || !data.output_text) {
       console.warn("⚠️ [ChatKit] No output_text in response");
+      console.warn("⚠️ [ChatKit] Full response:", JSON.stringify(data, null, 2));
+      
+      // Si data contient une erreur, l'afficher
+      if (data?.error) {
+        return {
+          output_text: `Erreur: ${data.error}`,
+          error: data.error,
+        };
+      }
+      
       return {
         output_text: "Désolé, je n'ai pas pu traiter votre demande.",
         error: "No output_text in response",
