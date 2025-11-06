@@ -19,6 +19,7 @@
     "@iconify/icons-simple-icons": "^1.2.74",
     "@iconify/react": "^6.0.2",
     "@iconify/types": "^2.0.0",
+    "@openai/chatkit": "^1.0.1",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
