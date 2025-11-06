@@ -242,12 +242,43 @@ function extractVideoConferenceLink(event: Event) {
   return null;
 }
 
-function getSeason(date: Date): Props["season"] {
-  const month = date.getMonth() + 1;
-  if (month >= 3 && month < 6) return "spring";
-  if (month >= 6 && month < 9) return "summer";
-  if (month >= 9 && month < 12) return "autumn";
-  return "winter";
+function getSeason(date: Date, isNorthernHemisphere: boolean = true): Props["season"] {
+  const month = date.getMonth(); // 0-11
+  const day = date.getDate();
+  
+  // Dates approximatives des équinoxes et solstices (varient légèrement chaque année)
+  // Équinoxe de printemps : ~20 mars
+  // Solstice d'été : ~21 juin
+  // Équinoxe d'automne : ~22 septembre
+  // Solstice d'hiver : ~21 décembre
+  
+  if (isNorthernHemisphere) {
+    // Hémisphère Nord
+    if (month < 2 || (month === 2 && day < 20)) {
+      return "winter"; // Janvier, février, début mars
+    } else if (month < 5 || (month === 5 && day < 21)) {
+      return "spring"; // 20 mars - 20 juin
+    } else if (month < 8 || (month === 8 && day < 22)) {
+      return "summer"; // 21 juin - 21 septembre
+    } else if (month < 11 || (month === 11 && day < 21)) {
+      return "autumn"; // 22 septembre - 20 décembre
+    } else {
+      return "winter"; // 21 décembre - 31 décembre
+    }
+  } else {
+    // Hémisphère Sud (saisons inversées)
+    if (month < 2 || (month === 2 && day < 20)) {
+      return "summer"; // Janvier, février, début mars
+    } else if (month < 5 || (month === 5 && day < 21)) {
+      return "autumn"; // 20 mars - 20 juin
+    } else if (month < 8 || (month === 8 && day < 22)) {
+      return "winter"; // 21 juin - 21 septembre
+    } else if (month < 11 || (month === 11 && day < 21)) {
+      return "spring"; // 22 septembre - 20 décembre
+    } else {
+      return "summer"; // 21 décembre - 31 décembre
+    }
+  }
 }
 
 function isDayMinute(minute: number, sunrise: number, sunset: number) {
@@ -291,6 +322,8 @@ export const CircularCalendar: React.FC<Props> = ({
   season,
   onEventClick,
   size = DEFAULT_SIZE,
+  latitude,
+  longitude,
   wakeHour,
   bedHour,
   totalSleepHours,
@@ -496,7 +529,7 @@ export const CircularCalendar: React.FC<Props> = ({
         });
       }
 
-      // Calcul événement matché - SYNCHRONE, pas de requestIdleCallback
+      // Calcul événement matché - SYNCHRONE
       let matchedIndex: number | null = null;
       const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
       const dayStart = new Date(nextTime);
@@ -792,7 +825,10 @@ export const CircularCalendar: React.FC<Props> = ({
     };
   }, [handleScroll]);
 
-  const currentSeason = season || getSeason(virtualDateTime);
+  // Déterminer l'hémisphère basé sur la latitude
+  const isNorthernHemisphere = (latitude ?? 0) >= 0;
+  const currentSeason = season || getSeason(virtualDateTime, isNorthernHemisphere);
+  
   const sizeScale = size / DEFAULT_SIZE;
   const radius = size / 2 - 8;
   const innerRadius = radius - RING_THICKNESS;
