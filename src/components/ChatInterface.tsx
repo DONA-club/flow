@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Volume2, Mic } from "lucide-react";
-import { sendMessage as sendChatkitMessage } from "@/services/chatkit-client";
+import { runChatkitWorkflow } from "@/services/chatkit";
 
 type LogType = "info" | "success" | "error";
 
@@ -233,16 +233,20 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     setIsLoading(true);
     setLastUserActivity(Date.now());
 
-    console.log("⏳ [Chat] Calling ChatKit...");
+    console.log("⏳ [Chat] Calling ChatKit workflow...");
 
     try {
-      const responseText = await sendChatkitMessage(userMessage.text);
+      const response = await runChatkitWorkflow(userMessage.text);
       
       console.log("📨 [Chat] Received response from ChatKit");
 
+      if (response.error) {
+        console.warn("⚠️ [Chat] Response contains error:", response.error);
+      }
+
       const agentMessage: Message = {
         id: ++idCounter.current,
-        text: responseText,
+        text: response.output_text,
         type: "agent",
         timestamp: new Date(),
         pairId: currentPairId,
@@ -264,7 +268,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      console.log("🏁 [Chat] Message flow complete");
+      console.log("🏁 [Chat] Message flow complet");
     }
   };
 

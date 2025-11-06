@@ -751,23 +751,25 @@ const Visualiser = () => {
 
       {/* Fond principal - z-index 0 */}
       <div 
-        className="fixed inset-0 transition-all duration-[2000ms] ease-in-out" 
+        className="fixed inset-0 transition-all ease-in-out" 
         style={{ 
           zIndex: 0,
           background: backgroundGradient || (isDarkMode 
             ? 'radial-gradient(circle at 50% 50%, #6d28d9 0%, #312e81 55%, #181c2a 100%)'
             : 'radial-gradient(circle at 50% 50%, #e0f7fa 0%, #80deea 25%, #4dd0e1 45%, #26c6da 65%, #00acc1 80%, #0097a7 100%)'
-          )
+          ),
+          transitionDuration: '2000ms'
         }}
         id="calendar-page-container"
       />
 
       {/* Vignettage radial centré sur la roue - z-index 0.5 */}
       <div 
-        className="fixed inset-0 pointer-events-none transition-all duration-[2000ms] ease-in-out"
+        className="fixed inset-0 pointer-events-none transition-all ease-in-out"
         style={{ 
           zIndex: 0.5,
           background: vignetteGradient,
+          transitionDuration: '2000ms'
         }}
       />
 
