@@ -333,6 +333,7 @@ export const CircularCalendar: React.FC<Props> = ({
   const lastAngleRef = React.useRef<number>(0);
   const lastUpdateTimeRef = React.useRef<number>(0);
   const accumulatedAngleDeltaRef = React.useRef<number>(0);
+  const isDraggingCursorRef = React.useRef<boolean>(false); // REF pour capturer la vraie valeur
 
   // Ref pour stocker les callbacks à exécuter après render
   const pendingCallbacksRef = React.useRef<Array<() => void>>([]);
@@ -351,6 +352,11 @@ export const CircularCalendar: React.FC<Props> = ({
   React.useEffect(() => {
     onVirtualDateTimeChangeRef.current = onVirtualDateTimeChange;
   }, [onVirtualDateTimeChange]);
+
+  // Synchroniser la ref avec le state
+  React.useEffect(() => {
+    isDraggingCursorRef.current = isDraggingCursor;
+  }, [isDraggingCursor]);
 
   // Exécuter les callbacks en attente après chaque render
   React.useEffect(() => {
@@ -694,10 +700,10 @@ export const CircularCalendar: React.FC<Props> = ({
         const currentTime = Date.now();
         const timeSinceLastUpdate = currentTime - lastUpdateTimeRef.current;
         
-        // Throttling adaptatif : mise à jour plus fréquente = plus fluide
-        const updateThreshold = 16; // ~60fps
+        // Throttling réduit pour plus de fluidité
+        const updateThreshold = 8; // ~120fps au lieu de 60fps
         
-        if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 5) {
+        if (timeSinceLastUpdate >= updateThreshold || Math.abs(accumulatedAngleDeltaRef.current) > 2) {
           const minutesDelta = (accumulatedAngleDeltaRef.current / 360) * 1440;
           
           setVirtualDateTime((prev) => {
@@ -763,7 +769,8 @@ export const CircularCalendar: React.FC<Props> = ({
       touchStartRef.current = null;
       accumulatedAngleDeltaRef.current = 0;
       
-      if (isDraggingCursor) {
+      // Utiliser la REF au lieu du state pour avoir la vraie valeur
+      if (isDraggingCursorRef.current) {
         console.log("📝 Was dragging - Setting isDraggingCursor=false");
         setIsDraggingCursor(false);
         
@@ -842,7 +849,7 @@ export const CircularCalendar: React.FC<Props> = ({
       if (labelTimeoutRef.current) window.clearTimeout(labelTimeoutRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [handleScroll, isDraggingCursor]); // RETIRÉ virtualDateTime des dépendances !
+  }, [handleScroll]);
 
   const currentSeason = season || getSeason(virtualDateTime);
   const sizeScale = size / DEFAULT_SIZE;
