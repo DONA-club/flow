@@ -11,6 +11,7 @@ type Message = {
   type: "user" | "agent" | "system";
   timestamp: Date;
   fading?: boolean;
+  pairId?: number; // Pour lier question/réponse
 };
 
 type Props = {
@@ -21,10 +22,13 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUserActivity, setLastUserActivity] = useState<number>(Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
+  const pairIdCounter = useRef(0);
   const timersRef = useRef<Map<number, { fadeTimeout?: number; removeTimeout?: number }>>(new Map());
+  const activityListenersAttached = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,6 +37,29 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Détection d'activité utilisateur
+  useEffect(() => {
+    if (activityListenersAttached.current) return;
+
+    const updateActivity = () => {
+      setLastUserActivity(Date.now());
+    };
+
+    const events = ['click', 'scroll', 'touchstart', 'touchmove', 'keydown', 'mousemove', 'wheel'];
+    events.forEach(event => {
+      window.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    activityListenersAttached.current = true;
+
+    return () => {
+      events.forEach(event => {
+        window.removeEventListener(event, updateActivity);
+      });
+      activityListenersAttached.current = false;
+    };
+  }, []);
 
   // Écouter les logs système (éphémères)
   useEffect(() => {
@@ -75,9 +102,9 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   }, [messages]);
 
   // Gestion du fade out et suppression des messages système
-  const visibleMs = 10000;
-  const fadeMs = 5000;
-  const totalMs = visibleMs + fadeMs;
+  const systemVisibleMs = 10000;
+  const systemFadeMs = 5000;
+  const systemTotalMs = systemVisibleMs + systemFadeMs;
 
   useEffect(() => {
     messages.forEach((msg) => {
@@ -92,18 +119,105 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         setMessages((prev) =>
           prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
         );
-      }, visibleMs);
+      }, systemVisibleMs);
 
       const removeTimeout = window.setTimeout(() => {
         setMessages((prev) => prev.filter((m) => m.id !== msg.id));
         timersRef.current.delete(msg.id);
-      }, totalMs);
+      }, systemTotalMs);
 
       timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
     });
 
     return () => {};
-  }, [messages, visibleMs, fadeMs, totalMs]);
+  }, [messages, systemVisibleMs, systemFadeMs, systemTotalMs]);
+
+  // Gestion du fade out des couples question/réponse
+  const chatVisibleMs = 30000; // 30 secondes
+  const chatFadeMs = 5000; // 5 secondes
+  const chatTotalMs = chatVisibleMs + chatFadeMs;
+
+  useEffect(() => {
+    // Trouver tous les pairIds uniques
+    const pairIds = new Set<number>();
+    messages.forEach(msg => {
+      if (msg.pairId !== undefined && (msg.type === "user" || msg.type === "agent")) {
+        pairIds.add(msg.pairId);
+      }
+    });
+
+    const pairIdsArray = Array.from(pairIds).sort((a, b) => a - b);
+    
+    // Le dernier couple (le plus récent)
+    const lastPairId = pairIdsArray[pairIdsArray.length - 1];
+
+    pairIdsArray.forEach((pairId, index) => {
+      const isLastPair = pairId === lastPairId;
+      const pairMessages = messages.filter(m => m.pairId === pairId);
+      
+      // Vérifier si le couple est complet (user + agent)
+      const hasUser = pairMessages.some(m => m.type === "user");
+      const hasAgent = pairMessages.some(m => m.type === "agent");
+      const isComplete = hasUser && hasAgent;
+
+      if (!isComplete) return;
+
+      // Pour les couples précédents (pas le dernier)
+      if (!isLastPair) {
+        pairMessages.forEach(msg => {
+          const already = timersRef.current.get(msg.id);
+          if (already) return;
+
+          // Fade immédiat pour les anciens couples quand un nouveau message utilisateur arrive
+          const fadeTimeout = window.setTimeout(() => {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
+            );
+          }, 10000); // 10 secondes
+
+          const removeTimeout = window.setTimeout(() => {
+            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+            timersRef.current.delete(msg.id);
+          }, 15000); // 10s + 5s fade
+
+          timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
+        });
+      } else {
+        // Pour le dernier couple, attendre l'activité utilisateur
+        pairMessages.forEach(msg => {
+          const already = timersRef.current.get(msg.id);
+          if (already) return;
+
+          // Vérifier périodiquement s'il y a eu de l'activité
+          const checkActivity = () => {
+            const timeSinceActivity = Date.now() - lastUserActivity;
+            
+            if (timeSinceActivity >= chatVisibleMs) {
+              // Pas d'activité depuis 30s, on peut fade
+              const fadeTimeout = window.setTimeout(() => {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
+                );
+              }, 0);
+
+              const removeTimeout = window.setTimeout(() => {
+                setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                timersRef.current.delete(msg.id);
+              }, chatFadeMs);
+
+              timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
+            } else {
+              // Réessayer plus tard
+              window.setTimeout(checkActivity, 1000);
+            }
+          };
+
+          // Démarrer la vérification après 30 secondes
+          window.setTimeout(checkActivity, chatVisibleMs);
+        });
+      }
+    });
+  }, [messages, lastUserActivity, chatVisibleMs, chatFadeMs]);
 
   useEffect(() => {
     return () => {
@@ -118,16 +232,20 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    const currentPairId = ++pairIdCounter.current;
+
     const userMessage: Message = {
       id: ++idCounter.current,
       text: input.trim(),
       type: "user",
       timestamp: new Date(),
+      pairId: currentPairId,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setLastUserActivity(Date.now()); // Activité détectée
 
     try {
       const response = await fetch("https://chatkit.openai.com/api/v1/workflows/run", {
@@ -157,6 +275,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         text: data.output_text || "Désolé, je n'ai pas pu traiter votre demande.",
         type: "agent",
         timestamp: new Date(),
+        pairId: currentPairId,
       };
 
       setMessages((prev) => [...prev, agentMessage]);
@@ -168,6 +287,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         text: "Une erreur est survenue. Veuillez réessayer.",
         type: "agent",
         timestamp: new Date(),
+        pairId: currentPairId,
       };
 
       setMessages((prev) => [...prev, errorMessage]);
@@ -207,7 +327,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
                 ? "rgba(255, 255, 255, 0.65)" 
                 : "rgba(255, 255, 255, 0.45)",
               backgroundColor: "transparent",
-              transition: `opacity ${message.fading ? fadeMs : 300}ms ease, transform ${message.fading ? fadeMs : 220}ms ease`,
+              transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
             }}
           >
             <span>{message.text}</span>
