@@ -7,9 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CHATKIT_API_URL = "https://chatkit.openai.com/api/v1/workflows/run";
+const CHATKIT_API_BASE = "https://chatkit.openai.com/api/v1";
 const WORKFLOW_ID = "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59";
-const DOMAIN_PUBLIC_KEY = "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+
+if (!OPENAI_API_KEY) {
+  console.error("❌ OPENAI_API_KEY not set in environment");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,104 +21,91 @@ serve(async (req) => {
   }
 
   console.log("🚀 [ChatKit Proxy] Received request");
-  console.log("📋 [ChatKit Proxy] Request method:", req.method);
-  console.log("📋 [ChatKit Proxy] Content-Type:", req.headers.get("content-type"));
 
   try {
-    // Clone the request to read body multiple times if needed
-    const clonedReq = req.clone();
-    
-    // Try to get the raw text first
-    let rawBody;
-    try {
-      rawBody = await clonedReq.text();
-      console.log("📦 [ChatKit Proxy] Raw body (text):", rawBody);
-      console.log("📦 [ChatKit Proxy] Raw body type:", typeof rawBody);
-    } catch (textError) {
-      console.error("❌ [ChatKit Proxy] Failed to read text:", textError);
-    }
-
-    // Now try to parse as JSON
-    let body;
-    try {
-      if (rawBody) {
-        body = JSON.parse(rawBody);
-      } else {
-        body = await req.json();
-      }
-      console.log("✅ [ChatKit Proxy] Parsed body:", JSON.stringify(body));
-    } catch (jsonError) {
-      console.error("❌ [ChatKit Proxy] JSON parse error:", jsonError);
-      console.error("❌ [ChatKit Proxy] Raw body was:", rawBody);
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid JSON in request body",
-          details: jsonError.message,
-          receivedBody: rawBody
-        }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    const body = await req.json();
+    console.log("📦 [ChatKit Proxy] Body:", JSON.stringify(body));
 
     const { message } = body;
     
     if (!message) {
-      console.error("❌ [ChatKit Proxy] Missing message in body");
       return new Response(
-        JSON.stringify({ error: "Missing message parameter", receivedBody: body }),
+        JSON.stringify({ error: "Missing message parameter" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     console.log("📝 [ChatKit Proxy] User message:", message);
 
-    const requestBody = {
-      workflow_id: WORKFLOW_ID,
-      input: {
-        input_as_text: message,
-      },
-    };
-
-    console.log("📦 [ChatKit Proxy] Forwarding to ChatKit API");
-
-    const response = await fetch(CHATKIT_API_URL, {
+    // Step 1: Create a session
+    console.log("🔑 [ChatKit Proxy] Creating session...");
+    const sessionResponse = await fetch(`${CHATKIT_API_BASE}/sessions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DOMAIN_PUBLIC_KEY}`,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ workflow_id: WORKFLOW_ID }),
     });
 
-    console.log("📡 [ChatKit Proxy] Response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ [ChatKit Proxy] Error response:", errorText);
-      
+    if (!sessionResponse.ok) {
+      const errorText = await sessionResponse.text();
+      console.error("❌ [ChatKit Proxy] Session creation failed:", errorText);
       return new Response(
         JSON.stringify({ 
-          error: `ChatKit API error (${response.status})`,
+          error: `Failed to create session (${sessionResponse.status})`,
           details: errorText 
         }),
-        { 
-          status: response.status, 
-          headers: { "Content-Type": "application/json", ...corsHeaders } 
-        }
+        { status: sessionResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const data = await response.json();
-    console.log("✅ [ChatKit Proxy] Success response");
+    const sessionData = await sessionResponse.json();
+    const sessionId = sessionData.id;
+    console.log("✅ [ChatKit Proxy] Session created:", sessionId);
+
+    // Step 2: Send message to the session
+    console.log("💬 [ChatKit Proxy] Sending message to session...");
+    const messageResponse = await fetch(`${CHATKIT_API_BASE}/sessions/${sessionId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: message,
+      }),
+    });
+
+    if (!messageResponse.ok) {
+      const errorText = await messageResponse.text();
+      console.error("❌ [ChatKit Proxy] Message send failed:", errorText);
+      return new Response(
+        JSON.stringify({ 
+          error: `Failed to send message (${messageResponse.status})`,
+          details: errorText 
+        }),
+        { status: messageResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const messageData = await messageResponse.json();
+    console.log("✅ [ChatKit Proxy] Message sent, response:", JSON.stringify(messageData));
+
+    // Step 3: Get the assistant's response
+    // The response should contain the assistant's message
+    const assistantMessage = messageData.content || messageData.output_text || "Pas de réponse";
 
     return new Response(
-      JSON.stringify(data),
-      { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      }
+      JSON.stringify({ 
+        output_text: assistantMessage,
+        session_id: sessionId,
+        full_response: messageData
+      }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
+
   } catch (error) {
     console.error("💥 [ChatKit Proxy] Exception:", error);
     console.error("💥 [ChatKit Proxy] Error stack:", error.stack);
@@ -124,10 +115,7 @@ serve(async (req) => {
         error: "Internal server error",
         message: error instanceof Error ? error.message : String(error)
       }),
-      { 
-        status: 500, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 });
