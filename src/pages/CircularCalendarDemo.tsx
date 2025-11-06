@@ -81,6 +81,12 @@ function formatDateLabel(date: Date, includeYear: boolean = false): string {
   return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
 }
 
+function formatHour(decimal: number): string {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal % 1) * 60);
+  return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
 async function fetchGoogleEventsForDay(date: Date): Promise<CalendarEvent[]> {
   const { data: sess } = await supabase.auth.getSession();
   const userId = sess?.session?.user?.id;
@@ -412,6 +418,8 @@ const Visualiser = () => {
   const [currentDaySleepSessions, setCurrentDaySleepSessions] = useState<SleepSession[] | null>(null);
   const [currentDayDebtOrCapital, setCurrentDayDebtOrCapital] = useState<SleepDebtOrCapital | null>(null);
   const [isHoveringRing, setIsHoveringRing] = useState(false);
+  const [initialSleepLogShown, setInitialSleepLogShown] = useState(false);
+  const lastLoggedDateRef = useRef<string | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -551,6 +559,63 @@ const Visualiser = () => {
       return () => clearInterval(interval);
     }
   }, [effectiveWake, effectiveBed, isDarkMode, virtualDateTime]);
+
+  // Log initial au chargement de la page (une seule fois)
+  useEffect(() => {
+    if (!initialSleepLogShown && fitConnected && wakeHour !== null && bedHour !== null && totalSleepHours !== null && sleepDebtOrCapital) {
+      const sleepStr = formatHour(totalSleepHours);
+      const debtStr = sleepDebtOrCapital.type === "debt" 
+        ? `Dette : ${formatHour(sleepDebtOrCapital.hours)}`
+        : `Capital : ${formatHour(sleepDebtOrCapital.hours)}`;
+      const bedStr = formatHour(bedHour);
+      
+      window.dispatchEvent(new CustomEvent("app-log", { 
+        detail: { message: `Sommeil : ${sleepStr} | ${debtStr} | Coucher : ${bedStr}`, type: "success" } 
+      }));
+      
+      setInitialSleepLogShown(true);
+      lastLoggedDateRef.current = formatDateKey(new Date());
+    }
+  }, [fitConnected, wakeHour, bedHour, totalSleepHours, sleepDebtOrCapital, initialSleepLogShown]);
+
+  // Log au survol de l'anneau
+  useEffect(() => {
+    if (!isHoveringRing) return;
+
+    const currentDate = virtualDateTime || new Date();
+    const dateKey = formatDateKey(currentDate);
+    
+    // Ne pas logger si c'est le même jour que le dernier log
+    if (lastLoggedDateRef.current === dateKey) return;
+
+    if (effectiveTotalSleep !== null && effectiveDebtOrCapital && effectiveBed !== null) {
+      const sleepStr = formatHour(effectiveTotalSleep);
+      
+      const today = new Date();
+      const isCurrentDay = isSameDay(currentDate, today);
+      
+      if (isCurrentDay) {
+        const debtStr = effectiveDebtOrCapital.type === "debt" 
+          ? `Dette : ${formatHour(effectiveDebtOrCapital.hours)}`
+          : `Capital : ${formatHour(effectiveDebtOrCapital.hours)}`;
+        const bedStr = formatHour(effectiveBed);
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Sommeil : ${sleepStr} | ${debtStr} | Coucher : ${bedStr}`, type: "success" } 
+        }));
+      } else {
+        const debtStr = effectiveDebtOrCapital.type === "debt" 
+          ? `Dette : ${formatHour(effectiveDebtOrCapital.hours)} sur ${effectiveDebtOrCapital.daysCount} jours`
+          : `Capital : ${formatHour(effectiveDebtOrCapital.hours)} sur ${effectiveDebtOrCapital.daysCount} jours`;
+        
+        window.dispatchEvent(new CustomEvent("app-log", { 
+          detail: { message: `Sommeil : ${sleepStr} | ${debtStr}`, type: "success" } 
+        }));
+      }
+      
+      lastLoggedDateRef.current = dateKey;
+    }
+  }, [isHoveringRing, effectiveTotalSleep, effectiveDebtOrCapital, effectiveBed, virtualDateTime]);
 
   const handleVirtualDateTimeChange = useCallback(async (newDateTime: Date | null) => {
     setVirtualDateTime(newDateTime);
