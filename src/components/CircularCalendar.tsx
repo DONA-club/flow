@@ -496,6 +496,7 @@ export const CircularCalendar: React.FC<Props> = ({
         });
       }
 
+      // Calcul événement matché - SYNCHRONE, pas de requestIdleCallback
       let matchedIndex: number | null = null;
       const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
       const dayStart = new Date(nextTime);
@@ -609,9 +610,6 @@ export const CircularCalendar: React.FC<Props> = ({
     const handleTouchMove = (event: TouchEvent) => {
       if (!touchStartRef.current || event.touches.length !== 1) return;
       
-      // NE PAS preventDefault ici - laisser le navigateur gérer le scroll de la page
-      // event.preventDefault();
-      
       const touch = event.touches[0];
       const rect = container.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -623,8 +621,7 @@ export const CircularCalendar: React.FC<Props> = ({
       const isHorizontal = Math.abs(totalDeltaX) > Math.abs(totalDeltaY);
       
       if (isHorizontal) {
-        // Swipe horizontal = changement de jour
-        event.preventDefault(); // Empêcher le scroll horizontal uniquement
+        event.preventDefault();
         const sensitivity = 0.3;
         const adjustedDeltaX = totalDeltaX * sensitivity;
         if (Math.abs(adjustedDeltaX) > 3) {
@@ -636,8 +633,7 @@ export const CircularCalendar: React.FC<Props> = ({
           };
         }
       } else {
-        // Drag vertical = rotation du curseur
-        event.preventDefault(); // Empêcher le scroll vertical uniquement
+        event.preventDefault();
         setIsDraggingCursor(true);
         setIsScrolling(true);
         
@@ -681,33 +677,32 @@ export const CircularCalendar: React.FC<Props> = ({
               });
             }
 
-            requestIdleCallback(() => {
-              let matchedIndex: number | null = null;
-              const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
-              const dayStart = new Date(nextTime);
-              dayStart.setHours(0, 0, 0, 0);
-              const nextDay = new Date(dayStart);
-              nextDay.setDate(nextDay.getDate() + 1);
+            // Calcul événement matché - SYNCHRONE
+            let matchedIndex: number | null = null;
+            const virtualHour = nextTime.getHours() + nextTime.getMinutes() / 60;
+            const dayStart = new Date(nextTime);
+            dayStart.setHours(0, 0, 0, 0);
+            const nextDay = new Date(dayStart);
+            nextDay.setDate(nextDay.getDate() + 1);
 
-              const dayEvents = upcomingEventsRef.current.filter((entry) => {
-                const startMs = entry.start.getTime();
-                return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
-              });
-
-              for (let i = 0; i < dayEvents.length; i += 1) {
-                const { event: arcEvent, start, end } = dayEvents[i];
-                const startHour = start.getHours() + start.getMinutes() / 60;
-                const endHour = end.getHours() + end.getMinutes() / 60;
-                if (virtualHour >= startHour && virtualHour <= endHour) {
-                  matchedIndex = i;
-                  setSelectedEvent(arcEvent);
-                  break;
-                }
-              }
-
-              if (matchedIndex === null) setSelectedEvent(null);
-              setCursorEventIndex(matchedIndex);
+            const dayEvents = upcomingEventsRef.current.filter((entry) => {
+              const startMs = entry.start.getTime();
+              return startMs >= dayStart.getTime() && startMs < nextDay.getTime();
             });
+
+            for (let i = 0; i < dayEvents.length; i += 1) {
+              const { event: arcEvent, start, end } = dayEvents[i];
+              const startHour = start.getHours() + start.getMinutes() / 60;
+              const endHour = end.getHours() + end.getMinutes() / 60;
+              if (virtualHour >= startHour && virtualHour <= endHour) {
+                matchedIndex = i;
+                setSelectedEvent(arcEvent);
+                break;
+              }
+            }
+
+            if (matchedIndex === null) setSelectedEvent(null);
+            setCursorEventIndex(matchedIndex);
             
             return nextTime;
           });
@@ -1120,8 +1115,7 @@ export const CircularCalendar: React.FC<Props> = ({
             overflow: "visible", 
             position: "relative", 
             zIndex: 1, 
-            pointerEvents: "none", 
-            willChange: "transform"
+            pointerEvents: "none"
           }}
         >
           <defs>
@@ -1179,8 +1173,7 @@ export const CircularCalendar: React.FC<Props> = ({
             style={{
               filter: isScrolling ? `drop-shadow(0 0 8px ${cursorColor}aa) drop-shadow(0 0 12px ${cursorColor}66)` : `drop-shadow(0 0 4px ${cursorColor}88)`,
               transition: "all 0.2s ease-out",
-              pointerEvents: "none",
-              willChange: "transform"
+              pointerEvents: "none"
             }}
           />
         </svg>
