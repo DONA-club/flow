@@ -19,6 +19,7 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   fadeOutDuration,
 }) => {
   const [displayed, setDisplayed] = useState<Log[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const idRef = useRef(0);
 
   const timersRef = useRef<
@@ -27,6 +28,23 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
 
   const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const prevPositions = useRef<Map<number, number>>(new Map());
+
+  // Détection du thème
+  useEffect(() => {
+    const updateTheme = () => {
+      const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(dark);
+    };
+    
+    updateTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => updateTheme();
+    
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   useEffect(() => {
     if (logs.length === 0) return;
@@ -161,10 +179,16 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   };
 
   const baseTextClass =
-    "text-xs leading-tight tracking-tight select-none transition-all italic";
+    "text-xs leading-tight tracking-tight select-none transition-all italic px-2 py-1 rounded";
   
-  // Couleur adaptée au fond (proche mais lisible)
-  const textColor = "rgba(255, 255, 255, 0.35)";
+  // Couleur adaptée au thème avec fond vignetté pour meilleure lisibilité
+  const textColor = isDarkMode 
+    ? "rgba(255, 255, 255, 0.35)" 
+    : "rgba(30, 41, 59, 0.75)"; // Beaucoup plus foncé en mode clair
+  
+  const backgroundColor = isDarkMode
+    ? "transparent"
+    : "rgba(255, 255, 255, 0.4)"; // Fond blanc semi-transparent en mode clair
 
   return (
     <div
@@ -183,6 +207,12 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
             transition: `opacity ${log.fading ? fadeMs : 300}ms ease, transform ${log.fading ? fadeMs : 220}ms ease`,
             willChange: "transform, opacity",
             color: textColor,
+            backgroundColor: backgroundColor,
+            backdropFilter: isDarkMode ? "none" : "blur(8px)",
+            WebkitBackdropFilter: isDarkMode ? "none" : "blur(8px)",
+            boxShadow: isDarkMode 
+              ? "none" 
+              : "0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5)",
           }}
         >
           {sanitizeMessage(log.message)}
