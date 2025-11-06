@@ -7,204 +7,128 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const CHATKIT_API_BASE = "https://api.openai.com";
-const WORKFLOW_ID = "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const WORKFLOW_ID = Deno.env.get("CHATKIT_WORKFLOW_ID");
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("🚀 [ChatKit Proxy] Received request");
-  console.log("📋 [ChatKit Proxy] Method:", req.method);
-  console.log("📋 [ChatKit Proxy] Content-Type:", req.headers.get("content-type"));
+  console.log("🚀 [ChatKit Proxy] Request received");
 
   try {
-    // Get API key
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      console.error("❌ [ChatKit Proxy] OPENAI_API_KEY not set");
+    if (!OPENAI_API_KEY || !WORKFLOW_ID) {
+      console.error("❌ Missing env vars");
       return new Response(
-        JSON.stringify({ error: "Server configuration error: Missing API key" }),
+        JSON.stringify({ error: "Missing OPENAI_API_KEY or CHATKIT_WORKFLOW_ID" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-    console.log("✅ [ChatKit Proxy] API key found");
 
-    // Parse request body
-    let body;
-    try {
-      const rawBody = await req.text();
-      console.log("📦 [ChatKit Proxy] Raw body:", rawBody);
-      body = JSON.parse(rawBody);
-      console.log("✅ [ChatKit Proxy] Parsed body:", JSON.stringify(body));
-    } catch (parseError) {
-      console.error("❌ [ChatKit Proxy] Failed to parse body:", parseError);
-      return new Response(
-        JSON.stringify({ 
-          error: "Invalid request body",
-          details: parseError.message 
-        }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
+    const body = await req.json();
     const { message, session_id } = body;
-    
+
     if (!message) {
-      console.error("❌ [ChatKit Proxy] Missing message in body");
       return new Response(
         JSON.stringify({ error: "Missing message parameter" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log("📝 [ChatKit Proxy] User message:", message);
-    console.log("🔑 [ChatKit Proxy] Session ID:", session_id || "none");
+    console.log("📝 Message:", message);
+    console.log("🔑 Session ID:", session_id || "none");
 
     let sessionId = session_id;
 
-    // Step 1: Create a session if we don't have one
+    // Step 1: Create session if needed
     if (!sessionId) {
-      console.log("🔑 [ChatKit Proxy] Creating new session...");
+      console.log("🔑 Creating new session...");
       
       const userId = crypto.randomUUID();
-      console.log("👤 [ChatKit Proxy] Generated user ID:", userId);
       
-      const sessionPayload = {
-        workflow: { id: WORKFLOW_ID },
-        user: userId,
-        chatkit_configuration: {
-          file_upload: {
-            enabled: false,
-          },
-        },
-      };
-      
-      console.log("📤 [ChatKit Proxy] Session payload:", JSON.stringify(sessionPayload));
-      
-      try {
-        const sessionResponse = await fetch(`${CHATKIT_API_BASE}/v1/chatkit/sessions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
-            "OpenAI-Beta": "chatkit_beta=v1",
-          },
-          body: JSON.stringify(sessionPayload),
-        });
-
-        console.log("📡 [ChatKit Proxy] Session response status:", sessionResponse.status);
-
-        if (!sessionResponse.ok) {
-          const errorText = await sessionResponse.text();
-          console.error("❌ [ChatKit Proxy] Session creation failed:", errorText);
-          return new Response(
-            JSON.stringify({ 
-              error: `Failed to create session (${sessionResponse.status})`,
-              details: errorText 
-            }),
-            { status: sessionResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-
-        const sessionData = await sessionResponse.json();
-        sessionId = sessionData.id;
-        console.log("✅ [ChatKit Proxy] Session created:", sessionId);
-      } catch (sessionError) {
-        console.error("💥 [ChatKit Proxy] Session creation exception:", sessionError);
-        return new Response(
-          JSON.stringify({ 
-            error: "Failed to create session",
-            details: sessionError.message 
-          }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-    }
-
-    // Step 2: Send message to the session
-    console.log("💬 [ChatKit Proxy] Sending message to session:", sessionId);
-    
-    const messagePayload = {
-      role: "user",
-      content: message,
-    };
-    
-    console.log("📤 [ChatKit Proxy] Message payload:", JSON.stringify(messagePayload));
-    
-    try {
-      const messageResponse = await fetch(`${CHATKIT_API_BASE}/v1/chatkit/sessions/${sessionId}/messages`, {
+      const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
           "OpenAI-Beta": "chatkit_beta=v1",
         },
-        body: JSON.stringify(messagePayload),
+        body: JSON.stringify({
+          workflow: { id: WORKFLOW_ID },
+          user: userId,
+          chatkit_configuration: {
+            file_upload: { enabled: false },
+          },
+        }),
       });
 
-      console.log("📡 [ChatKit Proxy] Message response status:", messageResponse.status);
-
-      if (!messageResponse.ok) {
-        const errorText = await messageResponse.text();
-        console.error("❌ [ChatKit Proxy] Message send failed:", errorText);
+      if (!sessionResponse.ok) {
+        const errorText = await sessionResponse.text();
+        console.error("❌ Session creation failed:", errorText);
         return new Response(
           JSON.stringify({ 
-            error: `Failed to send message (${messageResponse.status})`,
+            error: `Session creation failed (${sessionResponse.status})`,
             details: errorText 
           }),
-          { status: messageResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          { status: sessionResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
 
-      const messageData = await messageResponse.json();
-      console.log("✅ [ChatKit Proxy] Message response data:", JSON.stringify(messageData));
+      const sessionData = await sessionResponse.json();
+      sessionId = sessionData.id;
+      console.log("✅ Session created:", sessionId);
+    }
 
-      // Extract the assistant's response
-      let assistantMessage = "Pas de réponse";
-      
-      if (messageData.content) {
-        assistantMessage = messageData.content;
-      } else if (messageData.output_text) {
-        assistantMessage = messageData.output_text;
-      } else if (messageData.text) {
-        assistantMessage = messageData.text;
-      }
+    // Step 2: Send message to session
+    console.log("💬 Sending message to session...");
+    
+    const messageResponse = await fetch(`https://api.openai.com/v1/chatkit/sessions/${sessionId}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "chatkit_beta=v1",
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: message,
+      }),
+    });
 
-      console.log("✨ [ChatKit Proxy] Assistant message:", assistantMessage);
-
+    if (!messageResponse.ok) {
+      const errorText = await messageResponse.text();
+      console.error("❌ Message send failed:", errorText);
       return new Response(
         JSON.stringify({ 
-          output_text: assistantMessage,
-          session_id: sessionId,
-          full_response: messageData
+          error: `Message send failed (${messageResponse.status})`,
+          details: errorText 
         }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    } catch (messageError) {
-      console.error("💥 [ChatKit Proxy] Message send exception:", messageError);
-      return new Response(
-        JSON.stringify({ 
-          error: "Failed to send message",
-          details: messageError.message 
-        }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: messageResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
+    const messageData = await messageResponse.json();
+    console.log("✅ Message response:", JSON.stringify(messageData));
+
+    // Extract assistant's response
+    const assistantMessage = messageData.content || messageData.output_text || messageData.text || "Pas de réponse";
+
+    return new Response(
+      JSON.stringify({ 
+        output_text: assistantMessage,
+        session_id: sessionId,
+        full_response: messageData
+      }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+
   } catch (error) {
-    console.error("💥 [ChatKit Proxy] Top-level exception:", error);
-    console.error("💥 [ChatKit Proxy] Error name:", error.name);
-    console.error("💥 [ChatKit Proxy] Error message:", error.message);
-    console.error("💥 [ChatKit Proxy] Error stack:", error.stack);
-    
+    console.error("💥 Exception:", error);
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : "Unknown"
+        message: error instanceof Error ? error.message : String(error)
       }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
