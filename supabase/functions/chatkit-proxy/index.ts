@@ -17,18 +17,52 @@ serve(async (req) => {
   }
 
   console.log("🚀 [ChatKit Proxy] Received request");
+  console.log("📋 [ChatKit Proxy] Request method:", req.method);
+  console.log("📋 [ChatKit Proxy] Content-Type:", req.headers.get("content-type"));
 
   try {
-    // Parse request body using req.json() directly
-    const body = await req.json();
-    console.log("📦 [ChatKit Proxy] Parsed body:", JSON.stringify(body));
+    // Clone the request to read body multiple times if needed
+    const clonedReq = req.clone();
+    
+    // Try to get the raw text first
+    let rawBody;
+    try {
+      rawBody = await clonedReq.text();
+      console.log("📦 [ChatKit Proxy] Raw body (text):", rawBody);
+      console.log("📦 [ChatKit Proxy] Raw body type:", typeof rawBody);
+    } catch (textError) {
+      console.error("❌ [ChatKit Proxy] Failed to read text:", textError);
+    }
+
+    // Now try to parse as JSON
+    let body;
+    try {
+      if (rawBody) {
+        body = JSON.parse(rawBody);
+      } else {
+        body = await req.json();
+      }
+      console.log("✅ [ChatKit Proxy] Parsed body:", JSON.stringify(body));
+    } catch (jsonError) {
+      console.error("❌ [ChatKit Proxy] JSON parse error:", jsonError);
+      console.error("❌ [ChatKit Proxy] Raw body was:", rawBody);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid JSON in request body",
+          details: jsonError.message,
+          receivedBody: rawBody
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     const { message } = body;
     
     if (!message) {
       console.error("❌ [ChatKit Proxy] Missing message in body");
       return new Response(
-        JSON.stringify({ error: "Missing message parameter" }),
+        JSON.stringify({ error: "Missing message parameter", receivedBody: body }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -43,7 +77,6 @@ serve(async (req) => {
     };
 
     console.log("📦 [ChatKit Proxy] Forwarding to ChatKit API");
-    console.log("📦 [ChatKit Proxy] Request body:", JSON.stringify(requestBody));
 
     const response = await fetch(CHATKIT_API_URL, {
       method: "POST",
@@ -73,7 +106,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("✅ [ChatKit Proxy] Success response:", JSON.stringify(data));
+    console.log("✅ [ChatKit Proxy] Success response");
 
     return new Response(
       JSON.stringify(data),
@@ -89,8 +122,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        message: error instanceof Error ? error.message : String(error)
       }),
       { 
         status: 500, 
