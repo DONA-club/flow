@@ -347,6 +347,15 @@ function getCircadianGradient(
   }
 }
 
+function getVignetteGradient(isDarkMode: boolean): string {
+  if (isDarkMode) {
+    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 0, 0, 0.3) 100%)';
+  } else {
+    // En mode clair, vignettage avec des tons cyan/bleu cohérents
+    return 'radial-gradient(ellipse 70% 70% at var(--calendar-center-x, 50%) var(--calendar-center-y, 50%), transparent 0%, rgba(0, 151, 167, 0.25) 100%)';
+  }
+}
+
 function isSameDay(date1: Date, date2: Date): boolean {
   return (
     date1.getFullYear() === date2.getFullYear() &&
@@ -411,6 +420,7 @@ const Visualiser = () => {
   const [loadingDays, setLoadingDays] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [backgroundGradient, setBackgroundGradient] = useState("");
+  const [vignetteGradient, setVignetteGradient] = useState("");
   const [virtualDateTime, setVirtualDateTime] = useState<Date | null>(null);
   
   const [currentDayWake, setCurrentDayWake] = useState<number | null>(null);
@@ -529,6 +539,7 @@ const Visualiser = () => {
     const updateTheme = () => {
       const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDarkMode(dark);
+      setVignetteGradient(getVignetteGradient(dark));
     };
     
     updateTheme();
@@ -781,7 +792,7 @@ const Visualiser = () => {
     <>
       <FontLoader />
 
-      {/* Fond - z-index 0 */}
+      {/* Fond principal - z-index 0 */}
       <div 
         className="fixed inset-0 transition-all duration-[2000ms] ease-in-out" 
         style={{ 
@@ -794,13 +805,12 @@ const Visualiser = () => {
         id="calendar-page-container"
       />
 
-      {/* Vignettage subtil en bas à droite pour les logs - z-index 0.5 */}
+      {/* Vignettage radial centré sur la roue - z-index 0.5 */}
       <div 
-        className="fixed inset-0 pointer-events-none"
+        className="fixed inset-0 pointer-events-none transition-all duration-[2000ms] ease-in-out"
         style={{ 
           zIndex: 0.5,
-          background: 'radial-gradient(ellipse 800px 600px at 100% 100%, rgba(0, 0, 0, 0.25) 0%, transparent 50%)',
-          mixBlendMode: 'multiply',
+          background: vignetteGradient,
         }}
       />
 

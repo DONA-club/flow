@@ -181,10 +181,8 @@ export const StackedEphemeralLogs: React.FC<Props> = ({
   const baseTextClass =
     "text-xs leading-tight tracking-tight select-none transition-all italic px-2 py-1 rounded";
   
-  // Couleur adaptée au thème - texte clair qui se fond sur le fond vignetté
-  const textColor = isDarkMode 
-    ? "rgba(255, 255, 255, 0.35)" 
-    : "rgba(255, 255, 255, 0.85)"; // Texte blanc en mode clair pour contraster avec le vignettage sombre
+  // Couleur douce initiale - identique en mode clair et sombre
+  const textColor = "rgba(255, 255, 255, 0.35)";
 
   return (
     <div
