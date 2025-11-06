@@ -23,7 +23,6 @@ function useGoldenCircleSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
       
-      // Sur mobile, utiliser 92% de la largeur de l'écran (augmenté de 85% à 92%)
       if (w <= 640) {
         setSize(Math.floor(w * 0.92));
         return;
@@ -782,6 +781,7 @@ const Visualiser = () => {
     <>
       <FontLoader />
 
+      {/* Fond - z-index 0 */}
       <div 
         className="fixed inset-0 transition-all duration-[2000ms] ease-in-out" 
         style={{ 
@@ -794,10 +794,12 @@ const Visualiser = () => {
         id="calendar-page-container"
       />
 
+      {/* Logs - z-index 1 */}
       <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none" }}>
         <StackedEphemeralLogs logs={logs} fadeOutDuration={5000} />
       </div>
 
+      {/* Liste événements - z-index 1000 */}
       {hasAnyConnection && (
         <UpcomingEventsList
           events={combinedEvents}
@@ -807,6 +809,7 @@ const Visualiser = () => {
         />
       )}
 
+      {/* Calendrier - z-index 10 */}
       <div 
         className="flex flex-col items-center justify-center min-h-screen"
         style={{ position: "relative", zIndex: 10 }}

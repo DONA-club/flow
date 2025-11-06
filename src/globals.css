@@ -30,13 +30,13 @@ body.no-scroll {
   height: 100%;
 }
 
-/* Empêcher le scroll de déplacer le fond sur la page visualiser */
+/* Empêcher le scroll de déplacer le fond sur la page visualiser - SANS position fixed */
 body.visualiser-page {
   overflow: hidden;
-  position: fixed;
+  overscroll-behavior: contain;
   width: 100%;
-  height: 100%;
-  touch-action: none; /* Empêcher le scroll tactile sur toute la page */
+  height: 100vh;
+  /* NE PAS utiliser position: fixed sur mobile - ça fait disparaître le contenu */
 }
 
 /* Glassmorphism pour les éléments centraux avec effet liquid glass */
