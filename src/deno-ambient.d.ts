@@ -14,6 +14,13 @@ declare module "https://deno.land/std@0.190.0/http/server.ts" {
   ): void;
 }
 
+// Ambient module declaration for Deno std@0.224.0
+declare module "https://deno.land/std@0.224.0/http/server.ts" {
+  export function serve(
+    handler: (req: Request) => Response | Promise<Response>
+  ): void;
+}
+
 // Ambient module declaration for OpenAI npm import in Deno
 declare module "npm:openai@4" {
   type ChatCompletionChunk = {
