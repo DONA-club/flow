@@ -1,20 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * ChatKit Integration (Custom UI Approach)
+ * OpenAI Assistants API Integration
  * 
  * Architecture:
- * 1. Create session via /chatkit-session → get client_secret
- * 2. Send messages via /chat with client_secret
+ * 1. Create thread (conversation container)
+ * 2. Add messages to thread
+ * 3. Run assistant on thread
+ * 4. Stream responses with tool events
  * 
- * We DON'T use:
- * - @openai/chatkit-react (official widget)
- * - chatkit.js script (official embed)
- * 
- * We DO use:
- * - Custom UI (ChatInterface.tsx)
- * - Direct API calls to ChatKit Sessions API
- * - Supabase Edge Functions as proxy (for API key security)
+ * Benefits:
+ * - ✅ Publicly available (no beta access needed)
+ * - ✅ Full tools support (code_interpreter, file_search, functions)
+ * - ✅ Streaming with detailed events
+ * - ✅ Persistent conversation threads
  */
 
 export type ChatkitMessage = {
@@ -24,66 +23,21 @@ export type ChatkitMessage = {
 
 export type ChatkitResponse = {
   output_text: string;
+  thread_id?: string;
   error?: string;
 };
 
-// Store conversation history and session info
-let conversationHistory: ChatkitMessage[] = [];
-let currentSessionId: string | null = null;
-let currentClientSecret: string | null = null;
+// Store conversation thread
+let currentThreadId: string | null = null;
 
 /**
- * Create or refresh ChatKit session
+ * Streaming mode with Assistants API
  * 
- * Equivalent to:
- * const session = await openai.chatkit.sessions.create({
- *   workflow: { id: WORKFLOW_ID },
- *   user: user_id
- * });
- * 
- * But done server-side for security (API key never exposed to client)
- */
-async function ensureSession(): Promise<{ session_id: string; client_secret: string } | null> {
-  if (currentSessionId && currentClientSecret) {
-    console.log("♻️ [ChatKit] Reusing existing session:", currentSessionId);
-    return { session_id: currentSessionId, client_secret: currentClientSecret };
-  }
-
-  console.log("🔐 [ChatKit] Creating new session...");
-
-  try {
-    // Call our Edge Function (replaces Python FastAPI server)
-    const { data, error } = await supabase.functions.invoke("chatkit-session", {
-      body: { 
-        user_id: "anonymous" // You can use actual user ID here
-      },
-    });
-
-    if (error || !data?.client_secret || !data?.session_id) {
-      console.error("❌ [ChatKit] Session creation failed:", error);
-      return null;
-    }
-
-    currentSessionId = data.session_id;
-    currentClientSecret = data.client_secret;
-
-    console.log("✅ [ChatKit] Session created:", currentSessionId);
-    return { session_id: currentSessionId, client_secret: currentClientSecret };
-  } catch (err) {
-    console.error("💥 [ChatKit] Session creation error:", err);
-    return null;
-  }
-}
-
-/**
- * Streaming mode with tool events support
- * 
- * Sends messages to ChatKit workflow and streams back responses
  * Handles:
  * - Text tokens (delta streaming)
- * - Tool calls (function execution)
+ * - Tool calls (function execution, code interpreter, file search)
  * - Tool results (function outputs)
- * - Tool status (progress updates)
+ * - Run status (queued, in_progress, completed, failed)
  */
 export async function chatStream({
   messages,
@@ -106,29 +60,20 @@ export async function chatStream({
   onError?: (err: Error) => void;
   signal?: AbortSignal;
 }) {
-  console.log("🌊 [ChatKit] Starting streaming request");
+  console.log("🌊 [Assistants] Starting streaming request");
   
   try {
-    // Step 1: Ensure we have a valid session
-    const session = await ensureSession();
-    if (!session) {
-      throw new Error("Failed to create ChatKit session");
-    }
-
-    // Step 2: Send message to ChatKit via our Edge Function
-    // (Edge Function uses client_secret to authenticate with OpenAI)
     const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
     
     const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
-        "x-chatkit-client-secret": session.client_secret, // Pass client_secret to Edge Function
       },
       body: JSON.stringify({ 
         messages, 
         stream: true,
-        session_id: session.session_id,
+        thread_id: currentThreadId, // Reuse thread for conversation continuity
       }),
       signal,
     });
@@ -138,20 +83,27 @@ export async function chatStream({
       throw new Error(`HTTP ${response.status} – ${text || "no body"}`);
     }
 
-    console.log("📡 [ChatKit] Stream connection established");
+    console.log("📡 [Assistants] Stream connection established");
 
-    // Step 3: Parse SSE stream
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let pendingEvent: string | null = null;
 
     const handleDataJson = (json: any) => {
+      // Thread ID (save for next message)
+      if (json?.thread_id && !currentThreadId) {
+        currentThreadId = json.thread_id;
+        console.log("💾 [Assistants] Thread ID saved:", currentThreadId);
+        return;
+      }
+
       // Text token
       if (json?.token) {
         onToken(json.token);
         return;
       }
+
       // Other events
       onEvent?.(json);
     };
@@ -159,7 +111,7 @@ export async function chatStream({
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
-        console.log("✅ [ChatKit] Stream ended");
+        console.log("✅ [Assistants] Stream ended");
         break;
       }
 
@@ -184,7 +136,7 @@ export async function chatStream({
 
           // Stream end marker
           if (payload === "[DONE]") {
-            console.log("🏁 [ChatKit] Received [DONE] marker");
+            console.log("🏁 [Assistants] Received [DONE] marker");
             onDone?.();
             return;
           }
@@ -203,17 +155,17 @@ export async function chatStream({
             pendingEvent = null;
 
             if (ev === "tool_delta") {
-              console.log("🔧 [ChatKit] Tool delta event");
+              console.log("🔧 [Assistants] Tool delta event");
               onToolDelta?.(json);
               continue;
             }
             if (ev === "tool_result") {
-              console.log("✅ [ChatKit] Tool result event");
+              console.log("✅ [Assistants] Tool result event");
               onToolResult?.(json);
               continue;
             }
             if (ev === "tool_status") {
-              console.log("📊 [ChatKit] Tool status event");
+              console.log("📊 [Assistants] Tool status event");
               onToolStatus?.(json);
               continue;
             }
@@ -246,25 +198,23 @@ export async function chatStream({
 
     onDone?.();
   } catch (err: any) {
-    console.error("💥 [ChatKit] Stream error:", err);
+    console.error("💥 [Assistants] Stream error:", err);
     onError?.(err);
     throw err;
   }
 }
 
 /**
- * Reset session (useful for starting fresh conversation)
+ * Reset conversation (start fresh thread)
  */
 export function resetChatkitSession() {
-  console.log("🔄 [ChatKit] Resetting session");
-  conversationHistory = [];
-  currentSessionId = null;
-  currentClientSecret = null;
+  console.log("🔄 [Assistants] Resetting thread");
+  currentThreadId = null;
 }
 
 /**
- * Get conversation history
+ * Get current thread ID
  */
-export function getConversationHistory(): ChatkitMessage[] {
-  return [...conversationHistory];
+export function getCurrentThreadId(): string | null {
+  return currentThreadId;
 }

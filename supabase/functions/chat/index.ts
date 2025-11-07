@@ -1,8 +1,10 @@
 /* @ts-nocheck */
-// Supabase Edge Function — ChatKit Messages with custom UI
-// Uses client_secret from chatkit-session endpoint
+// Supabase Edge Function — OpenAI Assistants API
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import OpenAI from "npm:openai@4";
 
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const ASSISTANT_ID = Deno.env.get("OPENAI_ASSISTANT_ID");
 const FRONTEND_ORIGIN = Deno.env.get("FRONTEND_ORIGIN") || "*";
 
 const te = new TextEncoder();
@@ -11,7 +13,7 @@ function cors(h: Record<string, string> = {}) {
   return {
     "Access-Control-Allow-Origin": FRONTEND_ORIGIN,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey, x-chatkit-client-secret",
+    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
     ...h,
   };
 }
@@ -38,14 +40,19 @@ serve(async (req) => {
   console.log("🚀 [Chat] Request received");
 
   try {
-    // Get client_secret from header (sent by frontend)
-    const clientSecret = req.headers.get("x-chatkit-client-secret");
-    
-    if (!clientSecret) {
-      console.error("❌ [Chat] Missing client_secret");
+    if (!OPENAI_API_KEY) {
+      console.error("❌ [Chat] Missing OPENAI_API_KEY");
       return new Response(
-        JSON.stringify({ error: "Missing x-chatkit-client-secret header" }),
-        { status: 401, headers: cors({ "Content-Type": "application/json" }) }
+        JSON.stringify({ error: "Missing OPENAI_API_KEY" }),
+        { status: 500, headers: cors({ "Content-Type": "application/json" }) }
+      );
+    }
+
+    if (!ASSISTANT_ID) {
+      console.error("❌ [Chat] Missing OPENAI_ASSISTANT_ID");
+      return new Response(
+        JSON.stringify({ error: "Missing OPENAI_ASSISTANT_ID - create one at platform.openai.com/assistants" }),
+        { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
@@ -70,7 +77,7 @@ serve(async (req) => {
       );
     }
 
-    const { messages, stream = true, session_id } = body;
+    const { messages, stream = true, thread_id } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       console.error("❌ [Chat] Missing or invalid messages field");
@@ -80,191 +87,151 @@ serve(async (req) => {
       );
     }
 
-    if (!session_id) {
-      console.error("❌ [Chat] Missing session_id");
-      return new Response(
-        JSON.stringify({ error: "Missing session_id" }),
-        { status: 400, headers: cors({ "Content-Type": "application/json" }) }
-      );
+    console.log("💬 [Chat] Processing", messages.length, "messages");
+
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+    // Use existing thread or create new one
+    let threadId = thread_id;
+    if (!threadId) {
+      const thread = await openai.beta.threads.create();
+      threadId = thread.id;
+      console.log("✅ [Chat] Thread created:", threadId);
+    } else {
+      console.log("♻️ [Chat] Using existing thread:", threadId);
     }
 
-    console.log("💬 [Chat] Processing", messages.length, "messages for session:", session_id);
-
-    // Get last message to send
+    // Add only the last message to thread (to avoid duplicates)
     const lastMessage = messages[messages.length - 1];
+    await openai.beta.threads.messages.create(threadId, {
+      role: lastMessage.role === "assistant" ? "assistant" : "user",
+      content: lastMessage.content,
+    });
 
     if (!stream) {
-      // Non-streaming
-      const response = await fetch(`https://api.openai.com/v1/chatkit/sessions/${session_id}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "OpenAI-Beta": "chatkit_beta=v1",
-          "Authorization": `Bearer ${clientSecret}`,
-        },
-        body: JSON.stringify({
-          role: lastMessage.role === "assistant" ? "assistant" : "user",
-          content: lastMessage.content,
-        }),
+      // Non-streaming run
+      console.log("📝 [Chat] Starting non-streaming run");
+      
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: ASSISTANT_ID,
       });
 
-      const responseText = await response.text();
+      // Wait for completion
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      while (runStatus.status === "queued" || runStatus.status === "in_progress") {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      }
 
-      if (!response.ok) {
-        console.error("❌ [Chat] Message send failed:", response.status, responseText);
+      if (runStatus.status === "failed") {
+        console.error("❌ [Chat] Run failed:", runStatus);
         return new Response(
-          JSON.stringify({ error: "MESSAGE_SEND_FAILED", details: responseText }),
-          { status: response.status, headers: cors({ "Content-Type": "application/json" }) }
+          JSON.stringify({ error: "Run failed", details: runStatus }),
+          { status: 500, headers: cors({ "Content-Type": "application/json" }) }
         );
       }
 
-      return new Response(responseText, {
-        status: 200,
-        headers: cors({ "Content-Type": "application/json" })
-      });
+      // Get messages
+      const threadMessages = await openai.beta.threads.messages.list(threadId);
+      const assistantMessage = threadMessages.data[0];
+      const content = assistantMessage.content[0];
+      const text = content.type === "text" ? content.text.value : "";
+
+      return new Response(
+        JSON.stringify({ 
+          output_text: text,
+          thread_id: threadId 
+        }),
+        { status: 200, headers: cors({ "Content-Type": "application/json" }) }
+      );
     }
 
-    // Streaming
-    console.log("🌊 [Chat] Streaming mode enabled");
+    // Streaming run
+    console.log("🌊 [Chat] Starting streaming run");
 
     const streamBody = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
           sendEvent(controller, "open");
-          console.log("📡 [Chat] Stream opened");
+          sendData(controller, { thread_id: threadId });
 
-          const response = await fetch(`https://api.openai.com/v1/chatkit/sessions/${session_id}/messages`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "OpenAI-Beta": "chatkit_beta=v1",
-              "Authorization": `Bearer ${clientSecret}`,
-            },
-            body: JSON.stringify({
-              role: lastMessage.role === "assistant" ? "assistant" : "user",
-              content: lastMessage.content,
-              stream: true,
-            }),
+          const stream = await openai.beta.threads.runs.stream(threadId, {
+            assistant_id: ASSISTANT_ID,
           });
 
-          if (!response.ok || !response.body) {
-            const responseText = await response.text().catch(() => "");
-            console.error("❌ [Chat] Stream start failed:", response.status, responseText);
-            sendData(controller, {
-              error: "STREAM_START_FAILED",
-              details: responseText || `HTTP ${response.status}`
-            });
-            controller.enqueue(te.encode("data: [DONE]\n\n"));
-            controller.close();
-            return;
-          }
+          for await (const event of stream) {
+            // Text deltas
+            if (event.event === "thread.message.delta") {
+              const delta = event.data.delta;
+              if (delta.content && delta.content[0]?.type === "text") {
+                const text = delta.content[0].text?.value;
+                if (text) {
+                  sendData(controller, { token: text });
+                }
+              }
+            }
 
-          console.log("📡 [Chat] Stream connection established");
+            // Tool calls - step created
+            if (event.event === "thread.run.step.created") {
+              const step = event.data;
+              if (step.type === "tool_calls") {
+                console.log("🔧 [Chat] Tool call started");
+                sendEvent(controller, "tool_delta", { 
+                  tool_call: { name: "tool_starting" } 
+                });
+              }
+            }
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
+            // Tool calls - step delta
+            if (event.event === "thread.run.step.delta") {
+              const delta = event.data.delta;
+              if (delta.step_details?.type === "tool_calls") {
+                const toolCalls = delta.step_details.tool_calls;
+                if (toolCalls && toolCalls[0]) {
+                  const toolCall = toolCalls[0];
+                  console.log("🔧 [Chat] Tool delta:", toolCall.type);
+                  sendEvent(controller, "tool_delta", { tool_call: toolCall });
+                }
+              }
+            }
 
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-              console.log("✅ [Chat] Stream ended");
+            // Tool calls - step completed
+            if (event.event === "thread.run.step.completed") {
+              const step = event.data;
+              if (step.type === "tool_calls") {
+                console.log("✅ [Chat] Tool completed");
+                sendEvent(controller, "tool_result", { status: "completed" });
+              }
+            }
+
+            // Run status updates
+            if (event.event === "thread.run.queued") {
+              console.log("⏳ [Chat] Run queued");
+              sendEvent(controller, "tool_status", { status: "queued" });
+            }
+
+            if (event.event === "thread.run.in_progress") {
+              console.log("⚙️ [Chat] Run in progress");
+              sendEvent(controller, "tool_status", { status: "in_progress" });
+            }
+
+            // Run completed
+            if (event.event === "thread.run.completed") {
+              console.log("✅ [Chat] Run completed");
               break;
             }
 
-            buffer += decoder.decode(value, { stream: true });
+            // Run failed
+            if (event.event === "thread.run.failed") {
+              console.error("❌ [Chat] Run failed:", event.data);
+              sendData(controller, { error: "Run failed", details: event.data });
+              break;
+            }
 
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const raw of lines) {
-              const line = raw.trim();
-              if (!line) continue;
-
-              if (line.startsWith("event:")) {
-                controller.enqueue(te.encode(line + "\n"));
-                continue;
-              }
-
-              if (line.startsWith("data:")) {
-                const payload = line.slice(5).trim();
-
-                if (payload === "[DONE]") {
-                  console.log("🏁 [Chat] Received [DONE]");
-                  controller.enqueue(te.encode("data: [DONE]\n\n"));
-                  controller.close();
-                  return;
-                }
-
-                let json: any = null;
-                try {
-                  json = JSON.parse(payload);
-                } catch {
-                  controller.enqueue(te.encode(raw + "\n"));
-                  continue;
-                }
-
-                if (json) {
-                  const token =
-                    json?.delta?.content ??
-                    json?.output_text ??
-                    json?.choices?.[0]?.delta?.content ??
-                    json?.content ??
-                    null;
-
-                  if (typeof token === "string" && token) {
-                    sendData(controller, { token });
-                    continue;
-                  }
-
-                  if (json?.tool_call || json?.tool?.name || json?.function_call || json?.required_action) {
-                    console.log("🔧 [Chat] Tool delta detected");
-                    sendEvent(controller, "tool_delta", json);
-                    continue;
-                  }
-
-                  if (json?.tool_result || json?.tool_output) {
-                    console.log("✅ [Chat] Tool result received");
-                    sendEvent(controller, "tool_result", json);
-                    continue;
-                  }
-
-                  if (json?.status && typeof json.status === "string" && json.status.startsWith("tool_")) {
-                    console.log("📊 [Chat] Tool status:", json.status);
-                    sendEvent(controller, "tool_status", json);
-                    continue;
-                  }
-
-                  sendEvent(controller, "event", json);
-                }
-                continue;
-              }
-
-              if (line.startsWith("{")) {
-                try {
-                  const json = JSON.parse(line);
-                  const token =
-                    json?.delta?.content ??
-                    json?.output_text ??
-                    json?.choices?.[0]?.delta?.content ??
-                    json?.content ??
-                    null;
-
-                  if (typeof token === "string" && token) {
-                    sendData(controller, { token });
-                  } else if (json?.tool_call || json?.tool?.name) {
-                    sendEvent(controller, "tool_delta", json);
-                  } else if (json?.tool_result || json?.tool_output) {
-                    sendEvent(controller, "tool_result", json);
-                  } else if (json?.status?.startsWith("tool_")) {
-                    sendEvent(controller, "tool_status", json);
-                  } else {
-                    sendEvent(controller, "event", json);
-                  }
-                } catch {
-                  // Ignore
-                }
-              }
+            // Run requires action (function calling)
+            if (event.event === "thread.run.requires_action") {
+              console.log("🔧 [Chat] Run requires action");
+              sendEvent(controller, "tool_status", { status: "requires_action" });
             }
           }
 
