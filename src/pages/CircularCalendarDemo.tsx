@@ -743,14 +743,8 @@ const Visualiser = () => {
     return () => window.clearInterval(id);
   }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
-  // ✅ Générer le contexte UNIQUEMENT quand ChatKit s'ouvre ET que les données sont prêtes
+  // ✅ Générer le contexte et l'exposer globalement
   useEffect(() => {
-    if (!chatkitExpanded) {
-      setPageContext(null);
-      return;
-    }
-
-    // Attendre que les données essentielles soient chargées
     if (sunLoading || authLoading || latitude === null || longitude === null) {
       return;
     }
@@ -779,13 +773,23 @@ const Visualiser = () => {
 
     setPageContext(context);
 
-    // ✅ Exposer le contexte globalement pour debug
+    // ✅ Exposer globalement pour debug
     (window as any).getPageContext = () => {
       console.log("📋 Page Context:", context);
       return context;
     };
+
+    // ✅ Écouter l'événement personnalisé
+    const handleGetContext = () => {
+      console.log("📋 Page Context (via event):", context);
+    };
+
+    window.addEventListener('get-page-context', handleGetContext);
+
+    return () => {
+      window.removeEventListener('get-page-context', handleGetContext);
+    };
   }, [
-    chatkitExpanded,
     sunLoading,
     authLoading,
     latitude,
@@ -806,6 +810,7 @@ const Visualiser = () => {
     size,
     isHoveringRing,
     selectedEventFromList,
+    chatkitExpanded,
   ]);
 
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
