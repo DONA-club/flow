@@ -84,6 +84,9 @@ serve(async (req) => {
     }
 
     console.log(`[ChatKit] Creating session for device: ${deviceId.substring(0, 8)}...`);
+    console.log(`[ChatKit] Using workflow ID: ${CHATKIT_WORKFLOW_ID}`);
+    console.log(`[ChatKit] Using domain key: ${CHATKIT_DOMAIN_KEY ? CHATKIT_DOMAIN_KEY.substring(0, 10) + "..." : "none"}`);
+    
     if (pageContext) {
       console.log(`[ChatKit] Page context received:`, {
         page: pageContext.page?.url,
@@ -93,24 +96,29 @@ serve(async (req) => {
       });
     }
 
-    // Create ChatKit session WITHOUT metadata (not supported by API)
+    // Create ChatKit session
     const sessionPayload: any = {
       workflow: {
-        id: CHATKIT_WORKFLOW_ID,
+        id: CHATKIT_WORKFLOW_ID,  // ✅ Variable Supabase
       },
       user: deviceId,
     };
 
-    // Note: metadata is not supported by ChatKit API
-    // The page context will be sent via the first user message instead
+    // Build headers with domain key if needed
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+      "OpenAI-Beta": "chatkit_beta=v1",
+    };
+
+    // Add domain key header if ChatKit requires it
+    if (CHATKIT_DOMAIN_KEY) {
+      headers["X-ChatKit-Domain-Key"] = CHATKIT_DOMAIN_KEY;
+    }
 
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta": "chatkit_beta=v1",
-      },
+      headers,
       body: JSON.stringify(sessionPayload),
     });
 
@@ -127,6 +135,8 @@ serve(async (req) => {
             ? "Check OPENAI_API_KEY is valid"
             : sessionResponse.status === 404
             ? "Check CHATKIT_WORKFLOW_ID exists in your OpenAI account"
+            : sessionResponse.status === 403
+            ? "Check CHATKIT_DOMAIN_KEY is valid for this domain"
             : "Check OpenAI API status"
         }),
         { status: sessionResponse.status, headers: cors({ "Content-Type": "application/json" }) }
