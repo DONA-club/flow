@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
 function getDeviceId(): string {
@@ -9,6 +9,9 @@ function getDeviceId(): string {
   if (!id) {
     id = crypto.randomUUID();
     localStorage.setItem(key, id);
+    console.log("🆔 [ChatKit] New device ID created:", id);
+  } else {
+    console.log("🆔 [ChatKit] Existing device ID:", id);
   }
   return id;
 }
@@ -18,31 +21,79 @@ type Props = {
 };
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [healthCheck, setHealthCheck] = useState<any>(null);
+
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  const { control } = useChatKit({
+  // Health check on mount
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        console.log("🏥 [ChatKit] Running health check...");
+        const response = await fetch("https://scnaqjixwuqakppnahfg.supabase.co/functions/v1/chatkit-session/health");
+        const data = await response.json();
+        console.log("🏥 [ChatKit] Health check result:", data);
+        setHealthCheck(data);
+        
+        if (!data.has_OPENAI_KEY) {
+          console.error("❌ [ChatKit] Missing OPENAI_API_KEY");
+        }
+        if (!data.has_WORKFLOW_ID) {
+          console.error("❌ [ChatKit] Missing CHATKIT_WORKFLOW_ID");
+        }
+        if (!data.has_DOMAIN_KEY) {
+          console.error("❌ [ChatKit] Missing CHATKIT_DOMAIN_KEY");
+        }
+      } catch (err) {
+        console.error("💥 [ChatKit] Health check failed:", err);
+      }
+    };
+    
+    checkHealth();
+  }, []);
+
+  console.log("🎨 [ChatKit] Component rendering, isDarkMode:", isDarkMode);
+
+  const config = {
     api: {
-      // SDK calls this on boot + refresh
       async getClientSecret(existingClientSecret?: string) {
+        console.log("🔑 [ChatKit] getClientSecret called");
+        console.log("🔑 [ChatKit] existingClientSecret:", existingClientSecret ? "exists" : "null");
+        
+        const deviceId = getDeviceId();
         const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
         const url = `${supabaseUrl}/functions/v1/chatkit-session`;
         
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deviceId: getDeviceId(),
-            existingClientSecret: existingClientSecret ?? null,
-          }),
-        });
+        console.log("📡 [ChatKit] Fetching session from:", url);
+        console.log("📡 [ChatKit] Device ID:", deviceId);
+        
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deviceId,
+              existingClientSecret: existingClientSecret ?? null,
+            }),
+          });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`chatkit-session ${response.status}: ${errorText}`);
+          console.log("📡 [ChatKit] Response status:", response.status);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("❌ [ChatKit] Session creation failed:", errorText);
+            throw new Error(`chatkit-session ${response.status}: ${errorText}`);
+          }
+
+          const data = await response.json();
+          console.log("✅ [ChatKit] Session created, client_secret:", data.client_secret?.substring(0, 10) + "...");
+          
+          return data.client_secret;
+        } catch (err) {
+          console.error("💥 [ChatKit] getClientSecret error:", err);
+          throw err;
         }
-
-        const data = await response.json();
-        return data.client_secret;
       },
     },
     theme: {
@@ -109,7 +160,26 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         },
       ],
     },
-  } as any);
+  };
+
+  console.log("⚙️ [ChatKit] Calling useChatKit with config");
+  
+  let control;
+  try {
+    const result = useChatKit(config as any);
+    control = result.control;
+    console.log("✅ [ChatKit] useChatKit returned control:", !!control);
+  } catch (err) {
+    console.error("💥 [ChatKit] useChatKit error:", err);
+    return (
+      <div className="fixed bottom-4 left-4 p-4 bg-red-500 text-white rounded-xl">
+        <p className="font-bold">ChatKit Error</p>
+        <p className="text-sm">{String(err)}</p>
+      </div>
+    );
+  }
+
+  console.log("🎬 [ChatKit] Rendering ChatKit component");
 
   return (
     <div
@@ -121,9 +191,30 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
+        border: "2px solid red", // Debug border
       }}
     >
+      {healthCheck && !healthCheck.has_OPENAI_KEY && (
+        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50">
+          <p className="font-bold">Configuration Error</p>
+          <p className="text-sm">Missing OPENAI_API_KEY</p>
+        </div>
+      )}
+      
+      {healthCheck && !healthCheck.has_WORKFLOW_ID && (
+        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50">
+          <p className="font-bold">Configuration Error</p>
+          <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
+        </div>
+      )}
+      
       <ChatKit control={control} className="w-full h-full" />
+      
+      {/* Debug overlay */}
+      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none">
+        <div>Control: {control ? "✅" : "❌"}</div>
+        <div>Health: {healthCheck ? "✅" : "⏳"}</div>
+      </div>
     </div>
   );
 };
