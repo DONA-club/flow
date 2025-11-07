@@ -531,7 +531,7 @@ npm run build
 
 ### 📄 License
 
-MIT License — see [LICENSE](LICENSE) file for details.
+MIT License.
 
 ---
 
