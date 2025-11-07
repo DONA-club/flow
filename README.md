@@ -10,18 +10,25 @@
 
 ### 🌅 The Vision
 
-**Visualiser** is not a calendar—it's a **temporal repository and consciousness instrument** that reveals the invisible architecture of time itself. By rendering temporal flows as living, breathing circles synchronized with natural and project rhythms, Visualiser enables **multi-party observation of a shared growth intention**—allowing teams, stakeholders, and systems to perceive the same temporal reality from their unique perspectives.
+**Visualiser** is a temporal repository that makes time visible, queryable, and actionable across human and machine scales. It conserves chronological events with microsecond precision while rendering them as intuitive circular interfaces synchronized with natural rhythms.
 
-This is the foundational manifestation of **DONA.club's broader ambition**: to master quality of life across projects, organizations, and individuals through temporal intelligence. **Every project is a life**—and Visualiser is the heart of mastering that life, providing **elevation without constraint** for all participants.
+The core insight: **every project is a life**. Birth, growth, maturity, completion. Visualiser captures this lifecycle as immutable temporal DNA—enabling teams, stakeholders, and systems to observe the same growth intention from their unique perspectives.
 
-**Core Principles:**
+This is DONA.club's foundational tool for mastering project quality of life through temporal intelligence.
 
-- **Multi-Party Temporal Observation**: Multiple actors (humans, machines, stakeholders) observe the same growth intention from different perspectives
-- **Elevation Without Constraint**: Integration contributes to gaining altitude and perspective without imposing rigid structures
-- **Project Quality of Life Mastery**: The temporal repository becomes the living memory of project health and evolution
-- **Temporal Repository**: Conserves and indexes chronological events for retrospective analysis and temporal relativity
-- **Multi-Scale Consciousness**: Operates from human circadian rhythms to machine decision horizons (embedded systems, sliding windows)
-- **Temporal Relativity**: Enables replay and reinterpretation of event chronologies across different time scales and perspectives
+**What It Does:**
+
+- **Temporal Repository**: Immutable event log with microsecond timestamps and full context preservation
+- **Multi-Party Observation**: Same timeline viewed from human, machine, and stakeholder perspectives
+- **Temporal Relativity**: Replay event sequences at different scales (circadian, microsecond, lifecycle)
+- **Quality of Life Metrics**: Track project health through rhythm stability, energy levels, and delivery patterns
+- **Elevation Without Constraint**: Integration that provides altitude without imposing structure
+
+**Why It Matters:**
+
+Projects fail not from lack of tools, but from temporal misalignment. Teams operate on different rhythms. Decisions lack historical context. Stakeholders see different realities. Machines optimize for wrong horizons.
+
+Visualiser solves this by creating a shared temporal reference—a single source of truth that adapts to each observer's natural perspective while maintaining coherence across all views.
 
 ---
 
@@ -877,110 +884,25 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ### 🌅 La Vision
 
-**Visualiser** n'est pas un calendrier—c'est un **référentiel temporel et instrument de conscience** qui révèle l'architecture invisible du temps lui-même. En représentant les flux temporels comme des cercles vivants, synchronisés avec les rythmes naturels et projets, Visualiser permet **l'observation multipartite d'une intention de croissance partagée**—permettant aux équipes, parties prenantes et systèmes de percevoir la même réalité temporelle depuis leurs perspectives uniques.
+**Visualiser** est un référentiel temporel qui rend le temps visible, interrogeable et actionnable à travers les échelles humaines et machines. Il conserve les événements chronologiques avec une précision microseconde tout en les rendant sous forme d'interfaces circulaires intuitives synchronisées avec les rythmes naturels.
 
-C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle. **Chaque projet est une vie**—et Visualiser est le cœur de la maîtrise de cette vie, fournissant **l'élévation sans contrainte** pour tous les participants.
+L'insight central : **chaque projet est une vie**. Naissance, croissance, maturité, achèvement. Visualiser capture ce cycle de vie comme ADN temporel immuable—permettant aux équipes, parties prenantes et systèmes d'observer la même intention de croissance depuis leurs perspectives uniques.
 
-**Principes Fondamentaux :**
+C'est l'outil fondateur de DONA.club pour maîtriser la qualité de vie des projets à travers l'intelligence temporelle.
 
-- **Observation Temporelle Multipartite** : Multiples acteurs (humains, machines, parties prenantes) observent la même intention de croissance depuis différentes perspectives
-- **Élévation Sans Contrainte** : L'intégration contribue à la prise de hauteur et à l'élévation sans imposer de structures rigides
-- **Maîtrise Qualité de Vie Projet** : Le référentiel temporel devient la mémoire vivante de la santé et évolution du projet
-- **Référentiel Temporel** : Conserve et indexe les événements chronologiques pour analyse rétrospective et relativité temporelle
-- **Conscience Multi-Échelle** : Opère des rythmes circadiens humains aux horizons de décision machine (systèmes embarqués, fenêtres glissantes)
-- **Relativité Temporelle** : Permet la relecture et réinterprétation des chronologies d'événements à différentes échelles et perspectives
+**Ce Qu'il Fait :**
 
----
+- **Référentiel Temporel** : Log d'événements immuable avec timestamps microseconde et préservation contexte complet
+- **Observation Multipartite** : Même chronologie vue depuis perspectives humaine, machine et parties prenantes
+- **Relativité Temporelle** : Rejouer séquences événements à différentes échelles (circadienne, microseconde, lifecycle)
+- **Métriques Qualité de Vie** : Suivre santé projet via stabilité rythmes, niveaux énergie et patterns livraison
+- **Élévation Sans Contrainte** : Intégration qui fournit altitude sans imposer structure
 
-### 🧬 Ce que Représente Visualiser
+**Pourquoi C'est Important :**
 
-#### 🎯 Pour les Humains : Conscience Circadienne
-- **Roue de conscience 24 heures** avec marqueurs de cycle solaire (lever/coucher)
-- **Dégradés d'arrière-plan vivants** qui respirent avec votre état biologique
-- **Arcs d'événements** révélant densité et proximité temporelles
-- **Superposition d'architecture du sommeil** montrant patterns de repos et dette/surplus de récupération
-- **Navigation temporelle** par gestes intuitifs (défilement/balayage dans le temps)
-- **Perspective personnelle** sur la chronologie projet partagée
+Les projets échouent non par manque d'outils, mais par désalignement temporel. Les équipes opèrent sur différents rythmes. Les décisions manquent de contexte historique. Les parties prenantes voient différentes réalités. Les machines optimisent pour mauvais horizons.
 
-#### 🤖 Pour les Machines : Protocole de Coordination Temporelle
-- **Référentiel d'événements chronologiques** avec indexation précision microseconde
-- **Reconstruction de chronologie de décisions** pour systèmes embarqués et agents autonomes
-- **Fenêtres d'horizon glissant** pour planification temporelle temps réel
-- **Moteur de relativité temporelle** pour rejouer séquences d'événements à différentes échelles
-- **Interface compatible MCP** pour coordination machine haut niveau
-- **Perspective système** sur l'évolution projet
-
-#### 👥 Pour les Équipes : Observation Croissance Partagée
-- **Vue temporelle multipartite** : Même chronologie projet observée depuis différents rôles
-- **Perspectives parties prenantes** : Vues produit, ingénierie, design, direction
-- **Alignement temporel** : Identifier synchronisation et désalignement des rythmes
-- **Mémoire collective** : Compréhension partagée de l'histoire projet
-- **Archéologie décisions** : Reconstruire contexte choix passés avec conscience équipe complète
-
-#### 🔄 Relativité Temporelle & Relecture
-- **Conservation de chronologie d'événements** avec enregistrements temporels immuables
-- **Relecture temporelle multi-échelle** : Visualiser cycles de vie projet à échelles jour/semaine/mois/année
-- **Archéologie de décisions** : Reconstruire le contexte temporel de décisions passées
-- **Reconnaissance de patterns temporels** : Identifier rythmes récurrents et anomalies
-- **Visualisation cycle de vie projet** : Voir l'ADN temporel complet de tout projet
-- **Changement de perspective** : Voir même chronologie depuis différents points de vue acteurs
-
-#### 🌐 Flux Temporels Universels
-- **Flux temporels humains** : Google, Microsoft, agendas personnels
-- **Flux temporels machine** : Logs système, événements de décision, données capteurs
-- **Flux temporels projet** : Jalons, livrables, activités équipe
-- **Flux temporels naturels** : Cycles solaires, patterns saisonniers, rythmes circadiens
-- **Flux temporels parties prenantes** : Réunions clients, mises à jour investisseurs, coordination partenaires
-- **Vue temporelle unifiée** : Tous flux fusionnés en réalité temporelle cohérente
-
----
-
-### 🎯 Maîtrise Qualité de Vie Projet
-
-**Chaque projet est une vie**—avec naissance, croissance, maturité et achèvement. Visualiser représente l'ADN temporel complet de cette vie, permettant **l'élévation sans contrainte** pour tous les participants.
-
-#### Métriques Qualité de Vie
-
-Visualiser suit la **qualité de vie du projet** à travers multiples dimensions :
-
-```typescript
-type ProjectHealthMetrics = {
-  // Santé temporelle
-  rhythmStability: number; // 0-100: Consistance des rythmes équipe
-  decisionVelocity: number; // Décisions par jour
-  temporalAlignment: number; // 0-100: Synchronisation membres équipe
-  
-  // Santé énergétique
-  teamEnergy: number; // 0-100: Niveau énergie collective
-  burnoutRisk: number; // 0-100: Risque épuisement équipe
-  recoveryBalance: number; // Dette/capital sommeil équipe
-  
-  // Santé livraison
-  milestoneProgress: number; // 0-100: Pourcentage sur la bonne voie
-  deliveryRhythm: number; // Consistance des livraisons
-  qualityTrend: number; // Tendance qualité amélioration/déclin
-  
-  // Santé parties prenantes
-  alignmentScore: number; // 0-100: Alignement parties prenantes
-  communicationFrequency: number; // Réunions par semaine
-  satisfactionTrend: number; // Tendance satisfaction amélioration/déclin
-  
-  // Qualité de vie globale
-  overallHealth: number; // 0-100: Score composite
-  elevationPotential: number; // 0-100: Capacité croissance sans contrainte
-};
-```
-
-#### Élévation Sans Contrainte
-
-Philosophie d'intégration de Visualiser :
-
-1. **Observation Non-Invasive** : Collecte données temporelles naturellement via workflows existants
-2. **Granularité Adaptive** : Interface montre détail quand nécessaire, vue d'ensemble quand désiré
-3. **Liberté de Perspective** : Chaque acteur observe depuis son point de vue naturel
-4. **Pas de Synchronisation Forcée** : Respecte différents rythmes et styles de travail
-5. **Insights Émergents** : Patterns émergent naturellement sans structure imposée
-6. **Qualité de Vie Prioritaire** : Toutes fonctionnalités conçues pour réduire friction, pas l'ajouter
+Visualiser résout ceci en créant une référence temporelle partagée—une source unique de vérité qui s'adapte à la perspective naturelle de chaque observateur tout en maintenant cohérence à travers toutes les vues.
 
 ---
 
@@ -1019,4 +941,4 @@ Ce projet est sous licence **MIT** — voir fichier [LICENSE](LICENSE) pour dét
 
 ---
 
-**Crafted with intention for elevation without constraint**
+**Built for clarity, designed for elevation**
