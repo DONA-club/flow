@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { ChevronDown } from "lucide-react";
 import type { PageContext } from "@/utils/page-context";
@@ -24,9 +24,7 @@ type Props = {
 
 const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle, pageContext }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
-  const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const contextSentRef = useRef(false);
 
   const isDarkMode =
     typeof window !== "undefined" &&
@@ -59,12 +57,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         );
         const data = await response.json();
         setHealthCheck(data);
-        if (!data.has_OPENAI_KEY || !data.has_WORKFLOW_ID) {
-          console.error("❌ [ChatKit] Missing config:", { 
-            has_key: data.has_OPENAI_KEY, 
-            has_workflow: data.has_WORKFLOW_ID 
-          });
-        }
       } catch (err) {
         console.error("❌ [ChatKit] Health check failed:", err);
       }
@@ -72,77 +64,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
     checkHealth();
   }, []);
-
-  useEffect(() => {
-    const handleCSPViolation = (e: SecurityPolicyViolationEvent) => {
-      const violation = `${e.violatedDirective}: ${e.blockedURI}`;
-      console.warn("⚠️ [ChatKit] CSP:", violation);
-      setCspViolations((prev) => [...prev, violation]);
-    };
-
-    document.addEventListener("securitypolicyviolation", handleCSPViolation);
-    return () =>
-      document.removeEventListener("securitypolicyviolation", handleCSPViolation);
-  }, []);
-
-  const formattedContext = useMemo(() => {
-    if (!pageContext) return null;
-    
-    const context = JSON.stringify({
-      localisation: {
-        latitude: pageContext.calendar.latitude,
-        longitude: pageContext.calendar.longitude,
-        timezone: pageContext.user.timezone,
-        offset: pageContext.calendar.timezoneOffset,
-      },
-      calendrier: {
-        date_actuelle: pageContext.calendar.currentDate,
-        jour_affiche: pageContext.calendar.displayedDay,
-        lever_soleil: pageContext.calendar.sunrise,
-        coucher_soleil: pageContext.calendar.sunset,
-      },
-      evenements: {
-        total: pageContext.events.total,
-        a_venir: pageContext.events.upcoming.map(e => ({
-          titre: e.title,
-          organisateur: e.organizer,
-          debut: e.start,
-          duree_h: e.duration,
-          dans_h: e.timeUntil,
-          lieu: e.location,
-          video: e.hasVideoLink,
-        })),
-        en_cours: pageContext.events.currentEvent ? {
-          titre: pageContext.events.currentEvent.title,
-          organisateur: pageContext.events.currentEvent.organizer,
-          temps_restant_h: pageContext.events.currentEvent.timeRemaining,
-        } : null,
-      },
-      sommeil: pageContext.sleep.connected ? {
-        reveil_h: pageContext.sleep.wakeHour,
-        coucher_h: pageContext.sleep.bedHour,
-        total_h: pageContext.sleep.totalSleepHours,
-        dette_ou_capital: pageContext.sleep.debtOrCapital,
-        coucher_ideal_h: pageContext.sleep.idealBedHour,
-        sessions: pageContext.sleep.sleepSessions,
-      } : null,
-      connexions: Object.entries(pageContext.connections)
-        .filter(([_, v]) => v)
-        .map(([k]) => k),
-      utilisateur: {
-        device_id: pageContext.user.deviceId,
-        langue: pageContext.user.language,
-      },
-    }, null, 2);
-    
-    console.log("📋 [ChatKit] Context ready:", {
-      size: context.length,
-      events: pageContext.events.total,
-      sleep: !!pageContext.sleep.connected,
-    });
-    
-    return context;
-  }, [pageContext]);
 
   const config = useMemo(() => {
     return {
@@ -153,12 +74,15 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
             const url = `${supabaseUrl}/functions/v1/chatkit-session`;
 
+            console.log("📤 [ChatKit] Sending context to server:", !!pageContext);
+
             const response = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 deviceId,
                 existingClientSecret: existing || null,
+                pageContext: pageContext || null,
               }),
             });
 
@@ -169,6 +93,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             }
 
             const data = await response.json();
+            console.log("✅ [ChatKit] Session created, context sent:", data.context_sent);
             return data.client_secret;
           } catch (err) {
             console.error("❌ [ChatKit] getClientSecret error:", err);
@@ -228,37 +153,12 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             label: "Lever/coucher du soleil",
             prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
           },
-          { label: "Contexte", prompt: "Affiche mon page_context" },
         ],
       },
-      onBeforeSendMessage: (message: string) => {
-        // Envoyer le contexte UNIQUEMENT au premier message
-        if (formattedContext && !contextSentRef.current) {
-          console.log("✅ [ChatKit] Sending context with first message");
-          contextSentRef.current = true;
-          
-          const messageWithContext = `${message}\n\n[CONTEXTE SYSTÈME - page_context]:\n${formattedContext}`;
-          
-          console.log("📤 [ChatKit] Message length:", messageWithContext.length);
-          
-          return messageWithContext;
-        }
-        
-        console.log("📤 [ChatKit] Sending message without context");
-        return message;
-      },
     };
-  }, [isDarkMode, formattedContext]);
+  }, [isDarkMode, pageContext]);
 
   const { control } = useChatKit(config as any);
-
-  // Reset du flag quand le widget se ferme
-  useEffect(() => {
-    if (!isExpanded) {
-      contextSentRef.current = false;
-      console.log("🔄 [ChatKit] Context flag reset");
-    }
-  }, [isExpanded]);
 
   if (!scriptLoaded || !isExpanded) {
     return null;

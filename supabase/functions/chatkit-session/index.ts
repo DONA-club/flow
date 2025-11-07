@@ -88,21 +88,29 @@ serve(async (req) => {
     console.log(`[ChatKit] Using domain key: ${CHATKIT_DOMAIN_KEY ? CHATKIT_DOMAIN_KEY.substring(0, 10) + "..." : "none"}`);
     
     if (pageContext) {
-      console.log(`[ChatKit] Page context received:`, {
+      console.log(`[ChatKit] Page context received:`, JSON.stringify({
         page: pageContext.page?.url,
         events: pageContext.events?.total,
         sleep: pageContext.sleep?.connected,
         connections: Object.keys(pageContext.connections || {}).filter(k => pageContext.connections[k]),
-      });
+      }, null, 2));
     }
 
-    // Create ChatKit session
+    // Create ChatKit session with context
     const sessionPayload: any = {
       workflow: {
-        id: CHATKIT_WORKFLOW_ID,  // ✅ Variable Supabase
+        id: CHATKIT_WORKFLOW_ID,
       },
       user: deviceId,
     };
+
+    // ✅ Ajouter le contexte dans la session initiale
+    if (pageContext) {
+      sessionPayload.context = {
+        page_context: JSON.stringify(pageContext, null, 2)
+      };
+      console.log(`[ChatKit] Context added to session (${JSON.stringify(pageContext).length} chars)`);
+    }
 
     // Build headers with domain key if needed
     const headers: Record<string, string> = {
@@ -145,13 +153,12 @@ serve(async (req) => {
 
     const sessionData = await sessionResponse.json();
     
-    console.log(`[ChatKit] Session created successfully`);
+    console.log(`[ChatKit] Session created successfully with context`);
 
-    // Return both client_secret and pageContext so frontend can send it in first message
     return new Response(
       JSON.stringify({ 
         client_secret: sessionData.client_secret,
-        page_context: pageContext || null
+        context_sent: !!pageContext
       }),
       { status: 200, headers: cors({ "Content-Type": "application/json" }) }
     );

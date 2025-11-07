@@ -226,7 +226,7 @@ export function generatePageContext(params: {
       }
     : null;
 
-  return {
+  const context: PageContext = {
     timestamp: now.toISOString(),
     page: {
       url: window.location.href,
@@ -294,6 +294,11 @@ export function generatePageContext(params: {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
   };
+
+  // ✅ LOG CLAIR UNE SEULE FOIS
+  console.log("📋 [PageContext] Generated:", JSON.stringify(context, null, 2));
+
+  return context;
 }
 
 export type { PageContext };
