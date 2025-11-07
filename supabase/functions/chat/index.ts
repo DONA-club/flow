@@ -1,14 +1,14 @@
 /* @ts-nocheck */
-// Supabase Edge (Deno) — OpenAI ChatKit Workflows API direct
+// Supabase Edge (Deno) — OpenAI ChatKit Sessions API (official)
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const OPENAI_API_KEY   = Deno.env.get("OPENAI_API_KEY");
-const DEFAULT_WORKFLOW = Deno.env.get("CHATKIT_WORKFLOW_ID") || "";
+const CHATKIT_WORKFLOW_ID = Deno.env.get("CHATKIT_WORKFLOW_ID") || "";
 const FRONTEND_ORIGIN  = Deno.env.get("FRONTEND_ORIGIN") || "*";
-const OPENAI_BETA      = Deno.env.get("OPENAI_BETA") || "workflows=v1";
+const OPENAI_BETA      = Deno.env.get("OPENAI_BETA") || "chatkit_beta=v1";
 
 const te = new TextEncoder();
-const RUN_URL = "https://api.openai.com/v1/workflows/run";
+const CHATKIT_SESSIONS = "https://api.openai.com/v1/chatkit/sessions";
 
 function cors(h: Record<string, string> = {}) {
   return {
@@ -42,10 +42,10 @@ serve(async (req) => {
 
   try {
     // Check required env vars
-    if (!OPENAI_API_KEY) {
-      console.error("❌ [Chat] Missing OPENAI_API_KEY");
+    if (!OPENAI_API_KEY || !CHATKIT_WORKFLOW_ID) {
+      console.error("❌ [Chat] Missing configuration");
       return new Response(
-        JSON.stringify({ error: "Missing OPENAI_API_KEY" }),
+        JSON.stringify({ error: "Missing OPENAI_API_KEY or CHATKIT_WORKFLOW_ID" }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
@@ -73,14 +73,7 @@ serve(async (req) => {
       );
     }
 
-    // Body expected: { messages, stream=true, workflow_id?, workflow_input?, user_id? }
-    const {
-      messages,
-      stream = true,
-      workflow_id = DEFAULT_WORKFLOW,
-      workflow_input = {},
-      user_id = "anonymous",
-    } = body || {};
+    const { messages, stream = true, user_id = "anonymous" } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       console.error("❌ [Chat] Missing or invalid messages field");
@@ -90,52 +83,92 @@ serve(async (req) => {
       );
     }
 
-    if (!workflow_id) {
-      console.error("❌ [Chat] Missing workflow_id");
+    console.log("💬 [Chat] Processing", messages.length, "messages for user:", user_id);
+    console.log("🔄 [Chat] Using workflow:", CHATKIT_WORKFLOW_ID);
+
+    // 1) CREATE SESSION
+    console.log("🔄 [Chat] Creating ChatKit session...");
+    
+    const createRes = await fetch(CHATKIT_SESSIONS, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "OpenAI-Beta": OPENAI_BETA,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        workflow: { id: CHATKIT_WORKFLOW_ID },
+        user: user_id,
+      }),
+    });
+
+    const createText = await createRes.text();
+    if (!createRes.ok) {
+      console.error("❌ [Chat] Session creation failed:", createRes.status, createText);
       return new Response(
-        JSON.stringify({ error: "Missing 'workflow_id' (or CHATKIT_WORKFLOW_ID secret)" }),
-        { status: 400, headers: cors({ "Content-Type": "application/json" }) }
+        JSON.stringify({ error: "CHATKIT_SESS_CREATE", details: createText }),
+        { status: 502, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
-    console.log("💬 [Chat] Processing", messages.length, "messages for user:", user_id);
-    console.log("🔄 [Chat] Using workflow:", workflow_id);
+    const session = JSON.parse(createText);
+    const sessionId = session.id;
+    console.log("✅ [Chat] Session created:", sessionId);
 
-    // ---------- Fallback non-stream ----------
+    // 2) Fallback non-stream
     if (!stream) {
       console.log("🤖 [Chat] Non-streaming mode");
+      
+      // Send all messages
+      for (const msg of messages) {
+        const msgRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "OpenAI-Beta": OPENAI_BETA,
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({ 
+            role: msg.role === "assistant" ? "assistant" : "user",
+            content: msg.content 
+          }),
+        });
 
-      const rsp = await fetch(RUN_URL, {
-        method: "POST",
+        if (!msgRes.ok) {
+          const msgText = await msgRes.text().catch(() => "");
+          console.error("❌ [Chat] Message creation failed:", msgRes.status, msgText);
+          return new Response(
+            JSON.stringify({ error: "CHATKIT_MSG_CREATE", details: msgText }),
+            { status: 502, headers: cors({ "Content-Type": "application/json" }) }
+          );
+        }
+      }
+
+      // Get final session state
+      const lastRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}`, {
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "OpenAI-Beta": OPENAI_BETA,
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
         },
-        body: JSON.stringify({
-          workflow_id,
-          input: { messages, user_id, ...workflow_input },
-          stream: false,
-        }),
       });
 
-      const text = await rsp.text();
-      if (!rsp.ok) {
-        console.error("❌ [Chat] Workflow run failed:", rsp.status, text);
+      const lastText = await lastRes.text();
+      if (!lastRes.ok) {
+        console.error("❌ [Chat] Session retrieval failed:", lastRes.status, lastText);
         return new Response(
-          JSON.stringify({ error: "WORKFLOW_RUN_FAILED", details: text }),
+          JSON.stringify({ error: "CHATKIT_SESS_RETRIEVE", details: lastText }),
           { status: 502, headers: cors({ "Content-Type": "application/json" }) }
         );
       }
 
       console.log("✅ [Chat] Non-streaming response received");
-      return new Response(text, { 
+      return new Response(lastText, { 
         status: 200, 
         headers: cors({ "Content-Type": "application/json" }) 
       });
     }
 
-    // ---------- Streaming ----------
+    // 3) STREAMING
     console.log("🌊 [Chat] Streaming mode enabled");
 
     const streamBody = new ReadableStream<Uint8Array>({
@@ -144,26 +177,55 @@ serve(async (req) => {
           sendEvent(controller, "open");
           console.log("📡 [Chat] Stream opened");
 
-          const rsp = await fetch(RUN_URL, {
+          // Send all messages except the last one (non-streaming)
+          for (let i = 0; i < messages.length - 1; i++) {
+            const msgRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "OpenAI-Beta": OPENAI_BETA,
+                "Authorization": `Bearer ${OPENAI_API_KEY}`,
+              },
+              body: JSON.stringify({ 
+                role: messages[i].role === "assistant" ? "assistant" : "user",
+                content: messages[i].content 
+              }),
+            });
+
+            if (!msgRes.ok) {
+              const msgText = await msgRes.text().catch(() => "");
+              console.error("❌ [Chat] Message creation failed:", msgRes.status, msgText);
+              sendData(controller, { error: "CHATKIT_MSG_CREATE", details: msgText });
+              controller.enqueue(te.encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
+            }
+          }
+
+          // Stream the last message
+          const lastMessage = messages[messages.length - 1];
+          console.log("📤 [Chat] Streaming last message...");
+
+          const streamRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${OPENAI_API_KEY}`,
               "OpenAI-Beta": OPENAI_BETA,
+              "Authorization": `Bearer ${OPENAI_API_KEY}`,
             },
-            body: JSON.stringify({
-              workflow_id,
-              input: { messages, user_id, ...workflow_input },
-              stream: true,
+            body: JSON.stringify({ 
+              role: lastMessage.role === "assistant" ? "assistant" : "user",
+              content: lastMessage.content,
+              stream: true 
             }),
           });
 
-          if (!rsp.ok || !rsp.body) {
-            const t = await rsp.text().catch(() => "");
-            console.error("❌ [Chat] Stream start failed:", rsp.status, t);
+          if (!streamRes.ok || !streamRes.body) {
+            const streamText = await streamRes.text().catch(() => "");
+            console.error("❌ [Chat] Stream start failed:", streamRes.status, streamText);
             sendData(controller, { 
-              error: "WORKFLOW_STREAM_START_FAILED", 
-              details: t || `HTTP ${rsp.status}` 
+              error: "CHATKIT_STREAM_START", 
+              details: streamText || "no body" 
             });
             controller.enqueue(te.encode("data: [DONE]\n\n"));
             controller.close();
@@ -172,7 +234,7 @@ serve(async (req) => {
 
           console.log("📡 [Chat] Stream connection established");
 
-          const reader = rsp.body.getReader();
+          const reader = streamRes.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
 
@@ -194,7 +256,6 @@ serve(async (req) => {
 
               // Native SSE from OpenAI
               if (line.startsWith("event:")) {
-                // Relay event line as-is (will be followed by data:)
                 controller.enqueue(te.encode(line + "\n"));
                 continue;
               }
@@ -213,13 +274,12 @@ serve(async (req) => {
                 try {
                   json = JSON.parse(payload);
                 } catch {
-                  // Non-JSON: relay as-is
                   controller.enqueue(te.encode(raw + "\n"));
                   continue;
                 }
 
                 if (json) {
-                  // 1) Text token (multiple schemas possible)
+                  // 1) Text token
                   const token =
                     json?.delta?.content ??
                     json?.output_text ??
@@ -232,7 +292,7 @@ serve(async (req) => {
                     continue;
                   }
 
-                  // 2) Tool events — propagate as dedicated SSE events
+                  // 2) Tool events
                   if (json?.tool_call || json?.tool?.name || json?.function_call || json?.required_action) {
                     console.log("🔧 [Chat] Tool delta detected:", 
                       json?.tool_call?.name || json?.tool?.name || json?.function_call?.name);
@@ -252,16 +312,15 @@ serve(async (req) => {
                     continue;
                   }
 
-                  // 3) Other payload → generic event
+                  // 3) Other payload
                   sendEvent(controller, "event", json);
                 } else {
-                  // Non-JSON data line → relay as-is
                   controller.enqueue(te.encode(raw + "\n"));
                 }
                 continue;
               }
 
-              // NDJSON (pure JSON line)
+              // NDJSON
               if (line.startsWith("{")) {
                 try {
                   const json = JSON.parse(line);
@@ -289,7 +348,7 @@ serve(async (req) => {
                     sendEvent(controller, "event", json);
                   }
                 } catch {
-                  // Ignore non-JSON lines
+                  // Ignore
                 }
               }
             }
