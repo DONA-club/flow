@@ -23,7 +23,7 @@ type Props = {
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const initAttempted = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -172,6 +172,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     const result = useChatKit(config as any);
     control = result.control;
     console.log("✅ [ChatKit] useChatKit returned control:", !!control);
+    console.log("🔍 [ChatKit] Control object:", control);
   } catch (err) {
     console.error("💥 [ChatKit] useChatKit error:", err);
     return (
@@ -182,27 +183,18 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     );
   }
 
-  // Try to force initialization after mount
+  // Mount ChatKit when ref is ready
   useEffect(() => {
-    if (!initAttempted.current && control) {
-      initAttempted.current = true;
-      console.log("🚀 [ChatKit] Attempting to force initialization...");
+    if (containerRef.current && control) {
+      console.log("🎯 [ChatKit] Container ref ready, calling setInstance");
+      console.log("🎯 [ChatKit] Container element:", containerRef.current);
       
-      // Try to trigger the control methods
-      setTimeout(() => {
-        console.log("🔍 [ChatKit] Control methods:", Object.keys(control));
-        
-        // Check if there's an init or start method
-        if (typeof (control as any).init === 'function') {
-          console.log("🎯 [ChatKit] Calling control.init()");
-          (control as any).init();
-        }
-        
-        if (typeof (control as any).start === 'function') {
-          console.log("🎯 [ChatKit] Calling control.start()");
-          (control as any).start();
-        }
-      }, 1000);
+      try {
+        (control as any).setInstance(containerRef.current);
+        console.log("✅ [ChatKit] setInstance called successfully");
+      } catch (err) {
+        console.error("💥 [ChatKit] setInstance error:", err);
+      }
     }
   }, [control]);
 
@@ -235,16 +227,20 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         </div>
       )}
       
-      <ChatKit control={control} className="w-full h-full" />
+      {/* Container for ChatKit */}
+      <div ref={containerRef} className="w-full h-full">
+        <ChatKit control={control} className="w-full h-full" />
+      </div>
       
       {/* Debug overlay */}
       <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50">
         <div>Control: {control ? "✅" : "❌"}</div>
         <div>Health: {healthCheck ? "✅" : "⏳"}</div>
         <div>Init: {isInitialized ? "✅" : "⏳"}</div>
+        <div>Ref: {containerRef.current ? "✅" : "❌"}</div>
       </div>
       
-      {/* Warning if not initialized after 3 seconds */}
+      {/* Warning if not initialized */}
       {!isInitialized && (
         <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/20 pointer-events-none">
           <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm">
