@@ -41,17 +41,43 @@ declare module "npm:openai@4" {
 
   type StreamingResponse = AsyncIterable<ChatCompletionChunk>;
 
-  type ChatkitSession = {
+  type Thread = {
     id: string;
-    workflow?: { id: string };
-    user?: string;
-    messages?: Array<{ role: string; content: string }>;
+    object: string;
+    created_at: number;
   };
 
-  type ChatkitMessageChunk = {
-    delta?: {
-      content?: string;
-    };
+  type Message = {
+    id: string;
+    object: string;
+    created_at: number;
+    thread_id: string;
+    role: string;
+    content: Array<{
+      type: string;
+      text?: { value: string };
+    }>;
+  };
+
+  type Run = {
+    id: string;
+    object: string;
+    created_at: number;
+    thread_id: string;
+    assistant_id: string;
+    status: string;
+  };
+
+  type RunStep = {
+    id: string;
+    object: string;
+    type: string;
+    status: string;
+  };
+
+  type AssistantStreamEvent = {
+    event: string;
+    data: any;
   };
 
   export default class OpenAI {
@@ -72,30 +98,26 @@ declare module "npm:openai@4" {
         }): Promise<ChatCompletionResponse>;
       };
     };
-    chatkit: {
-      sessions: {
-        create(params: {
-          workflow: { id: string };
-          user: string;
-        }): Promise<ChatkitSession>;
-        retrieve(sessionId: string): Promise<ChatkitSession>;
+    beta: {
+      threads: {
+        create(): Promise<Thread>;
         messages: {
           create(
-            sessionId: string,
-            params: {
-              role: string;
-              content: string;
-              stream: true;
-            }
-          ): Promise<AsyncIterable<ChatkitMessageChunk>>;
+            threadId: string,
+            params: { role: string; content: string }
+          ): Promise<Message>;
+          list(threadId: string): Promise<{ data: Message[] }>;
+        };
+        runs: {
           create(
-            sessionId: string,
-            params: {
-              role: string;
-              content: string;
-              stream?: false;
-            }
-          ): Promise<{ role: string; content: string }>;
+            threadId: string,
+            params: { assistant_id: string }
+          ): Promise<Run>;
+          retrieve(threadId: string, runId: string): Promise<Run>;
+          stream(
+            threadId: string,
+            params: { assistant_id: string }
+          ): Promise<AsyncIterable<AssistantStreamEvent>>;
         };
       };
     };
