@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { CircularCalendar } from "@/components/CircularCalendar";
 import { useSunTimes } from "@/hooks/use-sun-times";
 import ChatInterface from "@/components/ChatInterface";
+import ChatkitWidget from "@/components/ChatkitWidget";
 import { useGoogleCalendar } from "@/hooks/use-google-calendar";
 import { useOutlookCalendar } from "@/hooks/use-outlook-calendar";
 import { useGoogleFitSleep } from "@/hooks/use-google-fit";
@@ -471,7 +472,6 @@ const Visualiser = () => {
     document.title = "DONA.club Visualiser";
     document.body.classList.add("visualiser-page");
     
-    // Reset du zoom sur mobile
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
@@ -566,7 +566,6 @@ const Visualiser = () => {
     }
   }, [effectiveWake, effectiveBed, isDarkMode, virtualDateTime]);
 
-  // Log initial au chargement de la page (une seule fois)
   useEffect(() => {
     if (!initialSleepLogShown && fitConnected && wakeHour !== null && bedHour !== null && totalSleepHours !== null && sleepDebtOrCapital) {
       const sleepStr = formatHour(totalSleepHours);
@@ -584,14 +583,12 @@ const Visualiser = () => {
     }
   }, [fitConnected, wakeHour, bedHour, totalSleepHours, sleepDebtOrCapital, initialSleepLogShown]);
 
-  // Log au survol de l'anneau
   useEffect(() => {
     if (!isHoveringRing) return;
 
     const currentDate = virtualDateTime || new Date();
     const dateKey = formatDateKey(currentDate);
     
-    // Ne pas logger si c'est le même jour que le dernier log
     if (lastLoggedDateRef.current === dateKey) return;
 
     if (effectiveTotalSleep !== null && effectiveDebtOrCapital && effectiveBed !== null) {
@@ -692,7 +689,6 @@ const Visualiser = () => {
         return newMap;
       });
       
-      // Log du nombre d'événements chargés SEULEMENT si > 0
       if (allEvents.length > 0) {
         const today = new Date();
         const includeYear = date.getFullYear() !== today.getFullYear();
@@ -773,7 +769,10 @@ const Visualiser = () => {
         }}
       />
 
-      {/* Chat Interface (remplace les logs) - z-index 1 */}
+      {/* ChatKit Widget (bas gauche) - z-index 1 */}
+      <ChatkitWidget />
+
+      {/* Chat Interface custom (bas droite) - z-index 1 */}
       <ChatInterface />
 
       {/* Liste événements - z-index 1000 */}
