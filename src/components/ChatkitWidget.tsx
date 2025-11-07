@@ -1,14 +1,24 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
 type Props = {
   className?: string;
 };
 
+// Generate or retrieve device ID
+function getDeviceId(): string {
+  const key = "chatkit_device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chatkitInstanceRef = useRef<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -25,89 +35,75 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   }, []);
 
-  // Initialize ChatKit
-  useEffect(() => {
-    if (!containerRef.current) return;
+  // Get client secret from Edge Function
+  const getClientSecret = async (existingClientSecret?: string) => {
+    const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
+    const url = `${supabaseUrl}/functions/v1/chatkit-session`;
+    
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          deviceId: getDeviceId(),
+          existingClientSecret 
+        }),
+      });
 
-    const checkAndMount = () => {
-      if (typeof window === "undefined" || !(window as any).ChatKit) {
-        return false;
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Failed to get client secret:", error);
+        throw new Error("Failed to get client secret");
       }
 
-      const options = {
-        workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
-        domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
-        theme: {
-          colorScheme: isDarkMode ? "dark" : "light",
-          typography: {
-            baseSize: 16,
-            fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
-          },
-          radius: "soft",
-          density: "normal",
+      const data = await response.json();
+      return data.client_secret;
+    } catch (err) {
+      console.error("Error getting client secret:", err);
+      throw err;
+    }
+  };
+
+  // Initialize ChatKit with secure client secret
+  const { control } = useChatKit({
+    api: { getClientSecret },
+    theme: {
+      colorScheme: isDarkMode ? ("dark" as const) : ("light" as const),
+      typography: {
+        baseSize: 16,
+        fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+      },
+      radius: "soft" as const,
+      density: "normal" as const,
+    },
+    composer: {
+      placeholder: "Posez votre question...",
+    },
+    startScreen: {
+      greeting: "Bonjour ! Comment puis-je vous aider ?",
+      prompts: [
+        {
+          label: "Mes événements",
+          prompt: "Quels sont mes prochains événements ?",
         },
-        composer: {
-          placeholder: "Posez votre question...",
+        {
+          label: "Mon sommeil",
+          prompt: "Comment est mon sommeil récemment ?",
         },
-        startScreen: {
-          greeting: "Bonjour ! Comment puis-je vous aider ?",
-          prompts: [
-            {
-              label: "Mes événements",
-              prompt: "Quels sont mes prochains événements ?",
-            },
-            {
-              label: "Mon sommeil",
-              prompt: "Comment est mon sommeil récemment ?",
-            },
-            {
-              label: "Lever/coucher du soleil",
-              prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-            },
-            {
-              label: "Aide",
-              prompt: "Comment utiliser cette application ?",
-            }
-          ]
+        {
+          label: "Lever/coucher du soleil",
+          prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
+        },
+        {
+          label: "Aide",
+          prompt: "Comment utiliser cette application ?",
         }
-      };
-
-      try {
-        if (chatkitInstanceRef.current) {
-          chatkitInstanceRef.current.destroy?.();
-        }
-
-        const chatkit = (window as any).ChatKit.mount(containerRef.current, options);
-        chatkitInstanceRef.current = chatkit;
-        
-        return true;
-      } catch (err) {
-        console.error("ChatKit mount error:", err);
-        return false;
-      }
-    };
-
-    if (checkAndMount()) return;
-
-    const interval = setInterval(() => {
-      if (checkAndMount()) clearInterval(interval);
-    }, 100);
-
-    const timeout = setTimeout(() => clearInterval(interval), 10000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-      if (chatkitInstanceRef.current) {
-        chatkitInstanceRef.current.destroy?.();
-        chatkitInstanceRef.current = null;
-      }
-    };
-  }, [isDarkMode]);
+      ]
+    }
+  } as any);
 
   return (
     <div
-      ref={containerRef}
       className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
@@ -116,10 +112,13 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        borderRadius: "12px",
-        overflow: "hidden"
       }}
-    />
+    >
+      <ChatKit 
+        control={control} 
+        className="w-full h-full rounded-xl overflow-hidden shadow-2xl"
+      />
+    </div>
   );
 };
 
