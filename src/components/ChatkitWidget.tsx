@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 function getDeviceId(): string {
   const key = "chatkit_device_id";
@@ -222,6 +222,11 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     return null;
   }
 
+  // Ne rien afficher si pas encore déployé
+  if (!isExpanded) {
+    return null;
+  }
+
   return (
     <div
       className={`fixed bottom-4 left-4 flex flex-col ${className || ""}`}
@@ -230,42 +235,46 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         maxWidth: "calc(100vw - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      {/* Poignée de contrôle */}
-      <div
-        onClick={onToggle}
-        className="cursor-pointer select-none mb-2 px-4 py-2 rounded-lg flex items-center justify-between gap-2 hover:bg-white/10 transition-colors"
-        style={{
-          background: "rgba(15, 23, 42, 0.75)",
-          backdropFilter: "blur(16px) saturate(180%)",
-          WebkitBackdropFilter: "blur(16px) saturate(180%)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <span className="text-white/80 text-xs font-medium">
-          {isExpanded ? "Réduire le workflow" : "Déployer le workflow"}
-        </span>
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-white/60" />
-        ) : (
-          <ChevronUp className="w-4 h-4 text-white/60" />
-        )}
-      </div>
-
       {/* Widget ChatKit avec animation */}
       <div
-        className="rounded-xl overflow-hidden shadow-2xl"
+        className="rounded-xl overflow-hidden shadow-2xl relative"
         style={{
-          height: isExpanded ? "600px" : "0px",
-          maxHeight: isExpanded ? "calc(100vh - 8rem)" : "0px",
+          height: "600px",
+          maxHeight: "calc(100vh - 8rem)",
           opacity: isExpanded ? 1 : 0,
           transform: isExpanded ? "scaleY(1)" : "scaleY(0)",
           transformOrigin: "top",
           transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
+        {/* Flèche de fermeture en liquid glass - centrée en haut */}
+        <div
+          onClick={onToggle}
+          className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
+          style={{
+            pointerEvents: "auto",
+          }}
+        >
+          <div
+            className="px-4 py-2 rounded-b-xl flex items-center justify-center transition-all duration-300 group-hover:py-3"
+            style={{
+              background: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(12px) saturate(160%)",
+              WebkitBackdropFilter: "blur(12px) saturate(160%)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderTop: "none",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+            }}
+          >
+            <ChevronDown 
+              className="w-4 h-4 text-white/50 group-hover:text-white/70 transition-colors" 
+              strokeWidth={2.5}
+            />
+          </div>
+        </div>
+
         {healthCheck && !healthCheck.has_OPENAI_KEY && (
           <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
             <div>
