@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Volume2, Mic, Square } from "lucide-react";
+import { Volume2, Mic, Square, Wrench } from "lucide-react";
 import { chatStream, resetChatkitSession } from "@/services/chatkit";
 
 type LogType = "info" | "success" | "error";
@@ -16,6 +16,11 @@ type Message = {
   streaming?: boolean;
 };
 
+type ToolActivity = {
+  name?: string;
+  status: "running" | "done";
+};
+
 type Props = {
   className?: string;
 };
@@ -24,6 +29,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [toolActivity, setToolActivity] = useState<ToolActivity | null>(null);
   const [lastUserActivity, setLastUserActivity] = useState<number>(Date.now());
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -221,6 +227,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setToolActivity(null);
     }
   };
 
@@ -242,6 +249,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setToolActivity(null);
     setLastUserActivity(Date.now());
 
     // Create agent message placeholder
@@ -287,6 +295,27 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
             )
           );
         },
+        onToolDelta: (payload) => {
+          const toolName = 
+            payload?.tool_call?.name ?? 
+            payload?.function_call?.name ?? 
+            payload?.tool?.name ?? 
+            "outil";
+          console.log("🔧 [Chat] Tool activity:", toolName);
+          setToolActivity({ name: toolName, status: "running" });
+        },
+        onToolResult: (payload) => {
+          console.log("✅ [Chat] Tool completed");
+          setToolActivity(prev => prev ? { ...prev, status: "done" } : { status: "done" });
+          // Auto-hide after 2s
+          setTimeout(() => setToolActivity(null), 2000);
+        },
+        onToolStatus: (payload) => {
+          console.log("📊 [Chat] Tool status:", payload?.status);
+        },
+        onEvent: (payload) => {
+          console.log("📡 [Chat] Generic event:", payload);
+        },
         onDone: () => {
           console.log("✅ [Chat] Stream completed");
           setMessages((prev) =>
@@ -297,6 +326,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
             )
           );
           setIsLoading(false);
+          setToolActivity(null);
           abortControllerRef.current = null;
         },
         onError: (error) => {
@@ -309,6 +339,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
             )
           );
           setIsLoading(false);
+          setToolActivity(null);
           abortControllerRef.current = null;
         },
         signal: abortControllerRef.current.signal,
@@ -324,6 +355,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         )
       );
       setIsLoading(false);
+      setToolActivity(null);
       abortControllerRef.current = null;
     }
   };
@@ -340,6 +372,24 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       className={`fixed bottom-4 right-4 flex flex-col items-end gap-0 z-50 ${className || ""}`}
       style={{ pointerEvents: "auto", maxWidth: "90vw", width: "340px" }}
     >
+      {/* Tool activity indicator */}
+      {toolActivity && (
+        <div 
+          className="mb-2 flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
+          style={{
+            backgroundColor: "rgba(251, 191, 36, 0.15)",
+            border: "1px solid rgba(251, 191, 36, 0.3)",
+            color: "rgba(251, 191, 36, 0.9)",
+          }}
+        >
+          <Wrench className="w-3.5 h-3.5 animate-pulse" />
+          <span className="italic">
+            {toolActivity.name ? `${toolActivity.name}` : "Outil"} 
+            {toolActivity.status === "running" ? " en cours…" : " terminé"}
+          </span>
+        </div>
+      )}
+
       <div 
         className="flex flex-col items-end gap-0 w-full max-h-[280px] mb-2"
         style={{ 

@@ -78,16 +78,24 @@ export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitRe
   }
 }
 
-// Streaming mode
+// Streaming mode with tool events support
 export async function chatStream({
   messages,
   onToken,
+  onToolDelta,
+  onToolResult,
+  onToolStatus,
+  onEvent,
   onDone,
   onError,
   signal,
 }: {
   messages: ChatkitMessage[];
   onToken: (token: string) => void;
+  onToolDelta?: (payload: any) => void;
+  onToolResult?: (payload: any) => void;
+  onToolStatus?: (payload: any) => void;
+  onEvent?: (payload: any) => void;
   onDone?: () => void;
   onError?: (err: Error) => void;
   signal?: AbortSignal;
@@ -120,6 +128,16 @@ export async function chatStream({
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let pendingEvent: string | null = null;
+
+    const handleDataJson = (json: any) => {
+      if (json?.token) {
+        onToken(json.token);
+        return;
+      }
+      // Fallback generic event
+      onEvent?.(json);
+    };
 
     while (true) {
       const { value, done } = await reader.read();
@@ -134,26 +152,78 @@ export async function chatStream({
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) continue;
 
-        if (payload === "[DONE]") {
-          console.log("🏁 [Chat] Received [DONE] marker");
-          onDone?.();
-          return;
+        // SSE event line
+        if (line.startsWith("event:")) {
+          pendingEvent = line.slice(6).trim();
+          continue;
         }
 
-        try {
-          const json = JSON.parse(payload);
-          if (json?.token) {
-            onToken(json.token);
+        // SSE data line
+        if (line.startsWith("data:")) {
+          const payload = line.slice(5).trim();
+
+          if (payload === "[DONE]") {
+            console.log("🏁 [Chat] Received [DONE] marker");
+            onDone?.();
+            return;
           }
-          if (json?.error) {
-            throw new Error(json.error);
+
+          let json: any = null;
+          try {
+            json = JSON.parse(payload);
+          } catch {
+            // Non-JSON: ignore
+            continue;
           }
-        } catch (e) {
-          // Ignore non-JSON lines (events, keep-alive)
+
+          // Handle event-specific payloads
+          if (pendingEvent) {
+            const ev = pendingEvent;
+            pendingEvent = null;
+
+            if (ev === "tool_delta") {
+              console.log("🔧 [Chat] Tool delta event");
+              onToolDelta?.(json);
+              continue;
+            }
+            if (ev === "tool_result") {
+              console.log("✅ [Chat] Tool result event");
+              onToolResult?.(json);
+              continue;
+            }
+            if (ev === "tool_status") {
+              console.log("📊 [Chat] Tool status event");
+              onToolStatus?.(json);
+              continue;
+            }
+            if (ev === "token") {
+              if (json?.token) onToken(json.token);
+              continue;
+            }
+            // Other generic event
+            onEvent?.(json);
+            continue;
+          }
+
+          // No explicit event → backward compat (data:{token})
+          if (json) {
+            handleDataJson(json);
+          }
+          continue;
+        }
+
+        // NDJSON (JSON line without event/data prefix)
+        if (line.startsWith("{")) {
+          try {
+            const json = JSON.parse(line);
+            handleDataJson(json);
+          } catch {
+            // Ignore non-JSON
+          }
         }
       }
     }

@@ -1,5 +1,5 @@
 /* @ts-nocheck */
-// Supabase Edge (Deno) — OpenAI ChatKit Sessions API via fetch direct
+// Supabase Edge (Deno) — OpenAI ChatKit Sessions API + tool events
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const ORIGIN = "*"; // In production: "https://visualiser.dona.club"
@@ -24,10 +24,14 @@ const sseHeaders = {
   "Connection": "keep-alive",
 };
 
-const sendLine = (controller: ReadableStreamDefaultController<Uint8Array>, data: unknown) =>
-  controller.enqueue(te.encode(`data: ${JSON.stringify(data)}\n\n`));
-
 const CHATKIT_SESSIONS = "https://api.openai.com/v1/chatkit/sessions";
+
+// SSE helpers
+const sendData = (c: ReadableStreamDefaultController<Uint8Array>, data: unknown) =>
+  c.enqueue(te.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+const sendEvent = (c: ReadableStreamDefaultController<Uint8Array>, event: string, data?: unknown) =>
+  c.enqueue(te.encode(`event: ${event}\n${data !== undefined ? `data: ${JSON.stringify(data)}\n` : ""}\n`));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -111,11 +115,10 @@ serve(async (req) => {
     const sessionId = session.id;
     console.log("✅ [Chat] Session created:", sessionId);
 
-    // 2) MODE NON-STREAM (fallback)
+    // 2) Fallback non-stream
     if (!stream) {
       console.log("🤖 [Chat] Non-streaming mode");
       
-      // Send all messages
       for (const msg of messages) {
         const msgRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
           method: "POST",
@@ -137,7 +140,6 @@ serve(async (req) => {
         }
       }
 
-      // Retrieve final session state
       const lastRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}`, {
         headers: {
           "OpenAI-Beta": "chatkit_beta=v1",
@@ -161,14 +163,13 @@ serve(async (req) => {
       });
     }
 
-    // 3) STREAMING SSE
+    // 3) STREAMING — normalize: tokens + tool_* events
     console.log("🌊 [Chat] Streaming mode enabled");
 
     const streamBody = new ReadableStream<Uint8Array>({
       async start(controller) {
         try {
-          // Send open event
-          controller.enqueue(te.encode("event: open\n\n"));
+          sendEvent(controller, "open");
           console.log("📡 [Chat] Stream opened");
 
           // Send all messages except the last one (non-streaming)
@@ -189,7 +190,7 @@ serve(async (req) => {
             if (!msgRes.ok) {
               const msgText = await msgRes.text().catch(() => "");
               console.error("❌ [Chat] Message creation failed:", msgRes.status, msgText);
-              sendLine(controller, { error: "CHATKIT_MSG_CREATE", details: msgText });
+              sendData(controller, { error: "CHATKIT_MSG_CREATE", details: msgText });
               controller.enqueue(te.encode("data: [DONE]\n\n"));
               controller.close();
               return;
@@ -217,7 +218,7 @@ serve(async (req) => {
           if (!streamRes.ok || !streamRes.body) {
             const streamText = await streamRes.text().catch(() => "");
             console.error("❌ [Chat] Stream start failed:", streamRes.status, streamText);
-            sendLine(controller, { error: "CHATKIT_STREAM_START", details: streamText || "no body" });
+            sendData(controller, { error: "CHATKIT_STREAM_START", details: streamText || "no body" });
             controller.enqueue(te.encode("data: [DONE]\n\n"));
             controller.close();
             return;
@@ -238,14 +239,19 @@ serve(async (req) => {
 
             buffer += decoder.decode(value, { stream: true });
 
-            // Process lines (supports both SSE and NDJSON)
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
 
             for (const line of lines) {
               const trimmed = line.trim();
 
-              // a) SSE format: "data: {...}"
+              // Native SSE: "event: ..." / "data: ..."
+              if (trimmed.startsWith("event:")) {
+                // Relay event line as-is, will be followed by data:
+                controller.enqueue(te.encode(line + "\n"));
+                continue;
+              }
+
               if (trimmed.startsWith("data:")) {
                 const payload = trimmed.slice(5).trim();
 
@@ -256,10 +262,18 @@ serve(async (req) => {
                   return;
                 }
 
+                // Try to parse JSON and identify tokens vs tools
+                let json: any = null;
                 try {
-                  const json = JSON.parse(payload);
-                  
-                  // Normalize token from various formats
+                  json = JSON.parse(payload);
+                } catch {
+                  // Non-JSON: relay as-is
+                  controller.enqueue(te.encode(line + "\n"));
+                  continue;
+                }
+
+                if (json) {
+                  // 1) Text token
                   const token =
                     json?.delta?.content ??
                     json?.output_text ??
@@ -267,20 +281,42 @@ serve(async (req) => {
                     json?.content ??
                     null;
 
-                  if (typeof token === "string" && token.length) {
-                    sendLine(controller, { token });
-                  } else {
-                    // Relay raw event (useful for tool_calls)
-                    sendLine(controller, json);
+                  if (typeof token === "string" && token) {
+                    // Keep compat: data:{token:"..."}
+                    sendData(controller, { token });
+                    continue;
                   }
-                } catch {
-                  // Non-JSON payload: ignore or relay as-is if needed
-                }
 
+                  // 2) Tool events (various formats depending on ChatKit)
+                  // Heuristics: function/tool_call/tool/status
+                  if (json?.tool_call || json?.tool?.name || json?.function_call || json?.required_action) {
+                    console.log("🔧 [Chat] Tool delta detected:", json?.tool_call?.name || json?.tool?.name || json?.function_call?.name);
+                    sendEvent(controller, "tool_delta", json);
+                    continue;
+                  }
+
+                  if (json?.tool_result || json?.tool_output) {
+                    console.log("✅ [Chat] Tool result received");
+                    sendEvent(controller, "tool_result", json);
+                    continue;
+                  }
+
+                  if (json?.status && typeof json.status === "string" && json.status.startsWith("tool_")) {
+                    console.log("📊 [Chat] Tool status:", json.status);
+                    sendEvent(controller, "tool_status", json);
+                    continue;
+                  }
+
+                  // 3) Other useful payloads → generic relay
+                  sendEvent(controller, "event", json);
+                } else {
+                  // Non-JSON data line → relay as-is
+                  controller.enqueue(te.encode(line + "\n"));
+                }
                 continue;
               }
 
-              // b) NDJSON format: one line = one JSON
+              // NDJSON: pure JSON line
               if (trimmed.startsWith("{")) {
                 try {
                   const json = JSON.parse(trimmed);
@@ -292,13 +328,22 @@ serve(async (req) => {
                     json?.content ??
                     null;
 
-                  if (typeof token === "string" && token.length) {
-                    sendLine(controller, { token });
+                  if (typeof token === "string" && token) {
+                    sendData(controller, { token });
+                  } else if (json?.tool_call || json?.tool?.name || json?.function_call || json?.required_action) {
+                    console.log("🔧 [Chat] Tool delta detected (NDJSON):", json?.tool_call?.name || json?.tool?.name);
+                    sendEvent(controller, "tool_delta", json);
+                  } else if (json?.tool_result || json?.tool_output) {
+                    console.log("✅ [Chat] Tool result received (NDJSON)");
+                    sendEvent(controller, "tool_result", json);
+                  } else if (json?.status && typeof json.status === "string" && json.status.startsWith("tool_")) {
+                    console.log("📊 [Chat] Tool status (NDJSON):", json.status);
+                    sendEvent(controller, "tool_status", json);
                   } else {
-                    sendLine(controller, json);
+                    sendEvent(controller, "event", json);
                   }
                 } catch {
-                  // Non-JSON line: ignore
+                  // Ignore non-JSON lines
                 }
               }
             }
@@ -309,7 +354,7 @@ serve(async (req) => {
           controller.close();
         } catch (e) {
           console.error("💥 [Chat] Stream error:", e);
-          sendLine(controller, { error: String(e) });
+          sendData(controller, { error: String(e) });
           controller.enqueue(te.encode("data: [DONE]\n\n"));
           controller.close();
         }
