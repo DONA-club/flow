@@ -444,6 +444,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
   };
 
   const placeholderColor = isDarkMode ? "rgba(255, 255, 255, 0.65)" : "#1d4ed8";
+  const chevronColor = isDarkMode ? "rgba(255, 255, 255, 0.45)" : "rgba(255, 255, 255, 0.85)";
 
   return (
     <div
@@ -564,7 +565,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
         />
         <span
           className="text-xs select-none flex-shrink-0 animate-pulse-soft"
-          style={{ color: "rgba(255, 255, 255, 0.45)", animation: "pulse-soft 2s ease-in-out infinite" }}
+          style={{ color: chevronColor, animation: "pulse-soft 2s ease-in-out infinite" }}
         >
           &lt;
         </span>
