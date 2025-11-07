@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { ChatKit, useChatKit } from "@openai/chatkit-react";
+import { useChatKit } from "@openai/chatkit-react";
 
 function getDeviceId(): string {
   const key = "chatkit_device_id";
@@ -24,6 +24,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(false);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -172,7 +173,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     const result = useChatKit(config as any);
     control = result.control;
     console.log("✅ [ChatKit] useChatKit returned control:", !!control);
-    console.log("🔍 [ChatKit] Control object:", control);
   } catch (err) {
     console.error("💥 [ChatKit] useChatKit error:", err);
     return (
@@ -185,13 +185,32 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
 
   // Mount ChatKit when ref is ready
   useEffect(() => {
-    if (containerRef.current && control) {
+    if (containerRef.current && control && !mountedRef.current) {
+      mountedRef.current = true;
+      
       console.log("🎯 [ChatKit] Container ref ready, calling setInstance");
       console.log("🎯 [ChatKit] Container element:", containerRef.current);
+      console.log("🎯 [ChatKit] Container dimensions:", {
+        width: containerRef.current.offsetWidth,
+        height: containerRef.current.offsetHeight,
+      });
       
       try {
         (control as any).setInstance(containerRef.current);
         console.log("✅ [ChatKit] setInstance called successfully");
+        
+        // Wait a bit and check if iframe was created
+        setTimeout(() => {
+          const iframe = containerRef.current?.querySelector('iframe');
+          console.log("🔍 [ChatKit] Iframe check:", iframe ? "Found!" : "Not found");
+          if (iframe) {
+            console.log("🔍 [ChatKit] Iframe src:", iframe.src);
+            console.log("🔍 [ChatKit] Iframe dimensions:", {
+              width: iframe.offsetWidth,
+              height: iframe.offsetHeight,
+            });
+          }
+        }, 1000);
       } catch (err) {
         console.error("💥 [ChatKit] setInstance error:", err);
       }
@@ -227,10 +246,12 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         </div>
       )}
       
-      {/* Container for ChatKit */}
-      <div ref={containerRef} className="w-full h-full">
-        <ChatKit control={control} className="w-full h-full" />
-      </div>
+      {/* Container for ChatKit - NO <ChatKit> component */}
+      <div 
+        ref={containerRef} 
+        className="w-full h-full bg-white"
+        style={{ minHeight: "600px" }}
+      />
       
       {/* Debug overlay */}
       <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50">
