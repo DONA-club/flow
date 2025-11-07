@@ -9,13 +9,33 @@ const FRONTEND_ORIGIN = Deno.env.get("FRONTEND_ORIGIN") || "*";
 function cors(h: Record<string, string> = {}) {
   return {
     "Access-Control-Allow-Origin": FRONTEND_ORIGIN,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
     ...h,
   };
 }
 
 serve(async (req) => {
+  const url = new URL(req.url);
+
+  // Health check endpoint
+  if (url.pathname.endsWith("/health")) {
+    const health = {
+      ok: true,
+      has_OPENAI_KEY: !!OPENAI_API_KEY,
+      has_WORKFLOW_ID: !!CHATKIT_WORKFLOW_ID,
+      has_DOMAIN_KEY: !!CHATKIT_DOMAIN_KEY,
+      beta_header_needed: true,
+      region: Deno.env.get("SUPABASE_REGION") ?? null,
+      timestamp: new Date().toISOString(),
+    };
+    
+    return new Response(JSON.stringify(health), {
+      status: 200,
+      headers: cors({ "Content-Type": "application/json" }),
+    });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: cors() });
   }
@@ -29,8 +49,17 @@ serve(async (req) => {
 
   try {
     if (!OPENAI_API_KEY || !CHATKIT_WORKFLOW_ID || !CHATKIT_DOMAIN_KEY) {
+      const missing = [];
+      if (!OPENAI_API_KEY) missing.push("OPENAI_API_KEY");
+      if (!CHATKIT_WORKFLOW_ID) missing.push("CHATKIT_WORKFLOW_ID");
+      if (!CHATKIT_DOMAIN_KEY) missing.push("CHATKIT_DOMAIN_KEY");
+      
       return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
+        JSON.stringify({ 
+          error: "Server configuration error",
+          missing_secrets: missing,
+          hint: "Set these secrets in Supabase Dashboard > Edge Functions > Manage Secrets"
+        }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
@@ -45,7 +74,7 @@ serve(async (req) => {
       );
     }
 
-    const { deviceId } = body;
+    const { deviceId, existingClientSecret } = body;
 
     if (!deviceId || typeof deviceId !== "string") {
       return new Response(
@@ -53,6 +82,8 @@ serve(async (req) => {
         { status: 400, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
+
+    console.log(`[ChatKit] Creating session for device: ${deviceId.substring(0, 8)}...`);
 
     // Create ChatKit session
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
@@ -72,16 +103,26 @@ serve(async (req) => {
 
     if (!sessionResponse.ok) {
       const errorText = await sessionResponse.text();
+      console.error(`[ChatKit] OpenAI API error ${sessionResponse.status}:`, errorText);
+      
       return new Response(
         JSON.stringify({ 
           error: "Failed to create ChatKit session",
-          details: errorText 
+          status: sessionResponse.status,
+          details: errorText,
+          hint: sessionResponse.status === 401 
+            ? "Check OPENAI_API_KEY is valid"
+            : sessionResponse.status === 404
+            ? "Check CHATKIT_WORKFLOW_ID exists in your OpenAI account"
+            : "Check OpenAI API status"
         }),
         { status: sessionResponse.status, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
     const sessionData = await sessionResponse.json();
+    
+    console.log(`[ChatKit] Session created successfully`);
 
     return new Response(
       JSON.stringify({ 
@@ -91,8 +132,14 @@ serve(async (req) => {
     );
 
   } catch (err) {
+    console.error("[ChatKit] Unexpected error:", err);
+    
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ 
+        error: "Internal server error",
+        message: String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      }),
       { status: 500, headers: cors({ "Content-Type": "application/json" }) }
     );
   }
