@@ -26,7 +26,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const lastSentContextRef = useRef<string | null>(null);
+  const contextSentRef = useRef(false);
 
   const isDarkMode =
     typeof window !== "undefined" &&
@@ -232,21 +232,19 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         ],
       },
       onBeforeSendMessage: (message: string) => {
-        const contextChanged = formattedContext !== lastSentContextRef.current;
-        
-        if (formattedContext && contextChanged) {
-          console.log("✅ [ChatKit] Sending WITH context:", formattedContext.length, "chars");
-          lastSentContextRef.current = formattedContext;
+        // Envoyer le contexte UNIQUEMENT au premier message
+        if (formattedContext && !contextSentRef.current) {
+          console.log("✅ [ChatKit] Sending context with first message");
+          contextSentRef.current = true;
           
           const messageWithContext = `${message}\n\n[CONTEXTE SYSTÈME - page_context]:\n${formattedContext}`;
           
-          console.log("📤 [ChatKit] Full message:");
-          console.log(messageWithContext);
+          console.log("📤 [ChatKit] Message length:", messageWithContext.length);
           
           return messageWithContext;
         }
         
-        console.log("⚠️ [ChatKit] Sending WITHOUT context");
+        console.log("📤 [ChatKit] Sending message without context");
         return message;
       },
     };
@@ -254,9 +252,11 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   const { control } = useChatKit(config as any);
 
+  // Reset du flag quand le widget se ferme
   useEffect(() => {
     if (!isExpanded) {
-      lastSentContextRef.current = null;
+      contextSentRef.current = false;
+      console.log("🔄 [ChatKit] Context flag reset");
     }
   }, [isExpanded]);
 
