@@ -11,6 +11,7 @@ import FontLoader from "@/components/FontLoader";
 import UpcomingEventsList from "@/components/UpcomingEventsList";
 import { useMultiProviderAuth } from "@/hooks/use-multi-provider-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { generatePageContext, type PageContext } from "@/utils/page-context";
 
 const DEFAULT_SUNRISE = 6.0;
 const DEFAULT_SUNSET = 21.0;
@@ -422,8 +423,8 @@ const Visualiser = () => {
   const [initialSleepLogShown, setInitialSleepLogShown] = useState(false);
   const lastLoggedDateRef = useRef<string | null>(null);
 
-  // État d'expansion du ChatKit
   const [chatkitExpanded, setChatkitExpanded] = useState(false);
+  const [pageContext, setPageContext] = useState<PageContext | null>(null);
 
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
@@ -742,6 +743,55 @@ const Visualiser = () => {
     return () => window.clearInterval(id);
   }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
+  // Générer le contexte de page à chaque changement significatif
+  useEffect(() => {
+    if (!chatkitExpanded) return;
+
+    const context = generatePageContext({
+      virtualDateTime,
+      sunrise: displaySunrise,
+      sunset: displaySunset,
+      latitude,
+      longitude,
+      timezoneOffset,
+      events: combinedEvents,
+      wakeHour: effectiveWake,
+      bedHour: effectiveBed,
+      totalSleepHours: effectiveTotalSleep,
+      sleepSessions: effectiveSleepSessions,
+      sleepDebtOrCapital: effectiveDebtOrCapital,
+      idealBedHour,
+      fitConnected,
+      connectedProviders: connectedProviders || {},
+      calendarSize: size,
+      isHoveringRing,
+      selectedEvent: selectedEventFromList,
+      chatkitExpanded,
+    });
+
+    setPageContext(context);
+  }, [
+    chatkitExpanded,
+    virtualDateTime,
+    displaySunrise,
+    displaySunset,
+    latitude,
+    longitude,
+    timezoneOffset,
+    combinedEvents,
+    effectiveWake,
+    effectiveBed,
+    effectiveTotalSleep,
+    effectiveSleepSessions,
+    effectiveDebtOrCapital,
+    idealBedHour,
+    fitConnected,
+    connectedProviders,
+    size,
+    isHoveringRing,
+    selectedEventFromList,
+  ]);
+
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
   return (
@@ -773,6 +823,7 @@ const Visualiser = () => {
       <ChatkitWidget 
         isExpanded={chatkitExpanded}
         onToggle={() => setChatkitExpanded(!chatkitExpanded)}
+        pageContext={pageContext}
       />
 
       <ChatInterface 

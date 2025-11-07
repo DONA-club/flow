@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { ChevronDown } from "lucide-react";
+import type { PageContext } from "@/utils/page-context";
 
 function getDeviceId(): string {
   const key = "chatkit_device_id";
@@ -18,9 +19,10 @@ type Props = {
   className?: string;
   isExpanded?: boolean;
   onToggle?: () => void;
+  pageContext?: PageContext | null;
 };
 
-const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle }) => {
+const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle, pageContext }) => {
   const [debug, setDebug] = useState(false);
   useEffect(() => {
     try {
@@ -111,12 +113,14 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   }, [debug]);
 
   const config = useMemo(() => {
-    dlog("Creating stable config object");
+    dlog("Creating stable config object with page context");
 
     return {
       api: {
         async getClientSecret(existing?: string) {
           dlog("getClientSecret called, existing:", Boolean(existing));
+          dlog("Page context:", pageContext);
+          
           try {
             const deviceId = getDeviceId();
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
@@ -128,6 +132,13 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
               body: JSON.stringify({
                 deviceId,
                 existingClientSecret: existing || null,
+                pageContext: pageContext || {
+                  timestamp: new Date().toISOString(),
+                  page: {
+                    url: window.location.href,
+                    title: document.title,
+                  },
+                },
               }),
             });
 
@@ -212,7 +223,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         ],
       },
     };
-  }, [isDarkMode, debug]);
+  }, [isDarkMode, debug, pageContext]);
 
   const { control } = useChatKit(config as any);
   
@@ -222,7 +233,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     return null;
   }
 
-  // Ne rien afficher si pas encore déployé
   if (!isExpanded) {
     return null;
   }
@@ -237,7 +247,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         zIndex: 9999,
       }}
     >
-      {/* Widget ChatKit avec animation */}
       <div
         className="rounded-xl overflow-hidden shadow-2xl relative"
         style={{
@@ -249,7 +258,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        {/* Flèche de fermeture en liquid glass - centrée en haut */}
         <div
           onClick={onToggle}
           className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
@@ -300,6 +308,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             <div>Control: {control ? "✅" : "❌"}</div>
             <div>Health: {healthCheck ? "✅" : "⏳"}</div>
             <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
+            <div>Context: {pageContext ? "✅" : "❌"}</div>
           </div>
         )}
       </div>

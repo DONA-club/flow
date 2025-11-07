@@ -74,7 +74,7 @@ serve(async (req) => {
       );
     }
 
-    const { deviceId, existingClientSecret } = body;
+    const { deviceId, existingClientSecret, pageContext } = body;
 
     if (!deviceId || typeof deviceId !== "string") {
       return new Response(
@@ -84,8 +84,32 @@ serve(async (req) => {
     }
 
     console.log(`[ChatKit] Creating session for device: ${deviceId.substring(0, 8)}...`);
+    if (pageContext) {
+      console.log(`[ChatKit] Page context received:`, {
+        page: pageContext.page?.url,
+        events: pageContext.events?.total,
+        sleep: pageContext.sleep?.connected,
+        connections: Object.keys(pageContext.connections || {}).filter(k => pageContext.connections[k]),
+      });
+    }
 
-    // Create ChatKit session
+    // Create ChatKit session with metadata
+    const sessionPayload: any = {
+      workflow: {
+        id: CHATKIT_WORKFLOW_ID,
+      },
+      user: deviceId,
+    };
+
+    // Add page context as metadata if provided
+    if (pageContext) {
+      sessionPayload.metadata = {
+        pageContext: JSON.stringify(pageContext),
+        timestamp: pageContext.timestamp || new Date().toISOString(),
+        url: pageContext.page?.url || "unknown",
+      };
+    }
+
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
       headers: {
@@ -93,12 +117,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
         "OpenAI-Beta": "chatkit_beta=v1",
       },
-      body: JSON.stringify({
-        workflow: {
-          id: CHATKIT_WORKFLOW_ID,
-        },
-        user: deviceId,
-      }),
+      body: JSON.stringify(sessionPayload),
     });
 
     if (!sessionResponse.ok) {
@@ -122,7 +141,7 @@ serve(async (req) => {
 
     const sessionData = await sessionResponse.json();
     
-    console.log(`[ChatKit] Session created successfully`);
+    console.log(`[ChatKit] Session created successfully with context`);
 
     return new Response(
       JSON.stringify({ 
