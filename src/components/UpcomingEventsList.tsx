@@ -76,7 +76,6 @@ async function loadPreference(): Promise<boolean> {
   try {
     const { data: session } = await supabase.auth.getSession();
     if (!session?.session?.user?.id) {
-      // Fallback to localStorage if not authenticated
       const stored = localStorage.getItem(PREFERENCE_KEY);
       return stored === "true";
     }
@@ -90,7 +89,6 @@ async function loadPreference(): Promise<boolean> {
 
     if (error) {
       console.warn("Failed to load preference from Supabase:", error);
-      // Fallback to localStorage
       const stored = localStorage.getItem(PREFERENCE_KEY);
       return stored === "true";
     }
@@ -110,7 +108,6 @@ async function savePreference(open: boolean): Promise<void> {
   try {
     const { data: session } = await supabase.auth.getSession();
     if (!session?.session?.user?.id) {
-      // Fallback to localStorage if not authenticated
       localStorage.setItem(PREFERENCE_KEY, String(open));
       return;
     }
@@ -128,12 +125,10 @@ async function savePreference(open: boolean): Promise<void> {
 
     if (error) {
       console.warn("Failed to save preference to Supabase:", error);
-      // Fallback to localStorage
       localStorage.setItem(PREFERENCE_KEY, String(open));
     }
   } catch (err) {
     console.warn("Error saving preference:", err);
-    // Fallback to localStorage
     localStorage.setItem(PREFERENCE_KEY, String(open));
   }
 }
@@ -159,7 +154,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     }
   }, []);
 
-  // Charger la préférence au montage depuis Supabase
   React.useEffect(() => {
     loadPreference().then((isOpen) => {
       setOpen(isOpen);
@@ -198,7 +192,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     const newState = !open;
     const timeSinceMount = Date.now() - mountTimeRef.current;
     
-    // Si l'interaction se fait dans les 3 premières secondes, sauvegarder la préférence
     if (timeSinceMount <= INTERACTION_THRESHOLD_MS) {
       savePreference(newState);
     }
@@ -217,7 +210,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     return (
       <div 
         className="fixed top-4 left-4 pointer-events-none"
-        style={{ zIndex: 1000 }}
+        style={{ zIndex: 50 }}
       >
         <button
           type="button"
@@ -248,7 +241,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   return (
     <div 
       className="fixed top-4 left-4 pointer-events-none"
-      style={{ zIndex: 1000 }}
+      style={{ zIndex: 50 }}
     >
       <div
         className={[
@@ -308,7 +301,6 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
             const dayLabel = start ? getDayLabel(start, nowRef) : "";
             const dayDiff = start ? getDaysDifference(start, nowRef) : 0;
 
-            // Choisir l'icône selon le jour
             let EventIcon = Clock;
             let iconColor = cursorColor;
             

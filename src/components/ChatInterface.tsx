@@ -14,6 +14,7 @@ type Message = {
   fading?: boolean;
   pairId?: number;
   streaming?: boolean;
+  hasEllipsis?: boolean;
 };
 
 type ToolActivity = {
@@ -178,65 +179,64 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     });
 
     const pairIdsArray = Array.from(pairIds).sort((a, b) => a - b);
-    const lastPairId = pairIdsArray[pairIdsArray.length - 1];
 
     pairIdsArray.forEach((pairId) => {
-      const isLastPair = pairId === lastPairId;
       const pairMessages = messages.filter((m) => m.pairId === pairId);
 
       const hasUser = pairMessages.some((m) => m.type === "user");
-      const hasAgent = pairMessages.some((m) => m.type === "agent");
-      const isComplete = hasUser && hasAgent;
+      const agentMsg = pairMessages.find((m) => m.type === "agent");
+      const hasAgent = !!agentMsg;
+      const isStreaming = agentMsg?.streaming ?? false;
+      const hasEllipsis = agentMsg?.hasEllipsis ?? false;
 
-      if (!isComplete) return;
+      // Pair is NOT complete if:
+      // - No agent message yet
+      // - Agent is still streaming
+      // - Agent message ends with "..."
+      const isComplete = hasUser && hasAgent && !isStreaming && !hasEllipsis;
 
-      if (!isLastPair) {
+      if (!isComplete) {
+        // Clear any existing timers for this pair
         pairMessages.forEach((msg) => {
-          const already = timersRef.current.get(msg.id);
-          if (already) return;
-
-          const fadeTimeout = window.setTimeout(() => {
-            setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
-          }, 10000);
-
-          const removeTimeout = window.setTimeout(() => {
-            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+          const existing = timersRef.current.get(msg.id);
+          if (existing) {
+            if (existing.fadeTimeout) window.clearTimeout(existing.fadeTimeout);
+            if (existing.removeTimeout) window.clearTimeout(existing.removeTimeout);
             timersRef.current.delete(msg.id);
-          }, 15000);
-
-          timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
+          }
         });
-      } else {
-        pairMessages.forEach((msg) => {
-          const already = timersRef.current.get(msg.id);
-          if (already) return;
-
-          const checkActivity = () => {
-            const timeSinceActivity = Date.now() - lastUserActivity;
-
-            if (timeSinceActivity >= chatVisibleMs) {
-              const fadeTimeout = window.setTimeout(() => {
-                setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
-              }, 0);
-
-              const removeTimeout = window.setTimeout(() => {
-                setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-                timersRef.current.delete(msg.id);
-              }, chatFadeMs);
-
-              timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
-            } else {
-              window.setTimeout(checkActivity, 1000);
-            }
-          };
-
-          window.setTimeout(checkActivity, chatVisibleMs);
-        });
+        return;
       }
+
+      // Pair is complete - start timeout
+      pairMessages.forEach((msg) => {
+        const already = timersRef.current.get(msg.id);
+        if (already) return;
+
+        const checkActivity = () => {
+          const timeSinceActivity = Date.now() - lastUserActivity;
+
+          if (timeSinceActivity >= chatVisibleMs) {
+            const fadeTimeout = window.setTimeout(() => {
+              setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
+            }, 0);
+
+            const removeTimeout = window.setTimeout(() => {
+              setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+              timersRef.current.delete(msg.id);
+            }, chatFadeMs);
+
+            timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
+          } else {
+            window.setTimeout(checkActivity, 1000);
+          }
+        };
+
+        window.setTimeout(checkActivity, chatVisibleMs);
+      });
     });
   }, [messages, lastUserActivity, chatVisibleMs, chatFadeMs]);
 
-  // Détection du message "Chargement du workflow..." et remplacement par "Agent actif."
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (
@@ -247,20 +247,17 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     ) {
       dlog("Workflow trigger detected! Replacing message and opening ChatKit");
       
-      // Remplacer le message
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === lastMessage.id ? { ...msg, text: "Agent actif." } : msg
         )
       );
       
-      // Déclencher l'ouverture du ChatKit
       workflowTriggeredRef.current = true;
       onWorkflowTrigger?.();
     }
   }, [messages, onWorkflowTrigger, dlog]);
 
-  // Détection de la fermeture du ChatKit quand "Agent actif." est affiché
   useEffect(() => {
     const wasExpanded = prevChatkitExpandedRef.current;
     const isNowClosed = !chatkitExpanded;
@@ -284,7 +281,6 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     prevChatkitExpandedRef.current = chatkitExpanded;
   }, [chatkitExpanded, messages, dlog]);
 
-  // Détection du message "Conclu." et fermeture automatique du ChatKit
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (
@@ -296,7 +292,6 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     ) {
       dlog("Workflow concluded! Closing ChatKit");
       
-      // Attendre un peu avant de fermer pour que l'utilisateur voie le message
       setTimeout(() => {
         onWorkflowClose?.();
         workflowTriggeredRef.current = false;
@@ -353,6 +348,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
       timestamp: new Date(),
       pairId: currentPairId,
       streaming: true,
+      hasEllipsis: false,
     };
 
     setMessages((prev) => [...prev, agentMessage]);
@@ -378,7 +374,14 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
         messages: conversationMessages,
         onToken: (token) => {
           setMessages((prev) =>
-            prev.map((msg) => (msg.id === agentMessageId ? { ...msg, text: msg.text + token } : msg)),
+            prev.map((msg) => {
+              if (msg.id === agentMessageId) {
+                const newText = msg.text + token;
+                const hasEllipsis = newText.trim().endsWith("...");
+                return { ...msg, text: newText, hasEllipsis };
+              }
+              return msg;
+            })
           );
         },
         onToolDelta: (payload) => {
@@ -404,7 +407,13 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
         onDone: () => {
           dlog("Stream completed");
           setMessages((prev) =>
-            prev.map((msg) => (msg.id === agentMessageId ? { ...msg, streaming: false } : msg)),
+            prev.map((msg) => {
+              if (msg.id === agentMessageId) {
+                const hasEllipsis = msg.text.trim().endsWith("...");
+                return { ...msg, streaming: false, hasEllipsis };
+              }
+              return msg;
+            })
           );
           setIsLoading(false);
           setToolActivity(null);
@@ -414,7 +423,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
           console.warn("[Chat] Stream error:", error);
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false } : msg,
+              msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false, hasEllipsis: false } : msg,
             ),
           );
           setIsLoading(false);
@@ -427,7 +436,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
       console.warn("[Chat] Error:", error);
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false } : msg,
+          msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false, hasEllipsis: false } : msg,
         ),
       );
       setIsLoading(false);
@@ -445,6 +454,37 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
 
   const placeholderColor = isDarkMode ? "rgba(255, 255, 255, 0.65)" : "#1d4ed8";
   const chevronColor = isDarkMode ? "rgba(255, 255, 255, 0.45)" : "rgba(255, 255, 255, 0.85)";
+
+  // Separate messages into categories for rendering order
+  const systemMessages = messages.filter(m => m.type === "system");
+  const qaPairs = messages.filter(m => m.type === "user" || m.type === "agent");
+
+  // Group Q/A pairs
+  const pairGroups = new Map<number, Message[]>();
+  qaPairs.forEach(msg => {
+    if (msg.pairId !== undefined) {
+      if (!pairGroups.has(msg.pairId)) {
+        pairGroups.set(msg.pairId, []);
+      }
+      pairGroups.get(msg.pairId)!.push(msg);
+    }
+  });
+
+  // Sort pairs by most recent first
+  const sortedPairIds = Array.from(pairGroups.keys()).sort((a, b) => b - a);
+
+  // Find pairs with ellipsis (incomplete)
+  const ellipsisPairs = sortedPairIds.filter(pairId => {
+    const pair = pairGroups.get(pairId)!;
+    const agentMsg = pair.find(m => m.type === "agent");
+    return agentMsg?.hasEllipsis || agentMsg?.streaming;
+  });
+
+  // Most recent ellipsis pair goes to bottom
+  const bottomPairId = ellipsisPairs.length > 0 ? ellipsisPairs[0] : null;
+
+  // Other pairs (complete or older ellipsis)
+  const otherPairIds = sortedPairIds.filter(id => id !== bottomPairId);
 
   return (
     <div
@@ -476,73 +516,139 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
           paddingRight: "calc(14px + 0.5rem + 3.5px + 0.5rem)",
         }}
       >
-        {messages.map((message, index) => {
-          const prevMessage = index > 0 ? messages[index - 1] : null;
-          const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+        {/* System messages (always on top) */}
+        {systemMessages.map((message) => (
+          <div key={message.id} className="w-full" style={{ marginTop: "0.125rem" }}>
+            <div
+              className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
+                message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
+              }`}
+              style={{
+                color: "rgba(255, 255, 255, 0.45)",
+                backgroundColor: "transparent",
+                transition: `opacity ${message.fading ? systemFadeMs : 300}ms ease, transform ${message.fading ? systemFadeMs : 220}ms ease`,
+              }}
+            >
+              <span className="text-right">{message.text}</span>
+            </div>
+          </div>
+        ))}
 
-          const isFirstOfPair =
-            message.pairId !== undefined &&
-            (!prevMessage || prevMessage.pairId !== message.pairId);
-
-          const isUserInPair = message.type === "user" && message.pairId !== undefined;
-          const isAgentInPair = message.type === "agent" && message.pairId !== undefined;
-          const hasAgentAfter = isUserInPair && nextMessage?.pairId === message.pairId && nextMessage?.type === "agent";
-
-          let marginTop = "0";
-          let marginBottom = "0";
-
-          if (message.type === "system") {
-            marginTop = index > 0 ? "0.125rem" : "0";
-          } else if (isUserInPair) {
-            marginTop = index > 0 ? "0.5rem" : "0";
-            marginBottom = hasAgentAfter ? "0.125rem" : "0";
-          } else if (isAgentInPair) {
-            marginTop = "0";
-            marginBottom = "0";
-          }
+        {/* Other Q/A pairs (complete or older ellipsis) */}
+        {otherPairIds.map(pairId => {
+          const pair = pairGroups.get(pairId)!;
+          const userMsg = pair.find(m => m.type === "user");
+          const agentMsg = pair.find(m => m.type === "agent");
 
           return (
-            <div key={message.id} className="w-full" style={{ marginTop, marginBottom }}>
-              {isUserInPair && hasAgentAfter && (
-                <div
-                  className="w-full h-px mb-0.5"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
-                    opacity: message.fading ? 0.2 : 0.6,
-                    transition: "opacity 300ms ease",
-                  }}
-                />
+            <React.Fragment key={pairId}>
+              {userMsg && (
+                <div className="w-full" style={{ marginTop: "0.5rem" }}>
+                  <div
+                    className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
+                      userMsg.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
+                    }`}
+                    style={{
+                      color: "rgba(255, 255, 255, 0.65)",
+                      backgroundColor: "transparent",
+                      transition: `opacity ${userMsg.fading ? chatFadeMs : 300}ms ease, transform ${userMsg.fading ? chatFadeMs : 220}ms ease`,
+                    }}
+                  >
+                    <span className="text-right">{userMsg.text}</span>
+                  </div>
+                </div>
               )}
 
-              <div
-                className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
-                  message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
-                }`}
-                style={{
-                  color:
-                    message.type === "user"
-                      ? "rgba(255, 255, 255, 0.65)"
-                      : "rgba(255, 255, 255, 0.45)",
-                  backgroundColor: "transparent",
-                  transition: `opacity ${
-                    message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300
-                  }ms ease, transform ${
-                    message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220
-                  }ms ease`,
-                }}
-              >
-                <span className="text-right">
-                  {message.text}
-                  {message.streaming && "▊"}
-                </span>
-                {message.type === "agent" && !message.streaming && (
-                  <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6 }} />
-                )}
-              </div>
-            </div>
+              {agentMsg && (
+                <>
+                  <div
+                    className="w-full h-px mb-0.5"
+                    style={{
+                      background: "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
+                      opacity: agentMsg.fading ? 0.2 : 0.6,
+                      transition: "opacity 300ms ease",
+                    }}
+                  />
+                  <div className="w-full">
+                    <div
+                      className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
+                        agentMsg.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
+                      }`}
+                      style={{
+                        color: "rgba(255, 255, 255, 0.45)",
+                        backgroundColor: "transparent",
+                        transition: `opacity ${agentMsg.fading ? chatFadeMs : 300}ms ease, transform ${agentMsg.fading ? chatFadeMs : 220}ms ease`,
+                      }}
+                    >
+                      <span className="text-right">
+                        {agentMsg.text}
+                        {agentMsg.streaming && "▊"}
+                      </span>
+                      {!agentMsg.streaming && (
+                        <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6 }} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </React.Fragment>
           );
         })}
+
+        {/* Bottom pair (most recent ellipsis or streaming) */}
+        {bottomPairId !== null && (() => {
+          const pair = pairGroups.get(bottomPairId)!;
+          const userMsg = pair.find(m => m.type === "user");
+          const agentMsg = pair.find(m => m.type === "agent");
+
+          return (
+            <React.Fragment key={bottomPairId}>
+              {userMsg && (
+                <div className="w-full" style={{ marginTop: "0.5rem" }}>
+                  <div
+                    className="text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right opacity-100 translate-y-0"
+                    style={{
+                      color: "rgba(255, 255, 255, 0.65)",
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    <span className="text-right">{userMsg.text}</span>
+                  </div>
+                </div>
+              )}
+
+              {agentMsg && (
+                <>
+                  <div
+                    className="w-full h-px mb-0.5"
+                    style={{
+                      background: "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
+                      opacity: 0.6,
+                    }}
+                  />
+                  <div className="w-full">
+                    <div
+                      className="text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right opacity-100 translate-y-0"
+                      style={{
+                        color: "rgba(255, 255, 255, 0.45)",
+                        backgroundColor: "transparent",
+                      }}
+                    >
+                      <span className="text-right">
+                        {agentMsg.text}
+                        {agentMsg.streaming && "▊"}
+                      </span>
+                      {!agentMsg.streaming && (
+                        <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6 }} />
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </React.Fragment>
+          );
+        })()}
+
         <div ref={messagesEndRef} />
       </div>
 
