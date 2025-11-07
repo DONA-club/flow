@@ -15,14 +15,10 @@ function cors(h: Record<string, string> = {}) {
   };
 }
 
-function byteLen(obj: unknown) {
-  const str = typeof obj === "string" ? obj : JSON.stringify(obj || "");
-  return new TextEncoder().encode(str).length;
-}
-
 serve(async (req) => {
   const url = new URL(req.url);
 
+  // Health check endpoint
   if (url.pathname.endsWith("/health")) {
     const health = {
       ok: true,
@@ -31,6 +27,7 @@ serve(async (req) => {
       has_DOMAIN_KEY: !!CHATKIT_DOMAIN_KEY,
       timestamp: new Date().toISOString(),
     };
+    
     return new Response(JSON.stringify(health), {
       status: 200,
       headers: cors({ "Content-Type": "application/json" }),
@@ -42,10 +39,10 @@ serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: cors({ "Content-Type": "application/json" }),
-    });
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: cors({ "Content-Type": "application/json" }) }
+    );
   }
 
   try {
@@ -54,9 +51,13 @@ serve(async (req) => {
       if (!OPENAI_API_KEY) missing.push("OPENAI_API_KEY");
       if (!CHATKIT_WORKFLOW_ID) missing.push("CHATKIT_WORKFLOW_ID");
       if (!CHATKIT_DOMAIN_KEY) missing.push("CHATKIT_DOMAIN_KEY");
+      
       return new Response(
-        JSON.stringify({ error: "Server configuration error", missing_secrets: missing }),
-        { status: 500, headers: cors({ "Content-Type": "application/json" }) },
+        JSON.stringify({ 
+          error: "Server configuration error",
+          missing_secrets: missing,
+        }),
+        { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
@@ -64,86 +65,46 @@ serve(async (req) => {
     try {
       body = await req.json();
     } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-        status: 400,
-        headers: cors({ "Content-Type": "application/json" }),
-      });
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: cors({ "Content-Type": "application/json" }) }
+      );
     }
 
     const { deviceId, existingClientSecret, pageContext } = body;
+
     if (!deviceId || typeof deviceId !== "string") {
-      return new Response(JSON.stringify({ error: "Missing or invalid deviceId" }), {
-        status: 400,
-        headers: cors({ "Content-Type": "application/json" }),
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid deviceId" }),
+        { status: 400, headers: cors({ "Content-Type": "application/json" }) }
+      );
     }
 
-    let contextToSend = undefined;
-    if (pageContext) {
-      // Garde-fou taille (ex: 16 KB)
-      const MAX_BYTES = 16_000;
-      if (byteLen(pageContext) > MAX_BYTES) {
-        const slim = {
-          page: {
-            url: pageContext.page?.url,
-            title: pageContext.page?.title,
-          },
-          calendar: {
-            currentDate: pageContext.calendar?.currentDate,
-            displayedDay: pageContext.calendar?.displayedDay,
-            sunrise: pageContext.calendar?.sunrise,
-            sunset: pageContext.calendar?.sunset,
-            timezoneOffset: pageContext.calendar?.timezoneOffset,
-          },
-          events: {
-            total: pageContext.events?.total,
-            upcoming: (pageContext.events?.upcoming || []).slice(0, 8),
-            currentEvent: pageContext.events?.currentEvent || null,
-          },
-          sleep: {
-            connected: pageContext.sleep?.connected,
-            wakeHour: pageContext.sleep?.wakeHour,
-            bedHour: pageContext.sleep?.bedHour,
-            totalSleepHours: pageContext.sleep?.totalSleepHours,
-            debtOrCapital: pageContext.sleep?.debtOrCapital,
-            idealBedHour: pageContext.sleep?.idealBedHour,
-          },
-          connections: pageContext.connections || {},
-          ui: {
-            calendarSize: pageContext.ui?.calendarSize,
-            isHoveringRing: !!pageContext.ui?.isHoveringRing,
-            selectedEvent: pageContext.ui?.selectedEvent || null,
-            chatkitExpanded: !!pageContext.ui?.chatkitExpanded,
-          },
-          user: {
-            deviceId: pageContext.user?.deviceId,
-            language: pageContext.user?.language,
-            timezone: pageContext.user?.timezone,
-          },
-          timestamp: pageContext.timestamp,
-          theme: pageContext.theme,
-        };
-        contextToSend = { page_context: slim };
-        console.log(`[ChatKit] Context trimmed from ${byteLen(pageContext)} to ${byteLen(slim)} bytes`);
-      } else {
-        // Envoi de l'objet JSON brut (pas de stringify pretty)
-        contextToSend = { page_context: pageContext };
-        console.log(`[ChatKit] Context size: ${byteLen(pageContext)} bytes`);
-      }
-    }
-
+    // Create ChatKit session with context
     const sessionPayload: any = {
-      workflow: { id: CHATKIT_WORKFLOW_ID },
+      workflow: {
+        id: CHATKIT_WORKFLOW_ID,
+      },
       user: deviceId,
-      ...(contextToSend ? { context: contextToSend } : {}),
     };
+
+    // Add context to session if provided
+    if (pageContext) {
+      sessionPayload.context = {
+        page_context: JSON.stringify(pageContext, null, 2)
+      };
+      console.log(`[ChatKit] Context added to session (${JSON.stringify(pageContext).length} chars)`);
+    }
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
       "OpenAI-Beta": "chatkit_beta=v1",
-      "X-ChatKit-Domain-Key": CHATKIT_DOMAIN_KEY,
     };
+
+    if (CHATKIT_DOMAIN_KEY) {
+      headers["X-ChatKit-Domain-Key"] = CHATKIT_DOMAIN_KEY;
+    }
 
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
@@ -151,31 +112,41 @@ serve(async (req) => {
       body: JSON.stringify(sessionPayload),
     });
 
-    const respText = await sessionResponse.text();
     if (!sessionResponse.ok) {
-      console.error(`[ChatKit] API error ${sessionResponse.status}:`, respText);
+      const errorText = await sessionResponse.text();
+      console.error(`[ChatKit] API error ${sessionResponse.status}:`, errorText);
+      
       return new Response(
-        JSON.stringify({
+        JSON.stringify({ 
           error: "Failed to create ChatKit session",
           status: sessionResponse.status,
-          openai_error: respText,
         }),
-        { status: 400, headers: cors({ "Content-Type": "application/json" }) },
+        { status: sessionResponse.status, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
-    const sessionData = JSON.parse(respText);
-    if (contextToSend) console.log("[ChatKit] Session created with page_context");
+    const sessionData = await sessionResponse.json();
+    
+    if (pageContext) {
+      console.log("[ChatKit] Session created with page_context");
+    }
 
     return new Response(
-      JSON.stringify({ client_secret: sessionData.client_secret, context_sent: !!contextToSend }),
-      { status: 200, headers: cors({ "Content-Type": "application/json" }) },
+      JSON.stringify({ 
+        client_secret: sessionData.client_secret,
+        context_sent: !!pageContext
+      }),
+      { status: 200, headers: cors({ "Content-Type": "application/json" }) }
     );
+
   } catch (err) {
     console.error("[ChatKit] Error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: cors({ "Content-Type": "application/json" }),
-    });
+    
+    return new Response(
+      JSON.stringify({ 
+        error: "Internal server error",
+      }),
+      { status: 500, headers: cors({ "Content-Type": "application/json" }) }
+    );
   }
 });
