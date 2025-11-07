@@ -48,6 +48,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
   const [isLoading, setIsLoading] = useState(false);
   const [toolActivity, setToolActivity] = useState<ToolActivity | null>(null);
   const [lastUserActivity, setLastUserActivity] = useState<number>(Date.now());
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const idCounter = useRef(0);
@@ -64,6 +65,22 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setIsDarkMode(dark);
+    };
+    
+    updateTheme();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => updateTheme();
+    
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
 
   useEffect(() => {
     if (activityListenersAttached.current) return;
@@ -399,6 +416,8 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     }
   };
 
+  const placeholderColor = isDarkMode ? "rgba(255, 255, 255, 0.65)" : "#1d4ed8";
+
   return (
     <div
       className={`fixed bottom-4 right-4 flex flex-col items-end gap-0 z-50 ${className || ""}`}
@@ -508,11 +527,12 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
           onKeyPress={handleKeyPress}
           placeholder="Prenez le contrôle..."
           disabled={isLoading}
-          className="flex-1 bg-transparent border-none outline-none text-[13px] italic py-1 text-right pr-2"
+          className="flex-1 bg-transparent border-none outline-none text-[13px] italic py-1 text-right pr-2 placeholder-custom"
           style={{
             color: "rgba(255, 255, 255, 0.65)",
             caretColor: "rgba(255, 255, 255, 0.65)",
             paddingLeft: "0.5rem",
+            ["--placeholder-color" as any]: placeholderColor,
           }}
         />
         <span
@@ -539,6 +559,11 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
         @keyframes pulse-soft {
           0%, 100% { opacity: 0.45; }
           50% { opacity: 0.15; }
+        }
+        
+        .placeholder-custom::placeholder {
+          color: var(--placeholder-color);
+          opacity: 1;
         }
       `}</style>
     </div>
