@@ -1,7 +1,6 @@
 /* @ts-nocheck */
-// Supabase Edge (Deno) — OpenAI ChatKit Sessions API avec workflow personnalisé
+// Supabase Edge (Deno) — OpenAI ChatKit Sessions API via fetch direct
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import OpenAI from "npm:openai@4";
 
 const ORIGIN = "*"; // In production: "https://visualiser.dona.club"
 const te = new TextEncoder();
@@ -25,9 +24,10 @@ const sseHeaders = {
   "Connection": "keep-alive",
 };
 
-// Utilitaire: envoie une ligne SSE
 const sendLine = (controller: ReadableStreamDefaultController<Uint8Array>, data: unknown) =>
   controller.enqueue(te.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+const CHATKIT_SESSIONS = "https://api.openai.com/v1/chatkit/sessions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -42,9 +42,7 @@ serve(async (req) => {
     if (!OPENAI_API_KEY || !CHATKIT_WORKFLOW_ID) {
       console.error("❌ [Chat] Missing configuration");
       return new Response(
-        JSON.stringify({ 
-          error: "Server configuration error: Missing OPENAI_API_KEY or CHATKIT_WORKFLOW_ID" 
-        }),
+        JSON.stringify({ error: "Missing OPENAI_API_KEY or CHATKIT_WORKFLOW_ID" }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
@@ -74,53 +72,96 @@ serve(async (req) => {
 
     const { messages, stream = true, user_id = "anonymous" } = body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       console.error("❌ [Chat] Missing or invalid messages field");
       return new Response(
-        JSON.stringify({ error: "Missing or invalid 'messages' field" }),
+        JSON.stringify({ error: "Missing or invalid 'messages' array" }),
         { status: 400, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
     console.log("💬 [Chat] Processing", messages.length, "messages for user:", user_id);
 
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-    // Create ChatKit session with workflow
+    // 1) CREATE SESSION
     console.log("🔄 [Chat] Creating ChatKit session with workflow:", CHATKIT_WORKFLOW_ID);
     
-    const session = await openai.chatkit.sessions.create({
-      workflow: { id: CHATKIT_WORKFLOW_ID },
-      user: user_id,
+    const createRes = await fetch(CHATKIT_SESSIONS, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "chatkit_beta=v1",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        workflow: { id: CHATKIT_WORKFLOW_ID },
+        user: user_id,
+      }),
     });
 
-    console.log("✅ [Chat] Session created:", session.id);
-
-    // --- Mode non-stream (fallback)
-    if (!stream) {
-      console.log("🤖 [Chat] Non-streaming mode");
-      
-      // Send messages to session
-      for (const msg of messages) {
-        await openai.chatkit.sessions.messages.create(session.id, {
-          role: msg.role,
-          content: msg.content,
-        });
-      }
-
-      // Get response
-      const response = await openai.chatkit.sessions.retrieve(session.id);
-      
-      console.log("✅ [Chat] Non-streaming response received");
+    const createText = await createRes.text();
+    if (!createRes.ok) {
+      console.error("❌ [Chat] Session creation failed:", createRes.status, createText);
       return new Response(
-        JSON.stringify({ 
-          output_text: response.messages?.[response.messages.length - 1]?.content || "" 
-        }), 
-        { status: 200, headers: cors({ "Content-Type": "application/json" }) }
+        JSON.stringify({ error: "CHATKIT_SESS_CREATE", details: createText }),
+        { status: 502, headers: cors({ "Content-Type": "application/json" }) }
       );
     }
 
-    // --- STREAMING
+    const session = JSON.parse(createText);
+    const sessionId = session.id;
+    console.log("✅ [Chat] Session created:", sessionId);
+
+    // 2) MODE NON-STREAM (fallback)
+    if (!stream) {
+      console.log("🤖 [Chat] Non-streaming mode");
+      
+      // Send all messages
+      for (const msg of messages) {
+        const msgRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "chatkit_beta=v1",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({ role: msg.role, content: msg.content }),
+        });
+
+        if (!msgRes.ok) {
+          const msgText = await msgRes.text().catch(() => "");
+          console.error("❌ [Chat] Message creation failed:", msgRes.status, msgText);
+          return new Response(
+            JSON.stringify({ error: "CHATKIT_MSG_CREATE", details: msgText }),
+            { status: 502, headers: cors({ "Content-Type": "application/json" }) }
+          );
+        }
+      }
+
+      // Retrieve final session state
+      const lastRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}`, {
+        headers: {
+          "OpenAI-Beta": "chatkit_beta=v1",
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        },
+      });
+
+      const lastText = await lastRes.text();
+      if (!lastRes.ok) {
+        console.error("❌ [Chat] Session retrieval failed:", lastRes.status, lastText);
+        return new Response(
+          JSON.stringify({ error: "CHATKIT_SESS_RETRIEVE", details: lastText }),
+          { status: 502, headers: cors({ "Content-Type": "application/json" }) }
+        );
+      }
+
+      console.log("✅ [Chat] Non-streaming response received");
+      return new Response(lastText, { 
+        status: 200, 
+        headers: cors({ "Content-Type": "application/json" }) 
+      });
+    }
+
+    // 3) STREAMING SSE
     console.log("🌊 [Chat] Streaming mode enabled");
 
     const streamBody = new ReadableStream<Uint8Array>({
@@ -130,30 +171,136 @@ serve(async (req) => {
           controller.enqueue(te.encode("event: open\n\n"));
           console.log("📡 [Chat] Stream opened");
 
-          // Send all messages except the last one
+          // Send all messages except the last one (non-streaming)
           for (let i = 0; i < messages.length - 1; i++) {
-            await openai.chatkit.sessions.messages.create(session.id, {
-              role: messages[i].role,
-              content: messages[i].content,
+            const msgRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "OpenAI-Beta": "chatkit_beta=v1",
+                "Authorization": `Bearer ${OPENAI_API_KEY}`,
+              },
+              body: JSON.stringify({ 
+                role: messages[i].role, 
+                content: messages[i].content 
+              }),
             });
+
+            if (!msgRes.ok) {
+              const msgText = await msgRes.text().catch(() => "");
+              console.error("❌ [Chat] Message creation failed:", msgRes.status, msgText);
+              sendLine(controller, { error: "CHATKIT_MSG_CREATE", details: msgText });
+              controller.enqueue(te.encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
+            }
           }
 
           // Stream the last message
           const lastMessage = messages[messages.length - 1];
           console.log("📤 [Chat] Streaming last message...");
 
-          const stream = await openai.chatkit.sessions.messages.create(session.id, {
-            role: lastMessage.role,
-            content: lastMessage.content,
-            stream: true,
+          const streamRes = await fetch(`${CHATKIT_SESSIONS}/${sessionId}/messages`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "OpenAI-Beta": "chatkit_beta=v1",
+              "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({ 
+              role: lastMessage.role, 
+              content: lastMessage.content, 
+              stream: true 
+            }),
           });
+
+          if (!streamRes.ok || !streamRes.body) {
+            const streamText = await streamRes.text().catch(() => "");
+            console.error("❌ [Chat] Stream start failed:", streamRes.status, streamText);
+            sendLine(controller, { error: "CHATKIT_STREAM_START", details: streamText || "no body" });
+            controller.enqueue(te.encode("data: [DONE]\n\n"));
+            controller.close();
+            return;
+          }
 
           console.log("📡 [Chat] Stream connection established");
 
-          for await (const chunk of stream) {
-            const delta = chunk.delta?.content;
-            if (delta) {
-              sendLine(controller, { token: delta });
+          const reader = streamRes.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              console.log("✅ [Chat] Stream ended");
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process lines (supports both SSE and NDJSON)
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+
+              // a) SSE format: "data: {...}"
+              if (trimmed.startsWith("data:")) {
+                const payload = trimmed.slice(5).trim();
+
+                if (payload === "[DONE]") {
+                  console.log("🏁 [Chat] Received [DONE]");
+                  controller.enqueue(te.encode("data: [DONE]\n\n"));
+                  controller.close();
+                  return;
+                }
+
+                try {
+                  const json = JSON.parse(payload);
+                  
+                  // Normalize token from various formats
+                  const token =
+                    json?.delta?.content ??
+                    json?.output_text ??
+                    json?.choices?.[0]?.delta?.content ??
+                    json?.content ??
+                    null;
+
+                  if (typeof token === "string" && token.length) {
+                    sendLine(controller, { token });
+                  } else {
+                    // Relay raw event (useful for tool_calls)
+                    sendLine(controller, json);
+                  }
+                } catch {
+                  // Non-JSON payload: ignore or relay as-is if needed
+                }
+
+                continue;
+              }
+
+              // b) NDJSON format: one line = one JSON
+              if (trimmed.startsWith("{")) {
+                try {
+                  const json = JSON.parse(trimmed);
+                  
+                  const token =
+                    json?.delta?.content ??
+                    json?.output_text ??
+                    json?.choices?.[0]?.delta?.content ??
+                    json?.content ??
+                    null;
+
+                  if (typeof token === "string" && token.length) {
+                    sendLine(controller, { token });
+                  } else {
+                    sendLine(controller, json);
+                  }
+                } catch {
+                  // Non-JSON line: ignore
+                }
+              }
             }
           }
 
