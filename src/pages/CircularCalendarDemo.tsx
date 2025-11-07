@@ -741,14 +741,6 @@ const Visualiser = () => {
 
   const hasAnyConnection = Object.values(connectedProviders || {}).some(Boolean);
 
-  console.log("🎯 [Visualiser] Rendering with z-index hierarchy:", {
-    background: 0,
-    vignette: 0.5,
-    chats: "9999 (ChatKit) & 50 (Custom)",
-    eventsList: 1000,
-    calendar: 10
-  });
-
   return (
     <>
       <FontLoader />
