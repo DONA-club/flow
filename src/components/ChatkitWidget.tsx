@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { useChatKit } from "@openai/chatkit-react";
+import React, { useEffect, useState } from "react";
+import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
 function getDeviceId(): string {
   const key = "chatkit_device_id";
@@ -23,8 +23,6 @@ type Props = {
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mountedRef = useRef(false);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -60,7 +58,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const config = {
     api: {
       async getClientSecret(existingClientSecret?: string) {
-        console.log("🔑 [ChatKit] getClientSecret called");
+        console.log("🔑 [ChatKit] getClientSecret called!");
         console.log("🔑 [ChatKit] existingClientSecret:", existingClientSecret ? "exists" : "null");
         
         setIsInitialized(true);
@@ -174,48 +172,14 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     control = result.control;
     console.log("✅ [ChatKit] useChatKit returned control:", !!control);
   } catch (err) {
-    console.error("💥 [ChatKit] useChatKit error:", err);
+    console.error("💥 [ChatKit] useChatKit exception:", err);
     return (
-      <div className="fixed bottom-4 left-4 p-4 bg-red-500 text-white rounded-xl">
+      <div className="fixed bottom-4 left-4 p-4 bg-red-500 text-white rounded-xl max-w-md">
         <p className="font-bold">ChatKit Error</p>
         <p className="text-sm">{String(err)}</p>
       </div>
     );
   }
-
-  // Mount ChatKit when ref is ready
-  useEffect(() => {
-    if (containerRef.current && control && !mountedRef.current) {
-      mountedRef.current = true;
-      
-      console.log("🎯 [ChatKit] Container ref ready, calling setInstance");
-      console.log("🎯 [ChatKit] Container element:", containerRef.current);
-      console.log("🎯 [ChatKit] Container dimensions:", {
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight,
-      });
-      
-      try {
-        (control as any).setInstance(containerRef.current);
-        console.log("✅ [ChatKit] setInstance called successfully");
-        
-        // Wait a bit and check if iframe was created
-        setTimeout(() => {
-          const iframe = containerRef.current?.querySelector('iframe');
-          console.log("🔍 [ChatKit] Iframe check:", iframe ? "Found!" : "Not found");
-          if (iframe) {
-            console.log("🔍 [ChatKit] Iframe src:", iframe.src);
-            console.log("🔍 [ChatKit] Iframe dimensions:", {
-              width: iframe.offsetWidth,
-              height: iframe.offsetHeight,
-            });
-          }
-        }, 1000);
-      } catch (err) {
-        console.error("💥 [ChatKit] setInstance error:", err);
-      }
-    }
-  }, [control]);
 
   console.log("🎬 [ChatKit] Rendering ChatKit component");
 
@@ -229,43 +193,41 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        border: "2px solid red",
       }}
     >
       {healthCheck && !healthCheck.has_OPENAI_KEY && (
-        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50">
-          <p className="font-bold">Configuration Error</p>
-          <p className="text-sm">Missing OPENAI_API_KEY</p>
+        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+          <div>
+            <p className="font-bold">Configuration Error</p>
+            <p className="text-sm">Missing OPENAI_API_KEY</p>
+          </div>
         </div>
       )}
       
       {healthCheck && !healthCheck.has_WORKFLOW_ID && (
-        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50">
-          <p className="font-bold">Configuration Error</p>
-          <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
+        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+          <div>
+            <p className="font-bold">Configuration Error</p>
+            <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
+          </div>
         </div>
       )}
       
-      {/* Container for ChatKit - NO <ChatKit> component */}
-      <div 
-        ref={containerRef} 
-        className="w-full h-full bg-white"
-        style={{ minHeight: "600px" }}
-      />
+      {/* Use ChatKit component - this triggers getClientSecret */}
+      <ChatKit control={control} className="w-full h-full" />
       
       {/* Debug overlay */}
       <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50">
         <div>Control: {control ? "✅" : "❌"}</div>
         <div>Health: {healthCheck ? "✅" : "⏳"}</div>
         <div>Init: {isInitialized ? "✅" : "⏳"}</div>
-        <div>Ref: {containerRef.current ? "✅" : "❌"}</div>
       </div>
       
       {/* Warning if not initialized */}
       {!isInitialized && (
         <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/20 pointer-events-none">
           <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm">
-            Waiting for ChatKit initialization...
+            Initializing ChatKit...
           </div>
         </div>
       )}
