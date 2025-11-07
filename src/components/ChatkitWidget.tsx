@@ -23,21 +23,6 @@ type Props = {
 };
 
 const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle, pageContext }) => {
-  const [debug, setDebug] = useState(false);
-  useEffect(() => {
-    try {
-      const q = new URLSearchParams(window.location.search);
-      const byQuery = q.get("debug") === "1";
-      const byStorage = localStorage.getItem("debug_chatkit") === "1";
-      setDebug(Boolean(byQuery || byStorage));
-    } catch {
-      setDebug(false);
-    }
-  }, []);
-  const dlog = (...args: any[]) => {
-    if (debug) console.log("[ChatKit]", ...args);
-  };
-
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -51,19 +36,16 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     const scriptId = "chatkit-web-component-script";
     
     if (document.getElementById(scriptId)) {
-      dlog("ChatKit script already present");
       setScriptLoaded(true);
       return;
     }
 
-    dlog("Injecting ChatKit web component script...");
     const s = document.createElement("script");
     s.id = scriptId;
     s.src = "https://cdn.platform.openai.com/deployments/chatkit/chatkit.js";
     s.async = true;
     
     s.onload = () => {
-      dlog("ChatKit script loaded successfully");
       setScriptLoaded(true);
     };
     
@@ -73,17 +55,15 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     };
     
     document.head.appendChild(s);
-  }, [debug]);
+  }, []);
 
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        dlog("Running health check...");
         const response = await fetch(
           "https://scnaqjixwuqakppnahfg.supabase.co/functions/v1/chatkit-session/health",
         );
         const data = await response.json();
-        dlog("Health check result:", data);
         setHealthCheck(data);
         if (!data.has_OPENAI_KEY || !data.has_WORKFLOW_ID) {
           console.error(
@@ -96,22 +76,18 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     };
 
     checkHealth();
-  }, [debug]);
+  }, []);
 
   useEffect(() => {
     const handleCSPViolation = (e: SecurityPolicyViolationEvent) => {
       const violation = `${e.violatedDirective}: ${e.blockedURI}`;
       setCspViolations((prev) => [...prev, violation]);
-      dlog("CSP Violation:", {
-        blockedURI: e.blockedURI,
-        violatedDirective: e.violatedDirective,
-      });
     };
 
     document.addEventListener("securitypolicyviolation", handleCSPViolation);
     return () =>
       document.removeEventListener("securitypolicyviolation", handleCSPViolation);
-  }, [debug]);
+  }, []);
 
   // Formater le contexte en JSON compact pour le workflow
   const formattedContext = useMemo(() => {
@@ -166,13 +142,9 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   }, [pageContext]);
 
   const config = useMemo(() => {
-    dlog("Creating config");
-
     return {
       api: {
         async getClientSecret(existing?: string) {
-          dlog("getClientSecret called, existing:", Boolean(existing));
-          
           try {
             const deviceId = getDeviceId();
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
@@ -187,8 +159,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
               }),
             });
 
-            dlog("getClientSecret status:", response.status);
-
             if (!response.ok) {
               const errorText = await response.text();
               console.error(
@@ -200,11 +170,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             }
 
             const data = await response.json();
-            dlog(
-              "Session created, client_secret:",
-              data?.client_secret ? data.client_secret.substring(0, 10) + "..." : "none",
-            );
-
             return data.client_secret;
           } catch (err) {
             console.error("[ChatKit] getClientSecret error:", err);
@@ -269,28 +234,29 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
       },
       // Intercepter les messages pour ajouter le contexte
       onBeforeSendMessage: (message: string) => {
-        dlog("onBeforeSendMessage called with:", message.substring(0, 50) + "...");
-        
         // Vérifier si le contexte a changé
         const contextChanged = formattedContext !== lastSentContextRef.current;
         
         if (formattedContext && contextChanged) {
-          dlog("Context changed, appending to message");
+          console.log("📤 [ChatKit] Envoi message avec page_context mis à jour");
+          console.log("📋 [ChatKit] Message utilisateur:", message);
+          console.log("🔄 [ChatKit] page_context:", JSON.parse(formattedContext));
+          
           lastSentContextRef.current = formattedContext;
           
           // Ajouter le contexte au message de l'utilisateur
           return `${message}\n\n[CONTEXTE SYSTÈME - page_context]:\n${formattedContext}`;
         }
         
-        dlog("Context unchanged, sending message as-is");
+        console.log("📤 [ChatKit] Envoi message sans page_context (inchangé)");
+        console.log("📋 [ChatKit] Message utilisateur:", message);
+        
         return message;
       },
     };
-  }, [isDarkMode, debug, formattedContext]);
+  }, [isDarkMode, formattedContext]);
 
   const { control } = useChatKit(config as any);
-  
-  dlog("useChatKit returned control:", Boolean(control));
 
   // Réinitialiser le contexte envoyé quand le ChatKit se ferme
   useEffect(() => {
@@ -371,17 +337,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         )}
 
         {control && <ChatKit control={control} className="w-full h-full" />}
-
-        {debug && (
-          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50 max-w-[150px]">
-            <div>Script: {scriptLoaded ? "✅" : "⏳"}</div>
-            <div>Control: {control ? "✅" : "❌"}</div>
-            <div>Health: {healthCheck ? "✅" : "⏳"}</div>
-            <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
-            <div>Context: {formattedContext ? "✅" : "❌"}</div>
-            <div>Last sent: {lastSentContextRef.current ? "✅" : "❌"}</div>
-          </div>
-        )}
       </div>
     </div>
   );
