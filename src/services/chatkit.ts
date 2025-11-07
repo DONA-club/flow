@@ -10,71 +10,39 @@ export type ChatkitResponse = {
   error?: string;
 };
 
-// Store conversation history in memory
+// Store conversation history and session info
 let conversationHistory: ChatkitMessage[] = [];
+let currentSessionId: string | null = null;
+let currentClientSecret: string | null = null;
 
-// Non-streaming mode (backward compatible)
-export async function runChatkitWorkflow(userMessage: string): Promise<ChatkitResponse> {
-  console.log("🚀 [Chat] Starting chat request (non-streaming)");
-  console.log("📝 [Chat] User message:", userMessage);
+// Create or refresh ChatKit session
+async function ensureSession(): Promise<{ session_id: string; client_secret: string } | null> {
+  if (currentSessionId && currentClientSecret) {
+    return { session_id: currentSessionId, client_secret: currentClientSecret };
+  }
+
+  console.log("🔐 [ChatKit] Creating new session...");
 
   try {
-    // Add user message to history
-    conversationHistory.push({
-      role: "user",
-      content: userMessage,
-    });
-
-    console.log("📡 [Chat] Calling 'chat' edge function");
-
-    // Call the chat function without streaming
-    const { data, error } = await supabase.functions.invoke("chat", {
+    const { data, error } = await supabase.functions.invoke("chatkit-session", {
       body: { 
-        messages: conversationHistory,
-        stream: false 
+        user_id: "anonymous" // You can use actual user ID here
       },
     });
 
-    if (error) {
-      console.error("❌ [Chat] Edge function error:", error);
-      throw new Error(error.message || "Edge function invocation failed");
+    if (error || !data?.client_secret || !data?.session_id) {
+      console.error("❌ [ChatKit] Session creation failed:", error);
+      return null;
     }
 
-    console.log("✅ [Chat] Success response:", data);
+    currentSessionId = data.session_id;
+    currentClientSecret = data.client_secret;
 
-    if (!data || !data.output_text) {
-      console.warn("⚠️ [Chat] No output_text in response");
-      
-      if (data?.error) {
-        return {
-          output_text: `Erreur: ${data.error}`,
-          error: data.error,
-        };
-      }
-      
-      return {
-        output_text: "Désolé, je n'ai pas pu traiter votre demande.",
-        error: "No output_text in response",
-      };
-    }
-
-    // Add assistant response to history
-    conversationHistory.push({
-      role: "assistant",
-      content: data.output_text,
-    });
-
-    console.log("✨ [Chat] Final output:", data.output_text);
-    return {
-      output_text: data.output_text,
-    };
-  } catch (error) {
-    console.error("💥 [Chat] Exception caught:", error);
-    
-    return {
-      output_text: "Une erreur est survenue lors de la communication avec l'agent.",
-      error: error instanceof Error ? error.message : String(error),
-    };
+    console.log("✅ [ChatKit] Session created:", currentSessionId);
+    return { session_id: currentSessionId, client_secret: currentClientSecret };
+  } catch (err) {
+    console.error("💥 [ChatKit] Session creation error:", err);
+    return null;
   }
 }
 
@@ -100,20 +68,28 @@ export async function chatStream({
   onError?: (err: Error) => void;
   signal?: AbortSignal;
 }) {
-  console.log("🌊 [Chat] Starting streaming request");
+  console.log("🌊 [ChatKit] Starting streaming request");
   
   try {
-    // Use the Supabase URL from the client (already configured)
+    // Ensure we have a session
+    const session = await ensureSession();
+    if (!session) {
+      throw new Error("Failed to create ChatKit session");
+    }
+
+    // Use the Supabase URL from the client
     const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
     
     const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
+        "x-chatkit-client-secret": session.client_secret,
       },
       body: JSON.stringify({ 
         messages, 
-        stream: true 
+        stream: true,
+        session_id: session.session_id,
       }),
       signal,
     });
@@ -123,7 +99,7 @@ export async function chatStream({
       throw new Error(`HTTP ${response.status} – ${text || "no body"}`);
     }
 
-    console.log("📡 [Chat] Stream connection established");
+    console.log("📡 [ChatKit] Stream connection established");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -135,20 +111,18 @@ export async function chatStream({
         onToken(json.token);
         return;
       }
-      // Fallback generic event
       onEvent?.(json);
     };
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
-        console.log("✅ [Chat] Stream ended");
+        console.log("✅ [ChatKit] Stream ended");
         break;
       }
 
       buffer += decoder.decode(value, { stream: true });
 
-      // SSE: split by lines
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 
@@ -156,18 +130,16 @@ export async function chatStream({
         const line = raw.trim();
         if (!line) continue;
 
-        // SSE event line
         if (line.startsWith("event:")) {
           pendingEvent = line.slice(6).trim();
           continue;
         }
 
-        // SSE data line
         if (line.startsWith("data:")) {
           const payload = line.slice(5).trim();
 
           if (payload === "[DONE]") {
-            console.log("🏁 [Chat] Received [DONE] marker");
+            console.log("🏁 [ChatKit] Received [DONE] marker");
             onDone?.();
             return;
           }
@@ -176,27 +148,25 @@ export async function chatStream({
           try {
             json = JSON.parse(payload);
           } catch {
-            // Non-JSON: ignore
             continue;
           }
 
-          // Handle event-specific payloads
           if (pendingEvent) {
             const ev = pendingEvent;
             pendingEvent = null;
 
             if (ev === "tool_delta") {
-              console.log("🔧 [Chat] Tool delta event");
+              console.log("🔧 [ChatKit] Tool delta event");
               onToolDelta?.(json);
               continue;
             }
             if (ev === "tool_result") {
-              console.log("✅ [Chat] Tool result event");
+              console.log("✅ [ChatKit] Tool result event");
               onToolResult?.(json);
               continue;
             }
             if (ev === "tool_status") {
-              console.log("📊 [Chat] Tool status event");
+              console.log("📊 [ChatKit] Tool status event");
               onToolStatus?.(json);
               continue;
             }
@@ -204,25 +174,22 @@ export async function chatStream({
               if (json?.token) onToken(json.token);
               continue;
             }
-            // Other generic event
             onEvent?.(json);
             continue;
           }
 
-          // No explicit event → backward compat (data:{token})
           if (json) {
             handleDataJson(json);
           }
           continue;
         }
 
-        // NDJSON (JSON line without event/data prefix)
         if (line.startsWith("{")) {
           try {
             const json = JSON.parse(line);
             handleDataJson(json);
           } catch {
-            // Ignore non-JSON
+            // Ignore
           }
         }
       }
@@ -230,19 +197,21 @@ export async function chatStream({
 
     onDone?.();
   } catch (err: any) {
-    console.error("💥 [Chat] Stream error:", err);
+    console.error("💥 [ChatKit] Stream error:", err);
     onError?.(err);
     throw err;
   }
 }
 
-// Reset conversation (useful for starting fresh)
+// Reset session (useful for starting fresh)
 export function resetChatkitSession() {
-  console.log("🔄 [Chat] Resetting conversation");
+  console.log("🔄 [ChatKit] Resetting session");
   conversationHistory = [];
+  currentSessionId = null;
+  currentClientSecret = null;
 }
 
-// Get conversation history (useful for debugging)
+// Get conversation history
 export function getConversationHistory(): ChatkitMessage[] {
   return [...conversationHistory];
 }
