@@ -743,8 +743,17 @@ const Visualiser = () => {
     return () => window.clearInterval(id);
   }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
+  // ✅ Générer le contexte UNIQUEMENT quand ChatKit s'ouvre ET que les données sont prêtes
   useEffect(() => {
-    if (!chatkitExpanded) return;
+    if (!chatkitExpanded) {
+      setPageContext(null);
+      return;
+    }
+
+    // Attendre que les données essentielles soient chargées
+    if (sunLoading || authLoading || latitude === null || longitude === null) {
+      return;
+    }
 
     const context = generatePageContext({
       virtualDateTime,
@@ -771,11 +780,13 @@ const Visualiser = () => {
     setPageContext(context);
   }, [
     chatkitExpanded,
+    sunLoading,
+    authLoading,
+    latitude,
+    longitude,
     virtualDateTime,
     displaySunrise,
     displaySunset,
-    latitude,
-    longitude,
     timezoneOffset,
     combinedEvents,
     effectiveWake,
