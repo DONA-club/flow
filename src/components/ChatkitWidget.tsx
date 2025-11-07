@@ -1,157 +1,119 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
+import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
-type Props = {
-  className?: string;
-};
-
-// Generate or retrieve device ID
 function getDeviceId(): string {
   const key = "chatkit_device_id";
   let id = localStorage.getItem(key);
   if (!id) {
-    id = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    id = crypto.randomUUID();
     localStorage.setItem(key, id);
   }
   return id;
 }
 
+type Props = {
+  className?: string;
+};
+
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chatkitElementRef = useRef<any>(null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
+  const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  // Detect theme changes
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
-    
-    if (mq.addEventListener) {
-      mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
-    }
-  }, []);
-
-  // Get client secret from Edge Function
-  const getClientSecret = async () => {
-    const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
-    const url = `${supabaseUrl}/functions/v1/chatkit-session`;
-    
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: getDeviceId() }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get client secret");
-      }
-
-      const data = await response.json();
-      return data.client_secret;
-    } catch (err) {
-      console.error("Error getting client secret:", err);
-      throw err;
-    }
-  };
-
-  // Mount ChatKit
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    let mounted = true;
-
-    const mountChatKit = async () => {
-      try {
-        // Get client secret
-        const clientSecret = await getClientSecret();
-
-        if (!mounted) return;
-
-        // Create element
-        const el = document.createElement("openai-chatkit");
+  const { control } = useChatKit({
+    api: {
+      // SDK calls this on boot + refresh
+      async getClientSecret(existingClientSecret?: string) {
+        const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
+        const url = `${supabaseUrl}/functions/v1/chatkit-session`;
         
-        // Set options BEFORE appending to DOM
-        (el as any).options = {
-          clientSecret,
-          theme: {
-            colorScheme: isDarkMode ? "dark" : "light",
-            radius: "soft",
-            density: "normal",
-            color: {
-              grayscale: {
-                hue: 220,
-                tint: 10,
-                shade: -10,
-              },
-              accent: {
-                primary: "#6d28d9",
-                level: 5,
-              },
-            },
-            typography: {
-              baseSize: 16,
-              fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
-            },
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceId: getDeviceId(),
+            existingClientSecret: existingClientSecret ?? null,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`chatkit-session ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        return data.client_secret;
+      },
+    },
+    theme: {
+      colorScheme: isDarkMode ? ("dark" as const) : ("light" as const),
+      radius: "soft" as const,
+      density: "normal" as const,
+      color: {
+        grayscale: {
+          hue: isDarkMode ? 270 : 185,
+          tint: 8,
+          shade: 1,
+        },
+        accent: {
+          primary: isDarkMode ? "#9e6dfc" : "#239edb",
+          level: 2,
+        },
+      },
+      typography: {
+        baseSize: 16,
+        fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+        fontSources: [
+          {
+            family: "Inter",
+            src: "https://rsms.me/inter/font-files/Inter-Regular.woff2",
+            weight: 400,
+            style: "normal" as const,
           },
-          composer: {
-            placeholder: "Posez votre question...",
+          {
+            family: "Inter",
+            src: "https://rsms.me/inter/font-files/Inter-Medium.woff2",
+            weight: 500,
+            style: "normal" as const,
           },
-          startScreen: {
-            greeting: "Bonjour ! Comment puis-je vous aider ?",
-            prompts: [
-              {
-                label: "Mes événements",
-                prompt: "Quels sont mes prochains événements ?",
-              },
-              {
-                label: "Mon sommeil",
-                prompt: "Comment est mon sommeil récemment ?",
-              },
-              {
-                label: "Lever/coucher du soleil",
-                prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-              },
-              {
-                label: "Aide",
-                prompt: "Comment utiliser cette application ?",
-              }
-            ]
-          }
-        };
-
-        // Set class (not className)
-        el.setAttribute("class", "w-full h-full rounded-xl overflow-hidden shadow-2xl");
-
-        // Append to DOM
-        containerRef.current?.appendChild(el);
-        chatkitElementRef.current = el;
-
-      } catch (err) {
-        console.error("ChatKit mount error:", err);
-      }
-    };
-
-    mountChatKit();
-
-    return () => {
-      mounted = false;
-      if (chatkitElementRef.current && containerRef.current) {
-        containerRef.current.removeChild(chatkitElementRef.current);
-        chatkitElementRef.current = null;
-      }
-    };
-  }, [isDarkMode]);
+          {
+            family: "Inter",
+            src: "https://rsms.me/inter/font-files/Inter-Bold.woff2",
+            weight: 700,
+            style: "normal" as const,
+          },
+        ],
+      },
+    },
+    composer: {
+      placeholder: "Posez votre question...",
+    },
+    startScreen: {
+      greeting: "Bonjour ! Comment puis-je vous aider ?",
+      prompts: [
+        {
+          label: "Mes événements",
+          prompt: "Quels sont mes prochains événements ?",
+        },
+        {
+          label: "Mon sommeil",
+          prompt: "Comment est mon sommeil récemment ?",
+        },
+        {
+          label: "Lever/coucher du soleil",
+          prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
+        },
+        {
+          label: "Aide",
+          prompt: "Comment utiliser cette application ?",
+        },
+      ],
+    },
+  } as any);
 
   return (
     <div
-      ref={containerRef}
-      className={`fixed bottom-4 left-4 ${className || ""}`}
+      className={`fixed bottom-4 left-4 rounded-xl overflow-hidden shadow-2xl ${className || ""}`}
       style={{
         width: "400px",
         maxWidth: "calc(100vw - 2rem)",
@@ -160,7 +122,9 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         pointerEvents: "auto",
         zIndex: 9999,
       }}
-    />
+    >
+      <ChatKit control={control} className="w-full h-full" />
+    </div>
   );
 };
 
