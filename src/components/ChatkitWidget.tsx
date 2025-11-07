@@ -210,7 +210,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
       }}
     >
       <div
-        className="rounded-xl overflow-hidden relative"
+        className="rounded-xl relative"
         style={{
           height: "600px",
           maxHeight: "calc(100vh - 8rem)",
@@ -224,15 +224,17 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             : "0 0 0 rgba(0, 0, 0, 0)",
         }}
       >
-        {/* Bouton flèche - même animation synchrone */}
+        {/* Bouton flèche - centré et au-dessus du conteneur */}
         <div
           onClick={onToggle}
-          className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
+          className="absolute left-1/2 cursor-pointer group"
           style={{
+            top: 0,
+            transform: "translate(-50%, 0)",
             pointerEvents: "auto",
             opacity: containerReady ? 1 : 0,
-            transform: containerReady ? "translateY(0)" : "translateY(-10px)",
             transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            zIndex: 50,
           }}
         >
           <div
@@ -254,7 +256,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         </div>
 
         {healthCheck && !healthCheck.has_OPENAI_KEY && (
-          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center rounded-xl">
             <div>
               <p className="font-bold">Configuration Error</p>
               <p className="text-sm">Missing OPENAI_API_KEY</p>
@@ -262,7 +264,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           </div>
         )}
         {healthCheck && !healthCheck.has_WORKFLOW_ID && (
-          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center rounded-xl">
             <div>
               <p className="font-bold">Configuration Error</p>
               <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
@@ -270,9 +272,10 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           </div>
         )}
 
-        {/* ChatKit avec fade-in léger après le bounce */}
+        {/* ChatKit - prend toute la hauteur du conteneur */}
         {control && (
-          <div
+          <div 
+            className="w-full h-full rounded-xl overflow-hidden"
             style={{
               opacity: containerReady ? 1 : 0,
               transition: "opacity 0.4s ease 0.3s",
