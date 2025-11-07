@@ -422,6 +422,9 @@ const Visualiser = () => {
   const [initialSleepLogShown, setInitialSleepLogShown] = useState(false);
   const lastLoggedDateRef = useRef<string | null>(null);
 
+  // État d'expansion du ChatKit
+  const [chatkitExpanded, setChatkitExpanded] = useState(false);
+
   const SIM_WAKE = 7 + 47 / 60;
   const SIM_BED = 22 + 32 / 60;
 
@@ -745,7 +748,6 @@ const Visualiser = () => {
     <>
       <FontLoader />
 
-      {/* Fond principal - z-index 0 */}
       <div 
         className="fixed inset-0 transition-all ease-in-out" 
         style={{ 
@@ -759,7 +761,6 @@ const Visualiser = () => {
         id="calendar-page-container"
       />
 
-      {/* Vignettage radial centré sur la roue - z-index 0.5 */}
       <div 
         className="fixed inset-0 pointer-events-none transition-all ease-in-out"
         style={{ 
@@ -769,13 +770,15 @@ const Visualiser = () => {
         }}
       />
 
-      {/* ChatKit Widget (bas gauche) - z-index 9999 */}
-      <ChatkitWidget />
+      <ChatkitWidget 
+        isExpanded={chatkitExpanded}
+        onToggle={() => setChatkitExpanded(!chatkitExpanded)}
+      />
 
-      {/* Chat Interface custom (bas droite) - z-index 50 */}
-      <ChatInterface />
+      <ChatInterface 
+        onWorkflowTrigger={() => setChatkitExpanded(true)}
+      />
 
-      {/* Liste événements - z-index 1000 */}
       {hasAnyConnection && (
         <UpcomingEventsList
           events={combinedEvents}
@@ -785,7 +788,6 @@ const Visualiser = () => {
         />
       )}
 
-      {/* Calendrier - z-index 10 */}
       <div 
         className="flex flex-col items-center justify-center min-h-screen"
         style={{ position: "relative", zIndex: 10 }}

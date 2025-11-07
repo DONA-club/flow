@@ -23,10 +23,10 @@ type ToolActivity = {
 
 type Props = {
   className?: string;
+  onWorkflowTrigger?: () => void;
 };
 
-const ChatInterface: React.FC<Props> = ({ className }) => {
-  // Debug flag contrôlable par query ?debug=1 ou localStorage.setItem('debug_chat','1')
+const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger }) => {
   const [debug, setDebug] = useState(false);
   useEffect(() => {
     try {
@@ -215,6 +215,19 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     });
   }, [messages, lastUserActivity, chatVisibleMs, chatFadeMs]);
 
+  // Détection du message "Chargement du workflow..."
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.type === "agent" &&
+      lastMessage.text.trim() === "Chargement du workflow..."
+    ) {
+      dlog("Workflow trigger detected!");
+      onWorkflowTrigger?.();
+    }
+  }, [messages, onWorkflowTrigger, dlog]);
+
   useEffect(() => {
     return () => {
       timersRef.current.forEach((t) => {
@@ -256,7 +269,6 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     setToolActivity(null);
     setLastUserActivity(Date.now());
 
-    // Create agent message placeholder
     const agentMessageId = ++idCounter.current;
     const agentMessage: Message = {
       id: agentMessageId,
@@ -269,13 +281,11 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
     setMessages((prev) => [...prev, agentMessage]);
 
-    // Create abort controller
     abortControllerRef.current = new AbortController();
 
     dlog("Starting stream...");
 
     try {
-      // Build conversation history
       const conversationMessages = messages
         .filter((m) => m.type === "user" || m.type === "agent")
         .map((m) => ({
@@ -362,7 +372,6 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       className={`fixed bottom-4 right-4 flex flex-col items-end gap-0 z-50 ${className || ""}`}
       style={{ pointerEvents: "auto", maxWidth: "90vw", width: "340px" }}
     >
-      {/* Tool activity indicator */}
       {toolActivity && (
         <div
           className="mb-2 flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
@@ -400,7 +409,6 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           const isAgentInPair = message.type === "agent" && message.pairId !== undefined;
           const hasAgentAfter = isUserInPair && nextMessage?.pairId === message.pairId && nextMessage?.type === "agent";
 
-          // Spacing logic
           let marginTop = "0";
           let marginBottom = "0";
 
@@ -416,7 +424,6 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
           return (
             <div key={message.id} className="w-full" style={{ marginTop, marginBottom }}>
-              {/* Liquid glass connector for Q&A pairs */}
               {isUserInPair && hasAgentAfter && (
                 <div
                   className="w-full h-px mb-0.5"

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 function getDeviceId(): string {
   const key = "chatkit_device_id";
@@ -15,10 +16,11 @@ function getDeviceId(): string {
 
 type Props = {
   className?: string;
+  isExpanded?: boolean;
+  onToggle?: () => void;
 };
 
-const ChatkitWidget: React.FC<Props> = ({ className }) => {
-  // Debug flag contrôlable par query ?debug=1 ou localStorage.setItem('debug_chatkit','1')
+const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle }) => {
   const [debug, setDebug] = useState(false);
   useEffect(() => {
     try {
@@ -42,11 +44,9 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  // Inject ChatKit script BEFORE rendering
   useEffect(() => {
     const scriptId = "chatkit-web-component-script";
     
-    // Check if already loaded
     if (document.getElementById(scriptId)) {
       dlog("ChatKit script already present");
       setScriptLoaded(true);
@@ -72,7 +72,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     document.head.appendChild(s);
   }, [debug]);
 
-  // Health check
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -96,7 +95,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     checkHealth();
   }, [debug]);
 
-  // Monitor CSP violations (log uniquement en debug)
   useEffect(() => {
     const handleCSPViolation = (e: SecurityPolicyViolationEvent) => {
       const violation = `${e.violatedDirective}: ${e.blockedURI}`;
@@ -112,7 +110,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       document.removeEventListener("securitypolicyviolation", handleCSPViolation);
   }, [debug]);
 
-  // Stable config object with useMemo
   const config = useMemo(() => {
     dlog("Creating stable config object");
 
@@ -217,76 +214,86 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     };
   }, [isDarkMode, debug]);
 
-  // ALWAYS call useChatKit (hooks rules)
   const { control } = useChatKit(config as any);
   
   dlog("useChatKit returned control:", Boolean(control));
 
-  // Show loading state while script loads
   if (!scriptLoaded) {
-    return (
-      <div
-        className={`fixed bottom-4 left-4 rounded-xl overflow-hidden shadow-2xl ${className || ""}`}
-        style={{
-          width: "400px",
-          maxWidth: "calc(100vw - 2rem)",
-          height: "600px",
-          maxHeight: "calc(100vh - 2rem)",
-          pointerEvents: "auto",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(0, 0, 0, 0.8)",
-        }}
-      >
-        <div className="text-white text-sm">Chargement ChatKit...</div>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div
-      className={`fixed bottom-4 left-4 rounded-xl overflow-hidden shadow-2xl ${className || ""}`}
+      className={`fixed bottom-4 left-4 flex flex-col ${className || ""}`}
       style={{
         width: "400px",
         maxWidth: "calc(100vw - 2rem)",
-        height: "600px",
-        maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
+        transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      {/* Configuration errors (affiche seulement si vraiment absent) */}
-      {healthCheck && !healthCheck.has_OPENAI_KEY && (
-        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
-          <div>
-            <p className="font-bold">Configuration Error</p>
-            <p className="text-sm">Missing OPENAI_API_KEY</p>
-          </div>
-        </div>
-      )}
-      {healthCheck && !healthCheck.has_WORKFLOW_ID && (
-        <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
-          <div>
-            <p className="font-bold">Configuration Error</p>
-            <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
-          </div>
-        </div>
-      )}
+      {/* Poignée de contrôle */}
+      <div
+        onClick={onToggle}
+        className="cursor-pointer select-none mb-2 px-4 py-2 rounded-lg flex items-center justify-between gap-2 hover:bg-white/10 transition-colors"
+        style={{
+          background: "rgba(15, 23, 42, 0.75)",
+          backdropFilter: "blur(16px) saturate(180%)",
+          WebkitBackdropFilter: "blur(16px) saturate(180%)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <span className="text-white/80 text-xs font-medium">
+          {isExpanded ? "Réduire le workflow" : "Déployer le workflow"}
+        </span>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-white/60" />
+        ) : (
+          <ChevronUp className="w-4 h-4 text-white/60" />
+        )}
+      </div>
 
-      {/* Official ChatKit component */}
-      {control && <ChatKit control={control} className="w-full h-full" />}
+      {/* Widget ChatKit avec animation */}
+      <div
+        className="rounded-xl overflow-hidden shadow-2xl"
+        style={{
+          height: isExpanded ? "600px" : "0px",
+          maxHeight: isExpanded ? "calc(100vh - 8rem)" : "0px",
+          opacity: isExpanded ? 1 : 0,
+          transform: isExpanded ? "scaleY(1)" : "scaleY(0)",
+          transformOrigin: "top",
+          transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        {healthCheck && !healthCheck.has_OPENAI_KEY && (
+          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+            <div>
+              <p className="font-bold">Configuration Error</p>
+              <p className="text-sm">Missing OPENAI_API_KEY</p>
+            </div>
+          </div>
+        )}
+        {healthCheck && !healthCheck.has_WORKFLOW_ID && (
+          <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
+            <div>
+              <p className="font-bold">Configuration Error</p>
+              <p className="text-sm">Missing CHATKIT_WORKFLOW_ID</p>
+            </div>
+          </div>
+        )}
 
-      {/* Debug overlay (affiché uniquement si debug actif) */}
-      {debug && (
-        <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50 max-w-[150px]">
-          <div>Script: {scriptLoaded ? "✅" : "⏳"}</div>
-          <div>Control: {control ? "✅" : "❌"}</div>
-          <div>Health: {healthCheck ? "✅" : "⏳"}</div>
-          <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
-        </div>
-      )}
+        {control && <ChatKit control={control} className="w-full h-full" />}
+
+        {debug && (
+          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50 max-w-[150px]">
+            <div>Script: {scriptLoaded ? "✅" : "⏳"}</div>
+            <div>Control: {control ? "✅" : "❌"}</div>
+            <div>Health: {healthCheck ? "✅" : "⏳"}</div>
+            <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
