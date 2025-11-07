@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ChevronDown, Calendar, Clock, CalendarDays } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type EventLike = {
   title: string;
@@ -68,13 +69,80 @@ function getDaysDifference(date1: Date, date2: Date): number {
   return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-const STORAGE_KEY = "upcoming_events_panel_open";
+const PREFERENCE_KEY = "upcoming_events_panel_open";
 const INTERACTION_THRESHOLD_MS = 3000;
+
+async function loadPreference(): Promise<boolean> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user?.id) {
+      // Fallback to localStorage if not authenticated
+      const stored = localStorage.getItem(PREFERENCE_KEY);
+      return stored === "true";
+    }
+
+    const { data, error } = await supabase
+      .from("user_preferences")
+      .select("preference_value")
+      .eq("user_id", session.session.user.id)
+      .eq("preference_key", PREFERENCE_KEY)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("Failed to load preference from Supabase:", error);
+      // Fallback to localStorage
+      const stored = localStorage.getItem(PREFERENCE_KEY);
+      return stored === "true";
+    }
+
+    if (data?.preference_value) {
+      return data.preference_value.open === true;
+    }
+
+    return false;
+  } catch (err) {
+    console.warn("Error loading preference:", err);
+    return false;
+  }
+}
+
+async function savePreference(open: boolean): Promise<void> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user?.id) {
+      // Fallback to localStorage if not authenticated
+      localStorage.setItem(PREFERENCE_KEY, String(open));
+      return;
+    }
+
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert({
+        user_id: session.session.user.id,
+        preference_key: PREFERENCE_KEY,
+        preference_value: { open },
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: "user_id,preference_key"
+      });
+
+    if (error) {
+      console.warn("Failed to save preference to Supabase:", error);
+      // Fallback to localStorage
+      localStorage.setItem(PREFERENCE_KEY, String(open));
+    }
+  } catch (err) {
+    console.warn("Error saving preference:", err);
+    // Fallback to localStorage
+    localStorage.setItem(PREFERENCE_KEY, String(open));
+  }
+}
 
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
   const [open, setOpen] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [isAnimating, setIsAnimating] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
   const mountTimeRef = React.useRef<number>(Date.now());
 
   React.useEffect(() => {
@@ -91,16 +159,12 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     }
   }, []);
 
-  // Charger la préférence au montage
+  // Charger la préférence au montage depuis Supabase
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored !== null) {
-        setOpen(stored === "true");
-      }
-    } catch (err) {
-      console.warn("Failed to load upcoming events panel preference:", err);
-    }
+    loadPreference().then((isOpen) => {
+      setOpen(isOpen);
+      setLoading(false);
+    });
   }, []);
 
   const upcoming = React.useMemo(() => {
@@ -136,11 +200,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     
     // Si l'interaction se fait dans les 3 premières secondes, sauvegarder la préférence
     if (timeSinceMount <= INTERACTION_THRESHOLD_MS) {
-      try {
-        localStorage.setItem(STORAGE_KEY, String(newState));
-      } catch (err) {
-        console.warn("Failed to save upcoming events panel preference:", err);
-      }
+      savePreference(newState);
     }
     
     setIsAnimating(true);
@@ -148,7 +208,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     setTimeout(() => setIsAnimating(false), 400);
   };
 
-  if (upcoming.length === 0) return null;
+  if (loading || upcoming.length === 0) return null;
 
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const nowRef = new Date();
