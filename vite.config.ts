@@ -20,18 +20,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     assetsDir: "assets",
-    sourcemap: false, // Désactiver en production pour réduire la taille
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true, // Supprimer les console.log en production
-        drop_debugger: true,
-      },
-    },
+    sourcemap: false,
+    minify: "esbuild", // ✅ Plus rapide que terser (3-5x)
+    target: "es2015", // ✅ Cible moderne = moins de transformations
     rollupOptions: {
       output: {
         manualChunks: {
-          // Séparer les gros vendors pour optimiser le cache
           "react-vendor": ["react", "react-dom", "react-router-dom"],
           "ui-vendor": ["@radix-ui/react-dialog", "@radix-ui/react-tooltip"],
           "supabase-vendor": ["@supabase/supabase-js"],
@@ -39,7 +33,7 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    chunkSizeWarningLimit: 1000, // Augmenter la limite si nécessaire
+    chunkSizeWarningLimit: 1000,
   },
-  base: "/", // Important pour OVH
+  base: "/",
 }));
