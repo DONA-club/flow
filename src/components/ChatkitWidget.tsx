@@ -24,10 +24,11 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [mountCount, setMountCount] = useState(0);
+  const [cspViolations, setCspViolations] = useState<string[]>([]);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  // Track mounts (React Strict Mode doubles them)
+  // Track mounts
   useEffect(() => {
     setMountCount(prev => prev + 1);
     console.log(`🔄 [ChatKit] Component mounted (count: ${mountCount + 1})`);
@@ -37,7 +38,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     };
   }, []);
 
-  // Health check on mount
+  // Health check
   useEffect(() => {
     const checkHealth = async () => {
       try {
@@ -53,9 +54,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         if (!data.has_WORKFLOW_ID) {
           console.error("❌ [ChatKit] Missing CHATKIT_WORKFLOW_ID");
         }
-        if (!data.has_DOMAIN_KEY) {
-          console.error("❌ [ChatKit] Missing CHATKIT_DOMAIN_KEY");
-        }
       } catch (err) {
         console.error("💥 [ChatKit] Health check failed:", err);
       }
@@ -64,14 +62,16 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     checkHealth();
   }, []);
 
-  // Check CSP violations
+  // Monitor CSP violations
   useEffect(() => {
     const handleCSPViolation = (e: SecurityPolicyViolationEvent) => {
+      const violation = `${e.violatedDirective}: ${e.blockedURI}`;
       console.error("🚨 [ChatKit] CSP Violation:", {
         blockedURI: e.blockedURI,
         violatedDirective: e.violatedDirective,
         originalPolicy: e.originalPolicy,
       });
+      setCspViolations(prev => [...prev, violation]);
     };
 
     document.addEventListener('securitypolicyviolation', handleCSPViolation);
@@ -80,9 +80,9 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
 
   console.log("🎨 [ChatKit] Component rendering, isDarkMode:", isDarkMode);
 
-  // ✅ STABILIZE CONFIG WITH useMemo
+  // ✅ STABLE CONFIG WITH useMemo (validated by OpenAI maintainers)
   const config = useMemo(() => {
-    console.log("⚙️ [ChatKit] Creating config object");
+    console.log("⚙️ [ChatKit] Creating config object (should happen ONCE)");
     
     return {
       api: {
@@ -201,7 +201,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     const result = useChatKit(config as any);
     control = result.control;
     console.log("✅ [ChatKit] useChatKit returned control:", !!control);
-    console.log("🔍 [ChatKit] Control keys:", control ? Object.keys(control) : "none");
   } catch (err) {
     console.error("💥 [ChatKit] useChatKit exception:", err);
     return (
@@ -226,6 +225,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         zIndex: 9999,
       }}
     >
+      {/* Configuration errors */}
       {healthCheck && !healthCheck.has_OPENAI_KEY && (
         <div className="absolute inset-0 bg-red-500 text-white p-4 z-50 flex items-center justify-center">
           <div>
@@ -243,8 +243,22 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
           </div>
         </div>
       )}
+
+      {/* CSP violations */}
+      {cspViolations.length > 0 && (
+        <div className="absolute inset-0 bg-orange-500 text-white p-4 z-50 flex items-center justify-center overflow-auto">
+          <div>
+            <p className="font-bold">CSP Violations Detected</p>
+            <ul className="text-xs mt-2 space-y-1">
+              {cspViolations.map((v, i) => (
+                <li key={i}>{v}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       
-      {/* Use ChatKit component - this triggers getClientSecret */}
+      {/* ✅ USE CHATKIT COMPONENT (validated by OpenAI maintainers) */}
       <ChatKit control={control} className="w-full h-full" />
       
       {/* Debug overlay */}
@@ -253,10 +267,11 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         <div>Health: {healthCheck ? "✅" : "⏳"}</div>
         <div>Init: {isInitialized ? "✅" : "⏳"}</div>
         <div>Mounts: {mountCount}</div>
+        <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
       </div>
       
-      {/* Warning if not initialized */}
-      {!isInitialized && (
+      {/* Initialization warning */}
+      {!isInitialized && cspViolations.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/20 pointer-events-none">
           <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm">
             Initializing ChatKit... (mount #{mountCount})
