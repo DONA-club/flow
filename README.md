@@ -1,6 +1,6 @@
 # DONA.club — Visualiser
 
-> **A temporal consciousness interface that transforms how humans perceive and navigate their relationship with time.**
+> **A temporal consciousness interface and chronological repository that transforms how humans and machines perceive, navigate, and master the lifecycle of projects.**
 
 [🇫🇷 Version française](#version-française) | [🇬🇧 English version](#english-version)
 
@@ -10,55 +10,245 @@
 
 ### 🌅 The Vision
 
-**Visualiser** is not a calendar—it's a **temporal awareness instrument** that reveals the invisible architecture of your days. By rendering time as a living, breathing circle synchronized with natural rhythms, Visualiser helps you develop an intuitive, embodied relationship with your temporal existence.
+**Visualiser** is not a calendar—it's a **temporal repository and consciousness instrument** that reveals the invisible architecture of time itself. By rendering temporal flows as living, breathing circles synchronized with natural and project rhythms, Visualiser helps both humans and machines develop an intuitive, embodied relationship with temporal existence.
 
-This is the first manifestation of **DONA.club's broader ambition**: to master quality of life across projects, organizations, and individuals through temporal intelligence.
+This is the foundational manifestation of **DONA.club's broader ambition**: to master the quality of life across projects, organizations, and individuals through temporal intelligence. **Every project is a life**—and Visualiser is the heart of mastering that life.
 
 **Core Principles:**
 
-- **Circadian Consciousness**: Time visualization adapts to your biological rhythms and natural light cycles
-- **Unified Temporal View**: Seamlessly merge multiple time streams (Google, Microsoft, etc.) into one coherent reality
-- **Contextual Awareness**: AI companion with complete understanding of your temporal landscape
-- **Ambient Intelligence**: Information emerges when relevant, dissolves when not—honoring attention as sacred
+- **Temporal Repository**: Conserves and indexes chronological events for retrospective analysis and temporal relativity
+- **Multi-Scale Consciousness**: Operates from human circadian rhythms to machine decision horizons (embedded systems, sliding windows)
+- **Project Lifecycle Mastery**: Represents the complete temporal DNA of a project—every decision, every event, every rhythm
+- **Temporal Relativity**: Enables replay and reinterpretation of event chronologies across different time scales and perspectives
+- **Machine-Readable Time**: Designed for both human perception and high-level machine coordination protocols (MCP)
 
 ---
 
-### ✨ What Visualiser Does
+### 🧬 What Visualiser Represents
 
-#### 🎯 Circular Time Perception
-- **24-hour consciousness wheel** with solar cycle markers (sunrise/sunset)
-- **Living background gradients** that breathe with your circadian state
+#### 🎯 For Humans: Circadian Consciousness
+- **24-hour awareness wheel** with solar cycle markers (sunrise/sunset)
+- **Living background gradients** that breathe with your biological state
 - **Event arcs** revealing temporal density and proximity
 - **Sleep architecture overlay** showing rest patterns and recovery debt/surplus
 - **Temporal navigation** through intuitive gestures (scroll/swipe through time)
 
-#### 🔗 Multi-Stream Time Integration
-- **Google ecosystem** with intelligent token management
-- **Microsoft ecosystem** (Office 365) via Graph API
-- **Multi-identity support** through secure OAuth orchestration
-- **Real-time synchronization** across all connected time streams
-- **Conflict-free temporal merging** from heterogeneous sources
+#### 🤖 For Machines: Temporal Coordination Protocol
+- **Chronological event repository** with microsecond precision indexing
+- **Decision timeline reconstruction** for embedded systems and autonomous agents
+- **Sliding horizon windows** for real-time temporal planning
+- **Temporal relativity engine** for replaying event sequences at different scales
+- **MCP-compatible interface** for high-level machine coordination
 
-#### 😴 Sleep Intelligence (Google Fit)
-- **Automatic sleep session detection** from Google Fit
-- **Recovery debt calculation** over rolling 7-day windows
-- **Optimal rest timing recommendations** based on wake patterns
-- **Visual sleep architecture** integrated into the temporal wheel
-- **Historical sleep data** accessible for any past moment
+#### 🔄 Temporal Relativity & Replay
+- **Event chronology conservation** with immutable temporal records
+- **Multi-scale temporal replay**: View project lifecycles at day/week/month/year scales
+- **Decision archaeology**: Reconstruct the temporal context of past decisions
+- **Temporal pattern recognition**: Identify recurring rhythms and anomalies
+- **Project lifecycle visualization**: See the complete temporal DNA of any project
 
-#### 🤖 Temporal AI Companion (OpenAI Assistants)
-- **Full contextual awareness**: temporal state, sleep, location, theme, connections
-- **Natural language temporal queries**: "What's emerging next?", "How's my recovery?"
-- **Analytical tools**: Can examine your temporal patterns and surface insights
-- **Streaming consciousness** with real-time tool activity
-- **Persistent conversation memory** across sessions
+#### 🌐 Universal Time Streams
+- **Human time streams**: Google, Microsoft, personal schedules
+- **Machine time streams**: System logs, decision events, sensor data
+- **Project time streams**: Milestones, deliverables, team activities
+- **Natural time streams**: Solar cycles, seasonal patterns, circadian rhythms
+- **Unified temporal view**: All streams merged into coherent temporal reality
 
-#### 🎨 Adaptive Interface
-- **System theme synchronization** (dark/light modes)
-- **Circadian gradient evolution** throughout the day
-- **Golden ratio proportions** for visual harmony
-- **Touch-first responsive design** with gestural fluidity
-- **Accessibility-centered** with ARIA semantics
+---
+
+### 🏛️ Architectural Philosophy
+
+Visualiser is built on three foundational layers:
+
+#### 1. **Temporal Repository Layer**
+The immutable chronological database that conserves all temporal events:
+
+```typescript
+type TemporalEvent = {
+  id: string;
+  timestamp: number; // Unix microseconds
+  type: "human" | "machine" | "natural" | "project";
+  source: string; // Origin stream (google, system, sensor, etc.)
+  payload: any; // Event-specific data
+  context: TemporalContext; // Full contextual snapshot
+  metadata: {
+    timezone: string;
+    location?: { lat: number; lon: number };
+    actor?: string; // Human or machine identifier
+    decision?: boolean; // Was this a decision point?
+  };
+};
+```
+
+**Repository Capabilities:**
+- **Immutable append-only log** of all temporal events
+- **Microsecond precision** for machine coordination
+- **Full context preservation** for temporal archaeology
+- **Multi-stream indexing** for cross-temporal queries
+- **Temporal relativity queries**: "Show me all events between T1 and T2 from perspective of actor X"
+
+#### 2. **Consciousness Interface Layer**
+The human-facing circular visualization that makes time intuitive:
+
+- **Circadian-synchronized rendering** for biological alignment
+- **Event arc visualization** for temporal density perception
+- **Gestural temporal navigation** for intuitive time travel
+- **Ambient information emergence** respecting attention as sacred
+- **AI companion** with full temporal context awareness
+
+#### 3. **Machine Coordination Layer**
+The protocol interface for autonomous systems and embedded devices:
+
+```typescript
+// MCP (Machine Coordination Protocol) Interface
+interface MCPTemporalInterface {
+  // Query temporal events within horizon window
+  queryHorizon(start: number, end: number, filters?: EventFilter[]): TemporalEvent[];
+  
+  // Register decision event with full context
+  recordDecision(decision: Decision, context: TemporalContext): void;
+  
+  // Replay event sequence at different time scale
+  replaySequence(start: number, end: number, scale: TimeScale): EventSequence;
+  
+  // Get temporal patterns for prediction
+  analyzePatterns(window: TimeWindow): TemporalPattern[];
+  
+  // Synchronize with other temporal systems
+  syncWithPeer(peerId: string, protocol: SyncProtocol): void;
+}
+```
+
+**Machine Use Cases:**
+- **Embedded systems**: Log decision events with temporal context
+- **Autonomous agents**: Query sliding horizon windows for planning
+- **Distributed systems**: Synchronize temporal state across nodes
+- **Temporal analytics**: Analyze decision patterns over project lifecycle
+- **Predictive systems**: Learn from historical temporal patterns
+
+---
+
+### 🌊 Temporal Relativity: The Core Innovation
+
+Visualiser's most profound capability is **temporal relativity**—the ability to replay and reinterpret event chronologies from different perspectives and time scales.
+
+#### Temporal Replay Modes
+
+**1. Human Scale (Circadian)**
+```typescript
+// View project lifecycle at human circadian rhythm
+visualiser.replay({
+  start: projectStart,
+  end: projectEnd,
+  scale: "circadian", // 24-hour cycles
+  perspective: "human",
+  focus: ["meetings", "decisions", "sleep"]
+});
+```
+
+**2. Machine Scale (Microseconds)**
+```typescript
+// View system decision timeline at microsecond precision
+visualiser.replay({
+  start: incidentStart,
+  end: incidentEnd,
+  scale: "microsecond",
+  perspective: "machine",
+  focus: ["decisions", "state_changes", "errors"]
+});
+```
+
+**3. Project Scale (Lifecycle)**
+```typescript
+// View entire project lifecycle compressed to single wheel
+visualiser.replay({
+  start: projectStart,
+  end: projectEnd,
+  scale: "lifecycle", // Entire project as one circle
+  perspective: "project",
+  focus: ["milestones", "team_rhythm", "decision_density"]
+});
+```
+
+#### Temporal Archaeology
+
+Reconstruct the complete context of any past moment:
+
+```typescript
+// What was the temporal state when decision X was made?
+const context = visualiser.archaeology({
+  moment: decisionTimestamp,
+  radius: "24h", // Look 24h before and after
+  include: [
+    "all_events",
+    "team_state",
+    "project_health",
+    "external_factors",
+    "circadian_state"
+  ]
+});
+```
+
+---
+
+### 🎯 Project Lifecycle Mastery
+
+**Every project is a life**—with birth, growth, maturity, and completion. Visualiser represents the complete temporal DNA of that life.
+
+#### Project Temporal DNA
+
+```typescript
+type ProjectTemporalDNA = {
+  // Birth: Project inception
+  genesis: {
+    timestamp: number;
+    initiators: string[];
+    initialContext: TemporalContext;
+  };
+  
+  // Growth: Development phases
+  phases: Array<{
+    name: string;
+    start: number;
+    end: number;
+    keyEvents: TemporalEvent[];
+    teamRhythm: CircadianPattern;
+    decisionDensity: number; // Decisions per day
+  }>;
+  
+  // Maturity: Stable operation
+  maturity: {
+    sustainedRhythm: CircadianPattern;
+    maintenanceEvents: TemporalEvent[];
+    evolutionRate: number; // Change velocity
+  };
+  
+  // Completion: Project closure
+  completion?: {
+    timestamp: number;
+    finalContext: TemporalContext;
+    retrospective: TemporalAnalysis;
+  };
+  
+  // Vital Signs: Project health over time
+  vitalSigns: {
+    decisionQuality: TimeSeries;
+    teamEnergy: TimeSeries;
+    deliveryRhythm: TimeSeries;
+    externalPressure: TimeSeries;
+  };
+};
+```
+
+#### Lifecycle Visualization
+
+Visualiser can render the entire project lifecycle as:
+
+1. **Compressed Circle**: Entire project as single 24-hour wheel
+2. **Expanded Timeline**: Scrollable multi-day/week/month view
+3. **Phase Comparison**: Overlay different project phases
+4. **Team Rhythm Analysis**: Visualize team circadian patterns over project life
+5. **Decision Archaeology**: Reconstruct context of critical decisions
 
 ---
 
@@ -77,31 +267,72 @@ This is the first manifestation of **DONA.club's broader ambition**: to master q
 **Intelligence Layer:**
 - **Supabase** for authentication, persistence, and serverless functions
 - **PostgreSQL** with Row Level Security for data sovereignty
+- **TimescaleDB extension** for time-series temporal data
 - **Supabase Edge Functions** (Deno runtime) for serverless compute
 - **OpenAI Assistants API** for conversational intelligence with tool use
 - **ChatKit** for embedded conversational UI with streaming
 
 **Integration Layer:**
-- **Google Calendar API** (OAuth 2.0)
-- **Microsoft Graph API** (Azure AD OAuth)
-- **Google Fit API** for biometric data
-- **Sunrise-Sunset API** for solar calculations
-- **OpenAI GPT-4** for natural language understanding
+- **Google Calendar API** (OAuth 2.0) for human time streams
+- **Microsoft Graph API** (Azure AD OAuth) for organizational time streams
+- **Google Fit API** for biometric temporal data
+- **Sunrise-Sunset API** for natural cycle calculations
+- **OpenAI GPT-4** for natural language temporal understanding
+- **Custom MCP endpoints** for machine coordination
+
+**Temporal Repository:**
+- **Append-only event log** with microsecond timestamps
+- **Multi-index architecture** for fast temporal queries
+- **Immutable event storage** for temporal archaeology
+- **Compression algorithms** for long-term storage efficiency
+- **Replication protocol** for distributed temporal systems
 
 **Deployment:**
 - **GitHub Actions** for continuous deployment
 - **OVH Cloud Web** for production hosting
 - **Capacitor** for native iOS/Android compilation
+- **Docker containers** for embedded system deployment
 - **Service Workers** for offline resilience
 
 #### Data Architecture
 
 ```sql
+-- Temporal event repository (append-only)
+CREATE TABLE temporal_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  timestamp BIGINT NOT NULL, -- Unix microseconds
+  event_type TEXT NOT NULL, -- 'human', 'machine', 'natural', 'project'
+  source TEXT NOT NULL, -- Origin stream identifier
+  actor TEXT, -- Human or machine identifier
+  payload JSONB NOT NULL, -- Event-specific data
+  context JSONB NOT NULL, -- Full temporal context snapshot
+  metadata JSONB, -- Additional metadata
+  is_decision BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for temporal queries
+CREATE INDEX idx_temporal_events_timestamp ON temporal_events(timestamp);
+CREATE INDEX idx_temporal_events_type ON temporal_events(event_type);
+CREATE INDEX idx_temporal_events_source ON temporal_events(source);
+CREATE INDEX idx_temporal_events_actor ON temporal_events(actor);
+
+-- Project lifecycle tracking
+CREATE TABLE project_lifecycles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id TEXT UNIQUE NOT NULL,
+  genesis_timestamp BIGINT NOT NULL,
+  completion_timestamp BIGINT,
+  temporal_dna JSONB NOT NULL, -- Complete project temporal DNA
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- OAuth token vault with automatic refresh
 CREATE TABLE oauth_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL, -- 'google', 'microsoft', etc.
+  provider TEXT NOT NULL,
   access_token TEXT,
   refresh_token TEXT,
   expires_at TIMESTAMPTZ,
@@ -127,6 +358,7 @@ CREATE TABLE user_preferences (
 - Row Level Security (RLS) enforced on all tables
 - User data isolation at database level
 - Service role for administrative operations only
+- Temporal event immutability enforced at database level
 
 #### Serverless Functions
 
@@ -158,6 +390,20 @@ Body: { messages, stream, thread_id }
 Returns: Server-Sent Events stream
 ```
 
+**`temporal-query`** — Query temporal repository (MCP interface)
+```typescript
+POST /functions/v1/temporal-query
+Body: { start, end, filters, perspective }
+Returns: { events: TemporalEvent[], patterns: TemporalPattern[] }
+```
+
+**`temporal-replay`** — Replay event sequence at different scale
+```typescript
+POST /functions/v1/temporal-replay
+Body: { start, end, scale, perspective, focus }
+Returns: { sequence: EventSequence, analysis: TemporalAnalysis }
+```
+
 ---
 
 ### 🚀 Implementation Guide
@@ -169,6 +415,7 @@ Returns: Server-Sent Events stream
 - **Google Cloud Console** project with Calendar & Fit APIs
 - **Microsoft Azure AD** app registration with Graph API permissions
 - **OpenAI API key** with Assistants API access
+- **TimescaleDB** extension enabled in Supabase (for time-series data)
 
 #### Environment Configuration
 
@@ -208,7 +455,17 @@ MICROSOFT_CLIENT_SECRET=...
 # Execute via Supabase Dashboard → SQL Editor
 ```
 
-6. **Configure OAuth redirect URIs:**
+6. **Enable TimescaleDB extension:**
+```sql
+-- In Supabase SQL Editor
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+-- Convert temporal_events to hypertable
+SELECT create_hypertable('temporal_events', 'timestamp', 
+  chunk_time_interval => 86400000000); -- 1 day in microseconds
+```
+
+7. **Configure OAuth redirect URIs:**
 - **Google Console**: Add `https://your-project.supabase.co/auth/v1/callback`
 - **Azure Portal**: Add same URL to redirect URIs
 
@@ -277,10 +534,18 @@ export const BRAND_CONFIG = {
 ```typescript
 // src/config/features.ts
 export const FEATURES = {
+  // Human features
   googleIntegration: true,
   microsoftIntegration: true,
   sleepIntelligence: true,
   aiCompanion: true,
+  
+  // Machine features
+  mcpInterface: true,
+  temporalReplay: true,
+  decisionArchaeology: true,
+  projectLifecycle: true,
+  
   // Modular feature activation per deployment
 };
 ```
@@ -289,7 +554,7 @@ export const FEATURES = {
 
 ### 📊 Temporal Context System
 
-Visualiser generates rich contextual awareness for the AI companion:
+Visualiser generates rich contextual awareness for both humans and machines:
 
 ```typescript
 type TemporalContext = {
@@ -320,6 +585,23 @@ type TemporalContext = {
   };
   connections: { google, microsoft, apple, facebook, amazon };
   identity: { deviceId, userAgent, language, timezone };
+  
+  // Machine-specific context
+  machine?: {
+    systemState: any;
+    decisionHorizon: { start: number; end: number };
+    activeProcesses: string[];
+    resourceUtilization: { cpu: number; memory: number };
+  };
+  
+  // Project-specific context
+  project?: {
+    id: string;
+    phase: string;
+    health: number; // 0-100
+    teamRhythm: CircadianPattern;
+    nextMilestone: { name: string; timestamp: number };
+  };
 };
 ```
 
@@ -337,10 +619,12 @@ window.getPageContext() // Returns complete temporal context
 - **JWT tokens** with automatic refresh cycles
 - **Encrypted token vault** in Supabase with RLS enforcement
 - **Zero client-side secrets** — all sensitive operations in edge functions
+- **Machine authentication** via API keys with scope-based permissions
 
 #### Data Sovereignty
 - **Row Level Security** enforced on all data tables
 - **User data isolation** at database query level
+- **Temporal event immutability** enforced at database level
 - **End-to-end encryption** (HTTPS/WSS only)
 - **Privacy-first design** — no third-party analytics or tracking
 
@@ -374,6 +658,9 @@ npm run build
 - [ ] Touch gesture navigation
 - [ ] Token refresh on expiration
 - [ ] Multi-day temporal navigation
+- [ ] Temporal replay at different scales
+- [ ] MCP interface for machine coordination
+- [ ] Project lifecycle visualization
 
 ---
 
@@ -386,6 +673,8 @@ npm run build
 - **Debounced API calls** to respect rate limits
 - **Optimistic UI updates** for perceived performance
 - **Service worker caching** for offline resilience
+- **TimescaleDB compression** for long-term temporal data
+- **Indexed temporal queries** for microsecond-precision lookups
 
 **Bundle Metrics:**
 - Main bundle: ~180KB (gzipped)
@@ -410,6 +699,7 @@ Contributions are welcome! Please follow these guidelines:
 - Tailwind CSS for styling
 - Semantic naming conventions
 - Inline documentation for complex logic
+- Temporal event immutability
 
 ---
 
@@ -423,6 +713,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 - **OpenAI** for GPT-4 and Assistants API
 - **Supabase** for backend infrastructure
+- **TimescaleDB** for time-series database capabilities
 - **Vercel** for shadcn/ui components
 - **Radix UI** for accessible primitives
 - **Lucide** for iconography
@@ -442,205 +733,263 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ### 🌅 La Vision
 
-**Visualiser** n'est pas un calendrier—c'est un **instrument de conscience temporelle** qui révèle l'architecture invisible de vos journées. En représentant le temps comme un cercle vivant, synchronisé avec les rythmes naturels, Visualiser vous aide à développer une relation intuitive et incarnée avec votre existence temporelle.
+**Visualiser** n'est pas un calendrier—c'est un **référentiel temporel et instrument de conscience** qui révèle l'architecture invisible du temps lui-même. En représentant les flux temporels comme des cercles vivants, synchronisés avec les rythmes naturels et projets, Visualiser aide humains et machines à développer une relation intuitive et incarnée avec l'existence temporelle.
 
-C'est la première manifestation de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle.
+C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle. **Chaque projet est une vie**—et Visualiser est le cœur de la maîtrise de cette vie.
 
 **Principes Fondamentaux :**
 
-- **Conscience Circadienne** : La visualisation du temps s'adapte à vos rythmes biologiques et cycles de lumière naturelle
-- **Vue Temporelle Unifiée** : Fusion transparente de multiples flux temporels (Google, Microsoft, etc.) en une réalité cohérente
-- **Conscience Contextuelle** : Compagnon IA avec compréhension complète de votre paysage temporel
-- **Intelligence Ambiante** : L'information émerge quand pertinente, se dissout sinon—honorant l'attention comme sacrée
+- **Référentiel Temporel** : Conserve et indexe les événements chronologiques pour analyse rétrospective et relativité temporelle
+- **Conscience Multi-Échelle** : Opère des rythmes circadiens humains aux horizons de décision machine (systèmes embarqués, fenêtres glissantes)
+- **Maîtrise du Cycle de Vie Projet** : Représente l'ADN temporel complet d'un projet—chaque décision, chaque événement, chaque rythme
+- **Relativité Temporelle** : Permet la relecture et réinterprétation des chronologies d'événements à différentes échelles et perspectives
+- **Temps Lisible Machine** : Conçu pour perception humaine et protocoles de coordination machine haut niveau (MCP)
 
 ---
 
-### ✨ Ce que Fait Visualiser
+### 🧬 Ce que Représente Visualiser
 
-#### 🎯 Perception Circulaire du Temps
+#### 🎯 Pour les Humains : Conscience Circadienne
 - **Roue de conscience 24 heures** avec marqueurs de cycle solaire (lever/coucher)
-- **Dégradés d'arrière-plan vivants** qui respirent avec votre état circadien
+- **Dégradés d'arrière-plan vivants** qui respirent avec votre état biologique
 - **Arcs d'événements** révélant densité et proximité temporelles
 - **Superposition d'architecture du sommeil** montrant patterns de repos et dette/surplus de récupération
 - **Navigation temporelle** par gestes intuitifs (défilement/balayage dans le temps)
 
-#### 🔗 Intégration Multi-Flux Temporels
-- **Écosystème Google** avec gestion intelligente des tokens
-- **Écosystème Microsoft** (Office 365) via Graph API
-- **Support multi-identités** par orchestration OAuth sécurisée
-- **Synchronisation temps réel** sur tous les flux temporels connectés
-- **Fusion temporelle sans conflit** depuis sources hétérogènes
+#### 🤖 Pour les Machines : Protocole de Coordination Temporelle
+- **Référentiel d'événements chronologiques** avec indexation précision microseconde
+- **Reconstruction de chronologie de décisions** pour systèmes embarqués et agents autonomes
+- **Fenêtres d'horizon glissant** pour planification temporelle temps réel
+- **Moteur de relativité temporelle** pour rejouer séquences d'événements à différentes échelles
+- **Interface compatible MCP** pour coordination machine haut niveau
 
-#### 😴 Intelligence du Sommeil (Google Fit)
-- **Détection automatique des sessions de sommeil** depuis Google Fit
-- **Calcul de dette de récupération** sur fenêtres glissantes de 7 jours
-- **Recommandations de timing optimal de repos** basées sur patterns de réveil
-- **Architecture visuelle du sommeil** intégrée dans la roue temporelle
-- **Données historiques de sommeil** accessibles pour tout moment passé
+#### 🔄 Relativité Temporelle & Relecture
+- **Conservation de chronologie d'événements** avec enregistrements temporels immuables
+- **Relecture temporelle multi-échelle** : Visualiser cycles de vie projet à échelles jour/semaine/mois/année
+- **Archéologie de décisions** : Reconstruire le contexte temporel de décisions passées
+- **Reconnaissance de patterns temporels** : Identifier rythmes récurrents et anomalies
+- **Visualisation cycle de vie projet** : Voir l'ADN temporel complet de tout projet
 
-#### 🤖 Compagnon IA Temporel (OpenAI Assistants)
-- **Conscience contextuelle complète** : état temporel, sommeil, localisation, thème, connexions
-- **Requêtes temporelles en langage naturel** : "Qu'est-ce qui émerge ensuite ?", "Comment va ma récupération ?"
-- **Outils analytiques** : Peut examiner vos patterns temporels et révéler des insights
-- **Conscience en streaming** avec activité des outils en temps réel
-- **Mémoire conversationnelle persistante** entre sessions
-
-#### 🎨 Interface Adaptive
-- **Synchronisation thème système** (modes sombre/clair)
-- **Évolution de dégradé circadien** tout au long de la journée
-- **Proportions nombre d'or** pour harmonie visuelle
-- **Design responsive tactile-first** avec fluidité gestuelle
-- **Centré accessibilité** avec sémantique ARIA
+#### 🌐 Flux Temporels Universels
+- **Flux temporels humains** : Google, Microsoft, agendas personnels
+- **Flux temporels machine** : Logs système, événements de décision, données capteurs
+- **Flux temporels projet** : Jalons, livrables, activités équipe
+- **Flux temporels naturels** : Cycles solaires, patterns saisonniers, rythmes circadiens
+- **Vue temporelle unifiée** : Tous flux fusionnés en réalité temporelle cohérente
 
 ---
 
-### 🏗️ Architecture Technique
+### 🏛️ Philosophie Architecturale
 
-#### Fondation Technologique
+Visualiser est construit sur trois couches fondamentales :
 
-**Couche Interface :**
-- **React 18** avec TypeScript pour architecture de composants type-safe
-- **Vite** pour boucles de feedback instantanées et builds optimisés
-- **Tailwind CSS** pour styling utility-first avec tokens de design personnalisés
-- **shadcn/ui** pour primitives UI accessibles et composables
-- **React Router** pour navigation côté client
-- **TanStack Query** pour orchestration d'état serveur
+#### 1. **Couche Référentiel Temporel**
+La base de données chronologique immuable qui conserve tous événements temporels :
 
-**Couche Intelligence :**
-- **Supabase** pour authentification, persistance et fonctions serverless
-- **PostgreSQL** avec Row Level Security pour souveraineté des données
-- **Supabase Edge Functions** (runtime Deno) pour compute serverless
-- **OpenAI Assistants API** pour intelligence conversationnelle avec usage d'outils
-- **ChatKit** pour UI conversationnelle embarquée avec streaming
-
-**Couche Intégration :**
-- **Google Calendar API** (OAuth 2.0)
-- **Microsoft Graph API** (Azure AD OAuth)
-- **Google Fit API** pour données biométriques
-- **Sunrise-Sunset API** pour calculs solaires
-- **OpenAI GPT-4** pour compréhension du langage naturel
-
-**Déploiement :**
-- **GitHub Actions** pour déploiement continu
-- **OVH Cloud Web** pour hébergement production
-- **Capacitor** pour compilation native iOS/Android
-- **Service Workers** pour résilience offline
-
----
-
-### 🚀 Guide d'Implémentation
-
-#### Prérequis
-
-- **Node.js 20+** et npm 10+
-- **Projet Supabase** avec authentification activée
-- **Projet Google Cloud Console** avec APIs Calendar & Fit
-- **Enregistrement app Microsoft Azure AD** avec permissions Graph API
-- **Clé API OpenAI** avec accès Assistants API
-
-#### Configuration Environnement
-
-1. **Cloner le dépôt :**
-```bash
-git clone https://github.com/votreusername/dona-club.git
-cd dona-club
-```
-
-2. **Installer les dépendances :**
-```bash
-npm install
-```
-
-3. **Configurer connexion Supabase :**
-```bash
-# Créer .env.local
-VITE_SUPABASE_URL=https://votre-projet.supabase.co
-VITE_SUPABASE_ANON_KEY=votre-cle-anon
-```
-
-4. **Configurer secrets serverless :**
-```bash
-# Dans Dashboard Supabase → Edge Functions → Manage Secrets
-OPENAI_API_KEY=sk-...
-CHATKIT_WORKFLOW_ID=wf_...
-CHATKIT_DOMAIN_KEY=dk_...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-MICROSOFT_CLIENT_ID=...
-MICROSOFT_CLIENT_SECRET=...
-```
-
-5. **Appliquer migrations base de données :**
-```bash
-# Migrations dans supabase/migrations/
-# Exécuter via Dashboard Supabase → SQL Editor
-```
-
-6. **Configurer URIs de redirection OAuth :**
-- **Console Google** : Ajouter `https://votre-projet.supabase.co/auth/v1/callback`
-- **Portail Azure** : Ajouter même URL aux URIs de redirection
-
-#### Workflow Développement
-
-```bash
-# Démarrer serveur développement
-npm run dev
-
-# Build production
-npm run build
-
-# Prévisualiser build production
-npm run preview
-```
-
----
-
-### 🎨 Adaptation Marque Blanche
-
-Visualiser est architecturé comme **plateforme d'intelligence temporelle marque blanche** :
-
-#### Identité de Marque
 ```typescript
-// tailwind.config.ts
-theme: {
-  extend: {
-    colors: {
-      primary: "#couleur-marque",
-      accent: "#couleur-accent",
-    },
-    fontFamily: {
-      sans: ["Votre Police", "Inter", "sans-serif"],
-    },
-  },
+type TemporalEvent = {
+  id: string;
+  timestamp: number; // Microsecondes Unix
+  type: "human" | "machine" | "natural" | "project";
+  source: string; // Flux d'origine (google, system, sensor, etc.)
+  payload: any; // Données spécifiques événement
+  context: TemporalContext; // Snapshot contextuel complet
+  metadata: {
+    timezone: string;
+    location?: { lat: number; lon: number };
+    actor?: string; // Identifiant humain ou machine
+    decision?: boolean; // Était-ce un point de décision ?
+  };
+};
+```
+
+**Capacités du Référentiel :**
+- **Log append-only immuable** de tous événements temporels
+- **Précision microseconde** pour coordination machine
+- **Préservation contexte complet** pour archéologie temporelle
+- **Indexation multi-flux** pour requêtes cross-temporelles
+- **Requêtes relativité temporelle** : "Montrer tous événements entre T1 et T2 depuis perspective acteur X"
+
+#### 2. **Couche Interface de Conscience**
+La visualisation circulaire orientée humain qui rend le temps intuitif :
+
+- **Rendu synchronisé circadien** pour alignement biologique
+- **Visualisation arcs d'événements** pour perception densité temporelle
+- **Navigation temporelle gestuelle** pour voyage temporel intuitif
+- **Émergence information ambiante** respectant attention comme sacrée
+- **Compagnon IA** avec conscience contextuelle temporelle complète
+
+#### 3. **Couche Coordination Machine**
+L'interface protocole pour systèmes autonomes et dispositifs embarqués :
+
+```typescript
+// Interface MCP (Machine Coordination Protocol)
+interface MCPTemporalInterface {
+  // Requête événements temporels dans fenêtre horizon
+  queryHorizon(start: number, end: number, filters?: EventFilter[]): TemporalEvent[];
+  
+  // Enregistrer événement décision avec contexte complet
+  recordDecision(decision: Decision, context: TemporalContext): void;
+  
+  // Rejouer séquence événements à échelle temporelle différente
+  replaySequence(start: number, end: number, scale: TimeScale): EventSequence;
+  
+  // Obtenir patterns temporels pour prédiction
+  analyzePatterns(window: TimeWindow): TemporalPattern[];
+  
+  // Synchroniser avec autres systèmes temporels
+  syncWithPeer(peerId: string, protocol: SyncProtocol): void;
 }
 ```
 
-#### Configuration Plateforme
+**Cas d'Usage Machine :**
+- **Systèmes embarqués** : Logger événements décision avec contexte temporel
+- **Agents autonomes** : Requêter fenêtres horizon glissant pour planification
+- **Systèmes distribués** : Synchroniser état temporel entre nœuds
+- **Analytics temporels** : Analyser patterns décision sur cycle vie projet
+- **Systèmes prédictifs** : Apprendre depuis patterns temporels historiques
+
+---
+
+### 🌊 Relativité Temporelle : L'Innovation Centrale
+
+La capacité la plus profonde de Visualiser est la **relativité temporelle**—la capacité de rejouer et réinterpréter chronologies d'événements depuis différentes perspectives et échelles temporelles.
+
+#### Modes de Relecture Temporelle
+
+**1. Échelle Humaine (Circadienne)**
 ```typescript
-// src/config/brand.ts
-export const BRAND_CONFIG = {
-  name: "Votre Marque",
-  logo: "/votre-logo.svg",
-  domain: "votredomaine.com",
-  supportEmail: "support@votredomaine.com",
+// Visualiser cycle vie projet à rythme circadien humain
+visualiser.replay({
+  start: projectStart,
+  end: projectEnd,
+  scale: "circadian", // Cycles 24 heures
+  perspective: "human",
+  focus: ["meetings", "decisions", "sleep"]
+});
+```
+
+**2. Échelle Machine (Microsecondes)**
+```typescript
+// Visualiser chronologie décisions système à précision microseconde
+visualiser.replay({
+  start: incidentStart,
+  end: incidentEnd,
+  scale: "microsecond",
+  perspective: "machine",
+  focus: ["decisions", "state_changes", "errors"]
+});
+```
+
+**3. Échelle Projet (Cycle de Vie)**
+```typescript
+// Visualiser cycle vie projet entier compressé en roue unique
+visualiser.replay({
+  start: projectStart,
+  end: projectEnd,
+  scale: "lifecycle", // Projet entier comme un cercle
+  perspective: "project",
+  focus: ["milestones", "team_rhythm", "decision_density"]
+});
+```
+
+#### Archéologie Temporelle
+
+Reconstruire le contexte complet de tout moment passé :
+
+```typescript
+// Quel était l'état temporel quand décision X a été prise ?
+const context = visualiser.archaeology({
+  moment: decisionTimestamp,
+  radius: "24h", // Regarder 24h avant et après
+  include: [
+    "all_events",
+    "team_state",
+    "project_health",
+    "external_factors",
+    "circadian_state"
+  ]
+});
+```
+
+---
+
+### 🎯 Maîtrise du Cycle de Vie Projet
+
+**Chaque projet est une vie**—avec naissance, croissance, maturité et achèvement. Visualiser représente l'ADN temporel complet de cette vie.
+
+#### ADN Temporel Projet
+
+```typescript
+type ProjectTemporalDNA = {
+  // Naissance : Inception projet
+  genesis: {
+    timestamp: number;
+    initiators: string[];
+    initialContext: TemporalContext;
+  };
+  
+  // Croissance : Phases développement
+  phases: Array<{
+    name: string;
+    start: number;
+    end: number;
+    keyEvents: TemporalEvent[];
+    teamRhythm: CircadianPattern;
+    decisionDensity: number; // Décisions par jour
+  }>;
+  
+  // Maturité : Opération stable
+  maturity: {
+    sustainedRhythm: CircadianPattern;
+    maintenanceEvents: TemporalEvent[];
+    evolutionRate: number; // Vélocité changement
+  };
+  
+  // Achèvement : Clôture projet
+  completion?: {
+    timestamp: number;
+    finalContext: TemporalContext;
+    retrospective: TemporalAnalysis;
+  };
+  
+  // Signes Vitaux : Santé projet dans le temps
+  vitalSigns: {
+    decisionQuality: TimeSeries;
+    teamEnergy: TimeSeries;
+    deliveryRhythm: TimeSeries;
+    externalPressure: TimeSeries;
+  };
 };
 ```
+
+#### Visualisation Cycle de Vie
+
+Visualiser peut rendre le cycle vie projet entier comme :
+
+1. **Cercle Compressé** : Projet entier comme roue 24 heures unique
+2. **Timeline Étendue** : Vue multi-jour/semaine/mois défilable
+3. **Comparaison Phases** : Superposer différentes phases projet
+4. **Analyse Rythme Équipe** : Visualiser patterns circadiens équipe sur vie projet
+5. **Archéologie Décisions** : Reconstruire contexte décisions critiques
 
 ---
 
 ### 🔒 Architecture Sécurité & Confidentialité
 
 #### Modèle d'Authentification
-- **Supabase Auth** avec fédération de fournisseurs OAuth 2.0
-- **Tokens JWT** avec cycles de rafraîchissement automatiques
-- **Coffre-fort de tokens chiffré** dans Supabase avec application RLS
-- **Zéro secrets côté client** — toutes opérations sensibles dans edge functions
+- **Supabase Auth** avec fédération fournisseurs OAuth 2.0
+- **Tokens JWT** avec cycles rafraîchissement automatiques
+- **Coffre-fort tokens chiffré** dans Supabase avec application RLS
+- **Zéro secrets côté client** — opérations sensibles dans edge functions
+- **Authentification machine** via clés API avec permissions basées scope
 
-#### Souveraineté des Données
-- **Row Level Security** appliqué sur toutes tables de données
-- **Isolation données utilisateur** au niveau requête base de données
+#### Souveraineté Données
+- **Row Level Security** appliqué sur toutes tables données
+- **Isolation données utilisateur** au niveau requête base données
+- **Immuabilité événements temporels** appliquée au niveau base données
 - **Chiffrement bout-en-bout** (HTTPS/WSS uniquement)
-- **Design privacy-first** — pas d'analytics ou tracking tiers
+- **Design privacy-first** — pas analytics ou tracking tiers
 
 ---
 
@@ -655,8 +1004,8 @@ Ce projet est sous licence **MIT** — voir fichier [LICENSE](LICENSE) pour dét
 - **Documentation** : [docs.dona.club](https://docs.dona.club)
 - **Issues** : [GitHub Issues](https://github.com/votreusername/dona-club/issues)
 - **Email** : support@dona.club
-- **Discord** : [Rejoindre la communauté](https://discord.gg/dona-club)
+- **Discord** : [Rejoindre communauté](https://discord.gg/dona-club)
 
 ---
 
-**Crafted with intention for a more conscious relationship with time**
+**Crafted with intention for mastering the lifecycle of every project**
