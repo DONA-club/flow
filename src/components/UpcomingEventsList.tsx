@@ -267,11 +267,15 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     >
       <div
         className={[
-          "w-[88vw] sm:w-[320px] md:w-[360px] pointer-events-auto",
+          "pointer-events-auto",
           "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
           "relative overflow-hidden",
           className || "",
         ].join(" ").trim()}
+        style={{
+          width: "400px",
+          maxWidth: "calc(100vw - 2rem)",
+        }}
         aria-label="Événements à venir"
       >
         {isAnimating && (
