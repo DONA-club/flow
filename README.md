@@ -14,7 +14,7 @@
 
 The core insight: **every project is a life**. Birth, growth, maturity, transmission. Visualiser captures this lifecycle as immutable temporal DNA—enabling teams, stakeholders, and systems to observe the same growth intention from their unique perspectives.
 
-This is DONA.club's foundational tool for mastering project quality of life through temporal intelligence.
+This is a DONA.club's foundational tool for mastering project quality of life through temporal intelligence.
 
 **What It Does:**
 
@@ -548,10 +548,9 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 ### 📞 Support
 
-- **Documentation**: [docs.dona.club](https://docs.dona.club)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/dona-club/issues)
-- **Email**: support@dona.club
-- **Discord**: [Join our community](https://discord.gg/dona-club)
+- **Issues** : [GitHub Issues](https://github.com/sachaulysse/dona-club/issues)
+- **Email** : conscience@dona.club
+- **Discord** : [Rejoindre communauté](https://discord.gg/6gXjVhacp)
 
 ---
 
