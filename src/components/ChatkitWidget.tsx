@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ChatKit, useChatKit } from "@openai/chatkit-react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Props = {
   className?: string;
@@ -19,6 +18,8 @@ function getDeviceId(): string {
 }
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chatkitElementRef = useRef<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -36,7 +37,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
   }, []);
 
   // Get client secret from Edge Function
-  const getClientSecret = async (existingClientSecret?: string) => {
+  const getClientSecret = async () => {
     const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
     const url = `${supabaseUrl}/functions/v1/chatkit-session`;
     
@@ -44,15 +45,10 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          deviceId: getDeviceId(),
-          existingClientSecret 
-        }),
+        body: JSON.stringify({ deviceId: getDeviceId() }),
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error("Failed to get client secret:", error);
         throw new Error("Failed to get client secret");
       }
 
@@ -64,57 +60,97 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   };
 
-  // Initialize ChatKit with secure client secret
-  const { control } = useChatKit({
-    api: { getClientSecret },
-    theme: {
-      colorScheme: isDarkMode ? ("dark" as const) : ("light" as const),
-      radius: "soft" as const,
-      density: "normal" as const,
-      color: {
-        grayscale: {
-          hue: 220,
-          tint: 10,
-          shade: -10,
-        },
-        accent: {
-          primary: "#6d28d9",
-          level: 5,
-        },
-      },
-      typography: {
-        baseSize: 16,
-        fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
-      },
-    },
-    composer: {
-      placeholder: "Posez votre question...",
-    },
-    startScreen: {
-      greeting: "Bonjour ! Comment puis-je vous aider ?",
-      prompts: [
-        {
-          label: "Mes événements",
-          prompt: "Quels sont mes prochains événements ?",
-        },
-        {
-          label: "Mon sommeil",
-          prompt: "Comment est mon sommeil récemment ?",
-        },
-        {
-          label: "Lever/coucher du soleil",
-          prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-        },
-        {
-          label: "Aide",
-          prompt: "Comment utiliser cette application ?",
-        }
-      ]
-    }
-  } as any);
+  // Mount ChatKit
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    let mounted = true;
+
+    const mountChatKit = async () => {
+      try {
+        // Get client secret
+        const clientSecret = await getClientSecret();
+
+        if (!mounted) return;
+
+        // Create element
+        const el = document.createElement("openai-chatkit");
+        
+        // Set options BEFORE appending to DOM
+        (el as any).options = {
+          clientSecret,
+          theme: {
+            colorScheme: isDarkMode ? "dark" : "light",
+            radius: "soft",
+            density: "normal",
+            color: {
+              grayscale: {
+                hue: 220,
+                tint: 10,
+                shade: -10,
+              },
+              accent: {
+                primary: "#6d28d9",
+                level: 5,
+              },
+            },
+            typography: {
+              baseSize: 16,
+              fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+            },
+          },
+          composer: {
+            placeholder: "Posez votre question...",
+          },
+          startScreen: {
+            greeting: "Bonjour ! Comment puis-je vous aider ?",
+            prompts: [
+              {
+                label: "Mes événements",
+                prompt: "Quels sont mes prochains événements ?",
+              },
+              {
+                label: "Mon sommeil",
+                prompt: "Comment est mon sommeil récemment ?",
+              },
+              {
+                label: "Lever/coucher du soleil",
+                prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
+              },
+              {
+                label: "Aide",
+                prompt: "Comment utiliser cette application ?",
+              }
+            ]
+          }
+        };
+
+        // Set class (not className)
+        el.setAttribute("class", "w-full h-full rounded-xl overflow-hidden shadow-2xl");
+
+        // Append to DOM
+        containerRef.current?.appendChild(el);
+        chatkitElementRef.current = el;
+
+      } catch (err) {
+        console.error("ChatKit mount error:", err);
+      }
+    };
+
+    mountChatKit();
+
+    return () => {
+      mounted = false;
+      if (chatkitElementRef.current && containerRef.current) {
+        containerRef.current.removeChild(chatkitElementRef.current);
+        chatkitElementRef.current = null;
+      }
+    };
+  }, [isDarkMode]);
 
   return (
     <div
+      ref={containerRef}
       className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
@@ -124,12 +160,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         pointerEvents: "auto",
         zIndex: 9999,
       }}
-    >
-      <ChatKit 
-        control={control} 
-        className="w-full h-full rounded-xl overflow-hidden shadow-2xl"
-      />
-    </div>
+    />
   );
 };
 

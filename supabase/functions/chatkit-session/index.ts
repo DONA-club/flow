@@ -28,24 +28,7 @@ serve(async (req) => {
   }
 
   try {
-    if (!OPENAI_API_KEY) {
-      console.error("❌ Missing OPENAI_API_KEY");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: cors({ "Content-Type": "application/json" }) }
-      );
-    }
-
-    if (!CHATKIT_WORKFLOW_ID) {
-      console.error("❌ Missing CHATKIT_WORKFLOW_ID");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: cors({ "Content-Type": "application/json" }) }
-      );
-    }
-
-    if (!CHATKIT_DOMAIN_KEY) {
-      console.error("❌ Missing CHATKIT_DOMAIN_KEY");
+    if (!OPENAI_API_KEY || !CHATKIT_WORKFLOW_ID || !CHATKIT_DOMAIN_KEY) {
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
@@ -62,7 +45,7 @@ serve(async (req) => {
       );
     }
 
-    const { deviceId, existingClientSecret } = body;
+    const { deviceId } = body;
 
     if (!deviceId || typeof deviceId !== "string") {
       return new Response(
@@ -84,13 +67,11 @@ serve(async (req) => {
           id: CHATKIT_WORKFLOW_ID,
         },
         user: deviceId,
-        // Don't include messages here - let the widget handle conversation
       }),
     });
 
     if (!sessionResponse.ok) {
       const errorText = await sessionResponse.text();
-      console.error("❌ ChatKit session creation failed:", errorText);
       return new Response(
         JSON.stringify({ 
           error: "Failed to create ChatKit session",
@@ -110,7 +91,6 @@ serve(async (req) => {
     );
 
   } catch (err) {
-    console.error("💥 Error:", err);
     return new Response(
       JSON.stringify({ error: String(err) }),
       { status: 500, headers: cors({ "Content-Type": "application/json" }) }
