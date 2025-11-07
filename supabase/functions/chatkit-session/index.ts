@@ -84,21 +84,13 @@ serve(async (req) => {
       );
     }
 
-    // Create ChatKit session with context
+    // Create ChatKit session WITHOUT context (not supported in session creation)
     const sessionPayload: any = {
       workflow: {
         id: CHATKIT_WORKFLOW_ID,
       },
       user: deviceId,
     };
-
-    // Add context to session if provided
-    if (pageContext) {
-      sessionPayload.context = {
-        page_context: JSON.stringify(pageContext, null, 2)
-      };
-      console.log(`[ChatKit] Context added to session (${JSON.stringify(pageContext).length} chars)`);
-    }
 
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${OPENAI_API_KEY}`,
@@ -110,7 +102,7 @@ serve(async (req) => {
       headers["X-ChatKit-Domain-Key"] = CHATKIT_DOMAIN_KEY;
     }
 
-    console.log("[ChatKit] Creating session with payload:", JSON.stringify(sessionPayload, null, 2));
+    console.log("[ChatKit] Creating session for user:", deviceId);
 
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
@@ -133,9 +125,36 @@ serve(async (req) => {
     }
 
     const sessionData = await sessionResponse.json();
-    
-    if (pageContext) {
-      console.log("[ChatKit] Session created with page_context");
+    console.log("[ChatKit] Session created successfully");
+
+    // If context provided, send it as first system message
+    if (pageContext && sessionData.id) {
+      console.log(`[ChatKit] Sending context as system message (${JSON.stringify(pageContext).length} chars)`);
+      
+      try {
+        const contextMessage = {
+          role: "system",
+          content: `Page Context:\n${JSON.stringify(pageContext, null, 2)}`
+        };
+
+        const messageResponse = await fetch(
+          `https://api.openai.com/v1/chatkit/sessions/${sessionData.id}/messages`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify(contextMessage),
+          }
+        );
+
+        if (messageResponse.ok) {
+          console.log("[ChatKit] Context sent successfully as system message");
+        } else {
+          const errorText = await messageResponse.text();
+          console.error("[ChatKit] Failed to send context message:", errorText);
+        }
+      } catch (err) {
+        console.error("[ChatKit] Error sending context:", err);
+      }
     }
 
     return new Response(
