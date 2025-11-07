@@ -567,17 +567,17 @@ C'est un outil fondateur de DONA.club pour maîtriser la qualité de vie des pro
 
 **Ce qu'il fait :**
 
-- **Référentiel Temporel** : Log d'événements immuable avec timestamps microseconde et préservation contexte complet
-- **Observation Multipartite** : Même chronologie vue depuis perspectives humaine, machine et parties prenantes
-- **Relativité Temporelle** : Rejouer séquences événements à différentes échelles (circadienne, microseconde, lifecycle)
+- **Référentiel temporel** : Log d'événements immuable avec timestamps microseconde et préservation contexte complet
+- **Observation multipartite** : Même chronologie vue depuis perspectives humaine, machine et parties prenantes
+- **Relativité temporelle** : Rejouer séquences événements à différentes échelles (circadienne, microseconde, lifecycle)
 - **Métriques Qualité de Vie** : Suivre santé projet via stabilité rythmes, niveaux énergie et patterns livraison
-- **Élévation Sans Contrainte** : Intégration qui fournit altitude sans imposer structure
+- **Élévation sans contrainte** : Intégration qui fournit altitude sans imposer structure
 
-**Pourquoi C'est Important :**
+**Pourquoi c'est important :**
 
-Les projets échouent non par manque d'outils, mais par désalignement temporel. Les équipes opèrent sur différents rythmes. Les décisions manquent de contexte historique. Les parties prenantes voient différentes réalités. Les machines optimisent pour mauvais horizons.
+Les projets échouent non par manque d'outils, mais par désalignement temporel. Les équipes opèrent sur différents rythmes. Les décisions manquent de contexte historique. Les parties prenantes voient différentes réalités. Les machines optimisent pour des horizons biaisés.
 
-L'intention de Visualiser résout ceci en créant une référence temporelle partagée—une source unique de vérité qui s'adapte à la perspective naturelle de chaque observateur tout en maintenant cohérence à travers toutes les vues.
+L'intention de Visualiser résout ceci en créant une référence temporelle partagée—une source commune de réalité qui s'adapte à la perspective naturelle de chaque observateur tout en maintenant cohérence à travers toutes les vues.
 
 ---
 
