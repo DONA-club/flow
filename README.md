@@ -1,6 +1,6 @@
-# DONA.club — Circular Calendar Platform
+# DONA.club — Visualiser
 
-> **A white-label temporal intelligence platform that reimagines how humans interact with time, events, and personal rhythms.**
+> **A temporal consciousness interface that transforms how humans perceive and navigate their relationship with time.**
 
 [🇫🇷 Version française](#version-française) | [🇬🇧 English version](#english-version)
 
@@ -8,93 +8,96 @@
 
 ## English Version
 
-### 🌅 Vision
+### 🌅 The Vision
 
-DONA.club is not just another calendar application—it's a **temporal consciousness platform** that harmonizes your digital life with natural circadian rhythms. By visualizing time as a continuous circle rather than a linear grid, we help users develop a more intuitive, holistic relationship with their daily schedules.
+**Visualiser** is not a calendar—it's a **temporal awareness instrument** that reveals the invisible architecture of your days. By rendering time as a living, breathing circle synchronized with natural rhythms, Visualiser helps you develop an intuitive, embodied relationship with your temporal existence.
 
-**Core Philosophy:**
-- **Circadian-First Design**: Time visualization adapts to your sleep-wake cycles and natural light patterns
-- **Multi-Provider Harmony**: Seamlessly unify Google, Microsoft, and other calendars into one coherent view
-- **Contextual Intelligence**: AI assistant with full awareness of your schedule, location, and temporal context
-- **Ambient Interface**: Information appears when needed, fades when not—respecting attention as a finite resource
+This is the first manifestation of **DONA.club's broader ambition**: to master quality of life across projects, organizations, and individuals through temporal intelligence.
+
+**Core Principles:**
+
+- **Circadian Consciousness**: Time visualization adapts to your biological rhythms and natural light cycles
+- **Unified Temporal View**: Seamlessly merge multiple time streams (Google, Microsoft, etc.) into one coherent reality
+- **Contextual Awareness**: AI companion with complete understanding of your temporal landscape
+- **Ambient Intelligence**: Information emerges when relevant, dissolves when not—honoring attention as sacred
 
 ---
 
-### ✨ Key Features
+### ✨ What Visualiser Does
 
-#### 🎯 Circular Time Visualization
-- **24-hour wheel interface** with sunrise/sunset markers
-- **Dynamic background gradients** that shift with your circadian rhythm
-- **Event arcs** that show duration and proximity at a glance
-- **Sleep overlay** visualizing rest periods and sleep debt/capital
-- **Scroll through time** with intuitive wheel/swipe gestures
+#### 🎯 Circular Time Perception
+- **24-hour consciousness wheel** with solar cycle markers (sunrise/sunset)
+- **Living background gradients** that breathe with your circadian state
+- **Event arcs** revealing temporal density and proximity
+- **Sleep architecture overlay** showing rest patterns and recovery debt/surplus
+- **Temporal navigation** through intuitive gestures (scroll/swipe through time)
 
-#### 🔗 Universal Calendar Integration
-- **Google Calendar** with automatic token refresh
-- **Microsoft Outlook** (Office 365) with Graph API integration
-- **Multi-account support** via OAuth token management
-- **Real-time synchronization** across all connected providers
-- **Conflict-free merging** of events from multiple sources
+#### 🔗 Multi-Stream Time Integration
+- **Google ecosystem** with intelligent token management
+- **Microsoft ecosystem** (Office 365) via Graph API
+- **Multi-identity support** through secure OAuth orchestration
+- **Real-time synchronization** across all connected time streams
+- **Conflict-free temporal merging** from heterogeneous sources
 
 #### 😴 Sleep Intelligence (Google Fit)
-- **Automatic sleep tracking** from Google Fit sessions
-- **Sleep debt calculation** over rolling 7-day windows
-- **Ideal bedtime recommendations** based on wake patterns
-- **Visual sleep overlays** on the circular calendar
-- **Historical sleep data** for any past date
+- **Automatic sleep session detection** from Google Fit
+- **Recovery debt calculation** over rolling 7-day windows
+- **Optimal rest timing recommendations** based on wake patterns
+- **Visual sleep architecture** integrated into the temporal wheel
+- **Historical sleep data** accessible for any past moment
 
-#### 🤖 AI Assistant (OpenAI Assistants API)
-- **Full page context awareness**: calendar, sleep, location, theme, connections
-- **Natural language queries**: "What's my next meeting?", "How's my sleep?"
-- **Tool execution**: Can analyze your schedule and provide insights
-- **Streaming responses** with real-time tool activity indicators
-- **Persistent conversation threads** across sessions
+#### 🤖 Temporal AI Companion (OpenAI Assistants)
+- **Full contextual awareness**: temporal state, sleep, location, theme, connections
+- **Natural language temporal queries**: "What's emerging next?", "How's my recovery?"
+- **Analytical tools**: Can examine your temporal patterns and surface insights
+- **Streaming consciousness** with real-time tool activity
+- **Persistent conversation memory** across sessions
 
-#### 🎨 Adaptive Design
-- **System theme detection** (dark/light mode)
-- **Circadian background gradients** that evolve throughout the day
-- **Golden ratio sizing** for optimal visual harmony
-- **Mobile-first responsive** design with touch gestures
-- **Accessibility-focused** with ARIA labels and semantic HTML
+#### 🎨 Adaptive Interface
+- **System theme synchronization** (dark/light modes)
+- **Circadian gradient evolution** throughout the day
+- **Golden ratio proportions** for visual harmony
+- **Touch-first responsive design** with gestural fluidity
+- **Accessibility-centered** with ARIA semantics
 
 ---
 
-### 🏗️ Architecture
+### 🏗️ Technical Architecture
 
-#### Technology Stack
+#### Technology Foundation
 
-**Frontend:**
-- **React 18** with TypeScript for type-safe component development
-- **Vite** for lightning-fast builds and HMR
-- **Tailwind CSS** for utility-first styling with custom design system
-- **shadcn/ui** for accessible, customizable UI components
+**Interface Layer:**
+- **React 18** with TypeScript for type-safe component architecture
+- **Vite** for instant feedback loops and optimized builds
+- **Tailwind CSS** for utility-first styling with custom design tokens
+- **shadcn/ui** for accessible, composable UI primitives
 - **React Router** for client-side navigation
-- **TanStack Query** for server state management
+- **TanStack Query** for server state orchestration
 
-**Backend & Services:**
-- **Supabase** for authentication, database, and edge functions
-- **PostgreSQL** with Row Level Security for data isolation
-- **Supabase Edge Functions** (Deno runtime) for serverless API endpoints
-- **OpenAI Assistants API** for conversational AI with tool support
-- **ChatKit** for embedded chat UI with streaming support
+**Intelligence Layer:**
+- **Supabase** for authentication, persistence, and serverless functions
+- **PostgreSQL** with Row Level Security for data sovereignty
+- **Supabase Edge Functions** (Deno runtime) for serverless compute
+- **OpenAI Assistants API** for conversational intelligence with tool use
+- **ChatKit** for embedded conversational UI with streaming
 
-**APIs & Integrations:**
+**Integration Layer:**
 - **Google Calendar API** (OAuth 2.0)
 - **Microsoft Graph API** (Azure AD OAuth)
-- **Google Fit API** for sleep data
+- **Google Fit API** for biometric data
 - **Sunrise-Sunset API** for solar calculations
 - **OpenAI GPT-4** for natural language understanding
 
-**Infrastructure:**
-- **GitHub Actions** for CI/CD pipeline
+**Deployment:**
+- **GitHub Actions** for continuous deployment
 - **OVH Cloud Web** for production hosting
-- **Capacitor** for iOS/Android native builds
-- **Service Workers** for offline capabilities
+- **Capacitor** for native iOS/Android compilation
+- **Service Workers** for offline resilience
 
-#### Database Schema
+#### Data Architecture
 
 ```sql
--- OAuth token storage with automatic refresh
+-- OAuth token vault with automatic refresh
 CREATE TABLE oauth_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -108,7 +111,7 @@ CREATE TABLE oauth_tokens (
   UNIQUE(user_id, provider)
 );
 
--- User preferences for UI state persistence
+-- User preference persistence
 CREATE TABLE user_preferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -120,35 +123,35 @@ CREATE TABLE user_preferences (
 );
 ```
 
-**Row Level Security (RLS):**
-- All tables have RLS enabled by default
-- Users can only access their own data
-- Service role bypasses RLS for admin operations
+**Security Model:**
+- Row Level Security (RLS) enforced on all tables
+- User data isolation at database level
+- Service role for administrative operations only
 
-#### Edge Functions
+#### Serverless Functions
 
-**`chatkit-session`** — Creates OpenAI ChatKit sessions with page context
+**`chatkit-session`** — Initializes AI companion with full temporal context
 ```typescript
 POST /functions/v1/chatkit-session
 Body: { deviceId, pageContext }
 Returns: { client_secret, context_sent }
 ```
 
-**`google-token-refresh`** — Refreshes expired Google OAuth tokens
+**`google-token-refresh`** — Maintains Google ecosystem connectivity
 ```typescript
 POST /functions/v1/google-token-refresh
 Body: { refresh_token }
 Returns: { access_token, expires_in }
 ```
 
-**`microsoft-token-refresh`** — Refreshes expired Microsoft OAuth tokens
+**`microsoft-token-refresh`** — Maintains Microsoft ecosystem connectivity
 ```typescript
 POST /functions/v1/microsoft-token-refresh
 Body: { refresh_token, scope }
 Returns: { access_token, refresh_token, expires_in }
 ```
 
-**`chat`** — OpenAI Assistants API streaming endpoint
+**`chat`** — Streaming conversational intelligence endpoint
 ```typescript
 POST /functions/v1/chat
 Body: { messages, stream, thread_id }
@@ -157,17 +160,17 @@ Returns: Server-Sent Events stream
 
 ---
 
-### 🚀 Getting Started
+### 🚀 Implementation Guide
 
 #### Prerequisites
 
 - **Node.js 20+** and npm 10+
-- **Supabase account** with project created
-- **Google Cloud Console** project with Calendar & Fit APIs enabled
+- **Supabase project** with authentication enabled
+- **Google Cloud Console** project with Calendar & Fit APIs
 - **Microsoft Azure AD** app registration with Graph API permissions
 - **OpenAI API key** with Assistants API access
 
-#### Environment Setup
+#### Environment Configuration
 
 1. **Clone the repository:**
 ```bash
@@ -180,14 +183,14 @@ cd dona-club
 npm install
 ```
 
-3. **Configure Supabase:**
+3. **Configure Supabase connection:**
 ```bash
 # Create .env.local
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-4. **Set up Supabase secrets:**
+4. **Configure serverless secrets:**
 ```bash
 # In Supabase Dashboard → Edge Functions → Manage Secrets
 OPENAI_API_KEY=sk-...
@@ -199,51 +202,51 @@ MICROSOFT_CLIENT_ID=...
 MICROSOFT_CLIENT_SECRET=...
 ```
 
-5. **Run database migrations:**
+5. **Apply database migrations:**
 ```bash
-# Migrations are in supabase/migrations/
-# Apply via Supabase Dashboard → SQL Editor
+# Migrations located in supabase/migrations/
+# Execute via Supabase Dashboard → SQL Editor
 ```
 
 6. **Configure OAuth redirect URIs:**
 - **Google Console**: Add `https://your-project.supabase.co/auth/v1/callback`
 - **Azure Portal**: Add same URL to redirect URIs
 
-#### Development
+#### Development Workflow
 
 ```bash
-# Start dev server
+# Start development server
 npm run dev
 
-# Build for production
+# Production build
 npm run build
 
 # Preview production build
 npm run preview
 ```
 
-#### Deployment
+#### Deployment Pipeline
 
-**Automatic (GitHub Actions):**
+**Automated (GitHub Actions):**
 ```yaml
 # .github/workflows/deploy-ovh.yml
-# Triggers on push to main branch
+# Triggers on main branch push
 # Deploys to OVH Cloud Web via FTP
 ```
 
 **Manual:**
 ```bash
 npm run build
-# Upload dist/ folder to your hosting provider
+# Upload dist/ folder to hosting provider
 ```
 
 ---
 
-### 🎨 White-Label Customization
+### 🎨 White-Label Adaptation
 
-DONA.club is designed as a **white-label platform** that can be fully customized:
+Visualiser is architected as a **white-label temporal intelligence platform**:
 
-#### Branding
+#### Brand Identity
 ```typescript
 // tailwind.config.ts
 theme: {
@@ -259,7 +262,7 @@ theme: {
 }
 ```
 
-#### Configuration
+#### Platform Configuration
 ```typescript
 // src/config/brand.ts
 export const BRAND_CONFIG = {
@@ -270,145 +273,143 @@ export const BRAND_CONFIG = {
 };
 ```
 
-#### Features
+#### Feature Toggles
 ```typescript
 // src/config/features.ts
 export const FEATURES = {
-  googleCalendar: true,
-  microsoftCalendar: true,
-  sleepTracking: true,
-  aiAssistant: true,
-  // Toggle features per deployment
+  googleIntegration: true,
+  microsoftIntegration: true,
+  sleepIntelligence: true,
+  aiCompanion: true,
+  // Modular feature activation per deployment
 };
 ```
 
 ---
 
-### 📊 Page Context System
+### 📊 Temporal Context System
 
-The platform generates rich contextual data for the AI assistant:
+Visualiser generates rich contextual awareness for the AI companion:
 
 ```typescript
-type PageContext = {
+type TemporalContext = {
   timestamp: string;
-  page: { url, title, pathname };
+  interface: { url, title, pathname };
   viewport: { width, height, orientation };
   theme: { isDarkMode, colorScheme };
-  calendar: {
-    currentDate: string;
-    virtualDate: string | null;
-    sunrise: number;
-    sunset: number;
-    latitude: number | null;
-    longitude: number | null;
+  temporal: {
+    currentMoment: string;
+    virtualMoment: string | null;
+    solarCycle: { sunrise, sunset };
+    location: { latitude, longitude };
   };
-  events: {
+  timeStreams: {
     total: number;
-    upcoming: Array<{
+    emerging: Array<{
       title, organizer, start, end, duration,
-      timeUntil, location, hasVideoLink, url
+      proximity, location, hasVideoLink, url
     }>;
-    currentEvent: { title, organizer, start, end, timeRemaining } | null;
+    currentEvent: { title, organizer, start, end, remaining } | null;
   };
-  sleep: {
-    connected: boolean;
-    wakeHour: number | null;
-    bedHour: number | null;
-    totalSleepHours: number | null;
-    debtOrCapital: { type, hours, daysCount } | null;
+  recovery: {
+    tracking: boolean;
+    wakeTime: number | null;
+    restTime: number | null;
+    totalRecovery: number | null;
+    debtOrSurplus: { type, hours, daysCount } | null;
   };
   connections: { google, microsoft, apple, facebook, amazon };
-  user: { deviceId, userAgent, language, timezone };
+  identity: { deviceId, userAgent, language, timezone };
 };
 ```
 
-**Access in browser console:**
+**Console Access:**
 ```javascript
-window.getPageContext() // Returns full context object
+window.getPageContext() // Returns complete temporal context
 ```
 
 ---
 
-### 🔒 Security & Privacy
+### 🔒 Security & Privacy Architecture
 
-#### Authentication
-- **Supabase Auth** with OAuth 2.0 providers
-- **JWT tokens** with automatic refresh
-- **Secure token storage** in Supabase database with RLS
-- **No client-side secrets** — all sensitive operations in edge functions
+#### Authentication Model
+- **Supabase Auth** with OAuth 2.0 provider federation
+- **JWT tokens** with automatic refresh cycles
+- **Encrypted token vault** in Supabase with RLS enforcement
+- **Zero client-side secrets** — all sensitive operations in edge functions
 
-#### Data Protection
-- **Row Level Security** on all database tables
-- **User data isolation** — users can only access their own records
-- **Encrypted connections** (HTTPS/WSS only)
-- **No third-party analytics** — privacy-first approach
+#### Data Sovereignty
+- **Row Level Security** enforced on all data tables
+- **User data isolation** at database query level
+- **End-to-end encryption** (HTTPS/WSS only)
+- **Privacy-first design** — no third-party analytics or tracking
 
-#### OAuth Token Management
-- **Automatic token refresh** before expiration
-- **Graceful degradation** when tokens expire
-- **Clear error messages** prompting reconnection
-- **Token revocation** on disconnect
+#### Token Lifecycle Management
+- **Proactive token refresh** before expiration
+- **Graceful degradation** on token invalidation
+- **Clear reconnection prompts** for expired sessions
+- **Secure token revocation** on disconnect
 
 ---
 
-### 🧪 Testing
+### 🧪 Quality Assurance
 
 ```bash
-# Run linter
+# Linting
 npm run lint
 
 # Type checking
 npx tsc --noEmit
 
-# Build test
+# Build verification
 npm run build
 ```
 
-**Manual Testing Checklist:**
-- [ ] Google Calendar sync with multiple events
-- [ ] Microsoft Calendar sync with recurring events
-- [ ] Sleep data from Google Fit
-- [ ] AI assistant with page context
-- [ ] Theme switching (dark/light)
-- [ ] Mobile touch gestures
+**Manual Verification Checklist:**
+- [ ] Google time stream synchronization with multiple events
+- [ ] Microsoft time stream synchronization with recurring patterns
+- [ ] Sleep intelligence data from Google Fit
+- [ ] AI companion with full temporal context
+- [ ] Theme adaptation (dark/light)
+- [ ] Touch gesture navigation
 - [ ] Token refresh on expiration
-- [ ] Multi-day event loading
+- [ ] Multi-day temporal navigation
 
 ---
 
-### 📈 Performance
+### 📈 Performance Characteristics
 
-**Optimization Strategies:**
+**Optimization Strategy:**
 - **Code splitting** with dynamic imports
 - **Lazy loading** for routes and heavy components
-- **Memoization** of expensive calculations (sun times, event filtering)
-- **Debounced API calls** to prevent rate limiting
-- **Optimistic UI updates** for instant feedback
-- **Service worker caching** for offline support
+- **Memoization** of expensive computations (solar calculations, event filtering)
+- **Debounced API calls** to respect rate limits
+- **Optimistic UI updates** for perceived performance
+- **Service worker caching** for offline resilience
 
-**Bundle Size:**
+**Bundle Metrics:**
 - Main bundle: ~180KB (gzipped)
 - Vendor chunks: ~220KB (gzipped)
-- Total initial load: ~400KB
+- Initial load: ~400KB total
 
 ---
 
 ### 🤝 Contributing
 
-We welcome contributions! Please follow these guidelines:
+Contributions are welcome! Please follow these guidelines:
 
 1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit your changes**: `git commit -m 'Add amazing feature'`
-4. **Push to the branch**: `git push origin feature/amazing-feature`
+2. **Create a feature branch**: `git checkout -b feature/temporal-enhancement`
+3. **Commit your changes**: `git commit -m 'Add temporal enhancement'`
+4. **Push to branch**: `git push origin feature/temporal-enhancement`
 5. **Open a Pull Request**
 
-**Code Style:**
+**Code Standards:**
 - TypeScript strict mode
 - Functional components with hooks
 - Tailwind CSS for styling
-- Descriptive variable names
-- Comments for complex logic
+- Semantic naming conventions
+- Inline documentation for complex logic
 
 ---
 
@@ -424,7 +425,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 - **Supabase** for backend infrastructure
 - **Vercel** for shadcn/ui components
 - **Radix UI** for accessible primitives
-- **Lucide** for beautiful icons
+- **Lucide** for iconography
 
 ---
 
@@ -439,132 +440,101 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ## Version Française
 
-### 🌅 Vision
+### 🌅 La Vision
 
-DONA.club n'est pas simplement une application de calendrier—c'est une **plateforme d'intelligence temporelle** qui harmonise votre vie numérique avec vos rythmes circadiens naturels. En visualisant le temps comme un cercle continu plutôt qu'une grille linéaire, nous aidons les utilisateurs à développer une relation plus intuitive et holistique avec leurs emplois du temps.
+**Visualiser** n'est pas un calendrier—c'est un **instrument de conscience temporelle** qui révèle l'architecture invisible de vos journées. En représentant le temps comme un cercle vivant, synchronisé avec les rythmes naturels, Visualiser vous aide à développer une relation intuitive et incarnée avec votre existence temporelle.
 
-**Philosophie fondamentale :**
-- **Design circadien prioritaire** : La visualisation du temps s'adapte à vos cycles veille-sommeil et aux variations de lumière naturelle
-- **Harmonie multi-fournisseurs** : Unifiez Google, Microsoft et d'autres calendriers en une vue cohérente
-- **Intelligence contextuelle** : Assistant IA avec conscience complète de votre agenda, localisation et contexte temporel
-- **Interface ambiante** : L'information apparaît quand nécessaire, s'estompe sinon—respectant l'attention comme ressource finie
+C'est la première manifestation de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle.
 
----
+**Principes Fondamentaux :**
 
-### ✨ Fonctionnalités Clés
-
-#### 🎯 Visualisation Circulaire du Temps
-- **Interface en roue de 24 heures** avec marqueurs lever/coucher du soleil
-- **Dégradés d'arrière-plan dynamiques** qui évoluent avec votre rythme circadien
-- **Arcs d'événements** montrant durée et proximité d'un coup d'œil
-- **Superposition du sommeil** visualisant périodes de repos et dette/capital de sommeil
-- **Navigation temporelle** avec gestes intuitifs de molette/balayage
-
-#### 🔗 Intégration Calendrier Universelle
-- **Google Calendar** avec rafraîchissement automatique des tokens
-- **Microsoft Outlook** (Office 365) avec intégration Graph API
-- **Support multi-comptes** via gestion de tokens OAuth
-- **Synchronisation temps réel** sur tous les fournisseurs connectés
-- **Fusion sans conflit** des événements de sources multiples
-
-#### 😴 Intelligence Sommeil (Google Fit)
-- **Suivi automatique du sommeil** depuis les sessions Google Fit
-- **Calcul de dette de sommeil** sur fenêtres glissantes de 7 jours
-- **Recommandations d'heure de coucher** basées sur les patterns de réveil
-- **Superpositions visuelles du sommeil** sur le calendrier circulaire
-- **Données historiques** pour n'importe quelle date passée
-
-#### 🤖 Assistant IA (OpenAI Assistants API)
-- **Conscience contextuelle complète** : calendrier, sommeil, localisation, thème, connexions
-- **Requêtes en langage naturel** : "Quelle est ma prochaine réunion ?", "Comment va mon sommeil ?"
-- **Exécution d'outils** : Peut analyser votre emploi du temps et fournir des insights
-- **Réponses en streaming** avec indicateurs d'activité des outils en temps réel
-- **Fils de conversation persistants** entre sessions
-
-#### 🎨 Design Adaptatif
-- **Détection du thème système** (mode sombre/clair)
-- **Dégradés circadiens** évoluant tout au long de la journée
-- **Dimensionnement nombre d'or** pour harmonie visuelle optimale
-- **Design responsive mobile-first** avec gestes tactiles
-- **Axé accessibilité** avec labels ARIA et HTML sémantique
+- **Conscience Circadienne** : La visualisation du temps s'adapte à vos rythmes biologiques et cycles de lumière naturelle
+- **Vue Temporelle Unifiée** : Fusion transparente de multiples flux temporels (Google, Microsoft, etc.) en une réalité cohérente
+- **Conscience Contextuelle** : Compagnon IA avec compréhension complète de votre paysage temporel
+- **Intelligence Ambiante** : L'information émerge quand pertinente, se dissout sinon—honorant l'attention comme sacrée
 
 ---
 
-### 🏗️ Architecture
+### ✨ Ce que Fait Visualiser
 
-#### Stack Technologique
+#### 🎯 Perception Circulaire du Temps
+- **Roue de conscience 24 heures** avec marqueurs de cycle solaire (lever/coucher)
+- **Dégradés d'arrière-plan vivants** qui respirent avec votre état circadien
+- **Arcs d'événements** révélant densité et proximité temporelles
+- **Superposition d'architecture du sommeil** montrant patterns de repos et dette/surplus de récupération
+- **Navigation temporelle** par gestes intuitifs (défilement/balayage dans le temps)
 
-**Frontend :**
-- **React 18** avec TypeScript pour développement type-safe
-- **Vite** pour builds ultra-rapides et HMR
-- **Tailwind CSS** pour styling utility-first avec système de design personnalisé
-- **shadcn/ui** pour composants UI accessibles et personnalisables
+#### 🔗 Intégration Multi-Flux Temporels
+- **Écosystème Google** avec gestion intelligente des tokens
+- **Écosystème Microsoft** (Office 365) via Graph API
+- **Support multi-identités** par orchestration OAuth sécurisée
+- **Synchronisation temps réel** sur tous les flux temporels connectés
+- **Fusion temporelle sans conflit** depuis sources hétérogènes
+
+#### 😴 Intelligence du Sommeil (Google Fit)
+- **Détection automatique des sessions de sommeil** depuis Google Fit
+- **Calcul de dette de récupération** sur fenêtres glissantes de 7 jours
+- **Recommandations de timing optimal de repos** basées sur patterns de réveil
+- **Architecture visuelle du sommeil** intégrée dans la roue temporelle
+- **Données historiques de sommeil** accessibles pour tout moment passé
+
+#### 🤖 Compagnon IA Temporel (OpenAI Assistants)
+- **Conscience contextuelle complète** : état temporel, sommeil, localisation, thème, connexions
+- **Requêtes temporelles en langage naturel** : "Qu'est-ce qui émerge ensuite ?", "Comment va ma récupération ?"
+- **Outils analytiques** : Peut examiner vos patterns temporels et révéler des insights
+- **Conscience en streaming** avec activité des outils en temps réel
+- **Mémoire conversationnelle persistante** entre sessions
+
+#### 🎨 Interface Adaptive
+- **Synchronisation thème système** (modes sombre/clair)
+- **Évolution de dégradé circadien** tout au long de la journée
+- **Proportions nombre d'or** pour harmonie visuelle
+- **Design responsive tactile-first** avec fluidité gestuelle
+- **Centré accessibilité** avec sémantique ARIA
+
+---
+
+### 🏗️ Architecture Technique
+
+#### Fondation Technologique
+
+**Couche Interface :**
+- **React 18** avec TypeScript pour architecture de composants type-safe
+- **Vite** pour boucles de feedback instantanées et builds optimisés
+- **Tailwind CSS** pour styling utility-first avec tokens de design personnalisés
+- **shadcn/ui** pour primitives UI accessibles et composables
 - **React Router** pour navigation côté client
-- **TanStack Query** pour gestion d'état serveur
+- **TanStack Query** pour orchestration d'état serveur
 
-**Backend & Services :**
-- **Supabase** pour authentification, base de données et edge functions
-- **PostgreSQL** avec Row Level Security pour isolation des données
-- **Supabase Edge Functions** (runtime Deno) pour endpoints API serverless
-- **OpenAI Assistants API** pour IA conversationnelle avec support d'outils
-- **ChatKit** pour UI de chat embarquée avec streaming
+**Couche Intelligence :**
+- **Supabase** pour authentification, persistance et fonctions serverless
+- **PostgreSQL** avec Row Level Security pour souveraineté des données
+- **Supabase Edge Functions** (runtime Deno) pour compute serverless
+- **OpenAI Assistants API** pour intelligence conversationnelle avec usage d'outils
+- **ChatKit** pour UI conversationnelle embarquée avec streaming
 
-**APIs & Intégrations :**
+**Couche Intégration :**
 - **Google Calendar API** (OAuth 2.0)
 - **Microsoft Graph API** (Azure AD OAuth)
-- **Google Fit API** pour données de sommeil
+- **Google Fit API** pour données biométriques
 - **Sunrise-Sunset API** pour calculs solaires
 - **OpenAI GPT-4** pour compréhension du langage naturel
 
-**Infrastructure :**
-- **GitHub Actions** pour pipeline CI/CD
+**Déploiement :**
+- **GitHub Actions** pour déploiement continu
 - **OVH Cloud Web** pour hébergement production
-- **Capacitor** pour builds natifs iOS/Android
-- **Service Workers** pour capacités offline
-
-#### Schéma Base de Données
-
-```sql
--- Stockage tokens OAuth avec rafraîchissement automatique
-CREATE TABLE oauth_tokens (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  provider TEXT NOT NULL, -- 'google', 'microsoft', etc.
-  access_token TEXT,
-  refresh_token TEXT,
-  expires_at TIMESTAMPTZ,
-  scope TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, provider)
-);
-
--- Préférences utilisateur pour persistance état UI
-CREATE TABLE user_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  preference_key TEXT NOT NULL,
-  preference_value JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, preference_key)
-);
-```
-
-**Row Level Security (RLS) :**
-- Toutes les tables ont RLS activé par défaut
-- Les utilisateurs ne peuvent accéder qu'à leurs propres données
-- Le rôle service contourne RLS pour opérations admin
+- **Capacitor** pour compilation native iOS/Android
+- **Service Workers** pour résilience offline
 
 ---
 
-### 🚀 Démarrage
+### 🚀 Guide d'Implémentation
 
 #### Prérequis
 
 - **Node.js 20+** et npm 10+
-- **Compte Supabase** avec projet créé
-- **Projet Google Cloud Console** avec APIs Calendar & Fit activées
+- **Projet Supabase** avec authentification activée
+- **Projet Google Cloud Console** avec APIs Calendar & Fit
 - **Enregistrement app Microsoft Azure AD** avec permissions Graph API
 - **Clé API OpenAI** avec accès Assistants API
 
@@ -581,14 +551,14 @@ cd dona-club
 npm install
 ```
 
-3. **Configurer Supabase :**
+3. **Configurer connexion Supabase :**
 ```bash
 # Créer .env.local
 VITE_SUPABASE_URL=https://votre-projet.supabase.co
 VITE_SUPABASE_ANON_KEY=votre-cle-anon
 ```
 
-4. **Configurer les secrets Supabase :**
+4. **Configurer secrets serverless :**
 ```bash
 # Dans Dashboard Supabase → Edge Functions → Manage Secrets
 OPENAI_API_KEY=sk-...
@@ -600,23 +570,23 @@ MICROSOFT_CLIENT_ID=...
 MICROSOFT_CLIENT_SECRET=...
 ```
 
-5. **Exécuter les migrations :**
+5. **Appliquer migrations base de données :**
 ```bash
-# Les migrations sont dans supabase/migrations/
-# Appliquer via Dashboard Supabase → SQL Editor
+# Migrations dans supabase/migrations/
+# Exécuter via Dashboard Supabase → SQL Editor
 ```
 
-6. **Configurer les URIs de redirection OAuth :**
+6. **Configurer URIs de redirection OAuth :**
 - **Console Google** : Ajouter `https://votre-projet.supabase.co/auth/v1/callback`
 - **Portail Azure** : Ajouter même URL aux URIs de redirection
 
-#### Développement
+#### Workflow Développement
 
 ```bash
-# Démarrer serveur dev
+# Démarrer serveur développement
 npm run dev
 
-# Build pour production
+# Build production
 npm run build
 
 # Prévisualiser build production
@@ -625,11 +595,11 @@ npm run preview
 
 ---
 
-### 🎨 Personnalisation Marque Blanche
+### 🎨 Adaptation Marque Blanche
 
-DONA.club est conçu comme **plateforme marque blanche** entièrement personnalisable :
+Visualiser est architecturé comme **plateforme d'intelligence temporelle marque blanche** :
 
-#### Image de Marque
+#### Identité de Marque
 ```typescript
 // tailwind.config.ts
 theme: {
@@ -645,7 +615,7 @@ theme: {
 }
 ```
 
-#### Configuration
+#### Configuration Plateforme
 ```typescript
 // src/config/brand.ts
 export const BRAND_CONFIG = {
@@ -658,19 +628,19 @@ export const BRAND_CONFIG = {
 
 ---
 
-### 🔒 Sécurité & Confidentialité
+### 🔒 Architecture Sécurité & Confidentialité
 
-#### Authentification
-- **Supabase Auth** avec fournisseurs OAuth 2.0
-- **Tokens JWT** avec rafraîchissement automatique
-- **Stockage sécurisé** dans base Supabase avec RLS
-- **Pas de secrets côté client** — opérations sensibles dans edge functions
+#### Modèle d'Authentification
+- **Supabase Auth** avec fédération de fournisseurs OAuth 2.0
+- **Tokens JWT** avec cycles de rafraîchissement automatiques
+- **Coffre-fort de tokens chiffré** dans Supabase avec application RLS
+- **Zéro secrets côté client** — toutes opérations sensibles dans edge functions
 
-#### Protection Données
-- **Row Level Security** sur toutes les tables
-- **Isolation données utilisateur** — accès uniquement à ses propres enregistrements
-- **Connexions chiffrées** (HTTPS/WSS uniquement)
-- **Pas d'analytics tiers** — approche privacy-first
+#### Souveraineté des Données
+- **Row Level Security** appliqué sur toutes tables de données
+- **Isolation données utilisateur** au niveau requête base de données
+- **Chiffrement bout-en-bout** (HTTPS/WSS uniquement)
+- **Design privacy-first** — pas d'analytics ou tracking tiers
 
 ---
 
@@ -689,4 +659,4 @@ Ce projet est sous licence **MIT** — voir fichier [LICENSE](LICENSE) pour dét
 
 ---
 
-**Made with ❤️ for a more harmonious relationship with time**
+**Crafted with intention for a more conscious relationship with time**
