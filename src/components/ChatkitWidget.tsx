@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useChatKit } from "@openai/chatkit-react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Props = {
   className?: string;
 };
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chatkitInstanceRef = useRef<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
-  
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Detect theme changes
   useEffect(() => {
@@ -29,86 +30,118 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   }, []);
 
-  // Memoize options - use 'as any' to bypass strict typing issues
-  const options = useMemo(() => ({
-    workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
-    domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
-    theme: {
-      colorScheme: isDarkMode ? ("dark" as const) : ("light" as const),
-      typography: {
-        baseSize: 16,
-        fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
-      },
-      radius: "soft" as const,
-      density: "normal" as const,
-    },
-    composer: {
-      placeholder: "Posez votre question...",
-    },
-    startScreen: {
-      greeting: "Bonjour ! Comment puis-je vous aider ?",
-      prompts: [
-        {
-          label: "Mes événements",
-          prompt: "Quels sont mes prochains événements ?",
-        },
-        {
-          label: "Mon sommeil",
-          prompt: "Comment est mon sommeil récemment ?",
-        },
-        {
-          label: "Lever/coucher du soleil",
-          prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-        },
-        {
-          label: "Aide",
-          prompt: "Comment utiliser cette application ?",
-        }
-      ]
-    }
-  } as any), [isDarkMode]);
-
-  console.log("🔧 [ChatKit] Options created:", { 
-    theme: options.theme.colorScheme,
-    workflowId: options.workflowId.substring(0, 20) + "..."
-  });
-
-  // Initialize ChatKit
-  const chatkit = useChatKit(options);
-
-  // Monitor when widget is ready
+  // Initialize ChatKit with direct API
   useEffect(() => {
-    if (!chatkit.ref?.current) {
-      console.log("⏳ [ChatKit] Waiting for ref...");
+    if (!containerRef.current) {
+      console.warn("⏳ [ChatKit] Container ref not ready");
       return;
     }
 
-    console.log("📦 [ChatKit] Ref available:", {
-      element: chatkit.ref.current.tagName,
-      children: chatkit.ref.current.children.length
-    });
-
-    // Wait a bit for ChatKit to mount
-    const timer = setTimeout(() => {
-      if (chatkit.ref?.current) {
-        const childCount = chatkit.ref.current.children.length;
-        console.log("🔍 [ChatKit] Checking widget status, children:", childCount);
-        
-        if (childCount > 0) {
-          console.log("✅ [ChatKit] Widget appears to be mounted!");
-          setIsReady(true);
-        } else {
-          console.warn("⚠️ [ChatKit] No children found in container");
-        }
+    // Wait for ChatKit to load
+    const checkAndMount = () => {
+      if (typeof window === "undefined" || !(window as any).ChatKit) {
+        console.log("⏳ [ChatKit] Waiting for library to load...");
+        return false;
       }
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [chatkit.ref?.current]);
+      console.log("🚀 [ChatKit] Library loaded, initializing widget");
+
+      const options = {
+        workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
+        domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
+        theme: {
+          colorScheme: isDarkMode ? "dark" : "light",
+          typography: {
+            baseSize: 16,
+            fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+          },
+          radius: "soft",
+          density: "normal",
+        },
+        composer: {
+          placeholder: "Posez votre question...",
+        },
+        startScreen: {
+          greeting: "Bonjour ! Comment puis-je vous aider ?",
+          prompts: [
+            {
+              label: "Mes événements",
+              prompt: "Quels sont mes prochains événements ?",
+            },
+            {
+              label: "Mon sommeil",
+              prompt: "Comment est mon sommeil récemment ?",
+            },
+            {
+              label: "Lever/coucher du soleil",
+              prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
+            },
+            {
+              label: "Aide",
+              prompt: "Comment utiliser cette application ?",
+            }
+          ]
+        }
+      };
+
+      try {
+        // Destroy previous instance if exists
+        if (chatkitInstanceRef.current) {
+          console.log("🔄 [ChatKit] Destroying previous instance");
+          chatkitInstanceRef.current.destroy?.();
+        }
+
+        // Mount ChatKit
+        const chatkit = (window as any).ChatKit.mount(containerRef.current, options);
+        chatkitInstanceRef.current = chatkit;
+        
+        console.log("✅ [ChatKit] Widget mounted successfully");
+        setIsReady(true);
+        setError(null);
+        return true;
+      } catch (err) {
+        console.error("❌ [ChatKit] Failed to mount:", err);
+        setError(String(err));
+        return false;
+      }
+    };
+
+    // Try immediately
+    if (checkAndMount()) {
+      return;
+    }
+
+    // If not ready, poll until loaded
+    const interval = setInterval(() => {
+      if (checkAndMount()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Timeout after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      if (!isReady) {
+        console.error("❌ [ChatKit] Timeout waiting for library");
+        setError("ChatKit library failed to load");
+      }
+    }, 10000);
+
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      if (chatkitInstanceRef.current) {
+        console.log("🧹 [ChatKit] Cleaning up");
+        chatkitInstanceRef.current.destroy?.();
+        chatkitInstanceRef.current = null;
+      }
+    };
+  }, [isDarkMode, isReady]);
 
   return (
     <div
-      ref={chatkit.ref as any}
+      ref={containerRef}
       className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
@@ -117,26 +150,34 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        border: isReady ? "2px solid green" : "2px solid red",
-        borderRadius: "12px",
-        overflow: "hidden",
         backgroundColor: isDarkMode ? "rgba(30, 30, 30, 0.95)" : "rgba(255, 255, 255, 0.95)",
+        border: isReady ? "2px solid green" : error ? "2px solid red" : "2px solid orange",
+        borderRadius: "12px",
+        overflow: "hidden"
       }}
     >
-      {/* Fallback - should be replaced by ChatKit */}
+      {/* Fallback while loading */}
       {!isReady && (
         <div style={{ 
           padding: "20px", 
           color: isDarkMode ? "white" : "black",
           fontSize: "14px"
         }}>
-          <p>🔄 ChatKit initializing...</p>
-          <p style={{ fontSize: "12px", opacity: 0.7, marginTop: "10px" }}>
-            Workflow: {options.workflowId.substring(0, 30)}...
-          </p>
-          <p style={{ fontSize: "11px", opacity: 0.5, marginTop: "10px" }}>
-            Check console for details
-          </p>
+          {error ? (
+            <>
+              <p>❌ ChatKit failed to load</p>
+              <p style={{ fontSize: "12px", opacity: 0.7, marginTop: "10px" }}>
+                {error}
+              </p>
+            </>
+          ) : (
+            <>
+              <p>🔄 ChatKit loading...</p>
+              <p style={{ fontSize: "12px", opacity: 0.7, marginTop: "10px" }}>
+                Waiting for library...
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>
