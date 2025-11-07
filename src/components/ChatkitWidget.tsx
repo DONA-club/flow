@@ -1,19 +1,20 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useChatKit } from "@openai/chatkit-react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Props = {
   className?: string;
 };
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chatkitInstanceRef = useRef<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
-  // Detect theme - only once
+  // Detect theme changes
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => {
@@ -27,11 +28,22 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   }, []);
 
-  // Memoize options to prevent re-initialization
-  const options = useMemo(() => {
-    console.log("🔧 [ChatKit] Creating options with theme:", isDarkMode ? "dark" : "light");
-    
-    return {
+  // Initialize ChatKit with direct API
+  useEffect(() => {
+    if (!containerRef.current) {
+      console.warn("⚠️ [ChatKit] Container ref not ready");
+      return;
+    }
+
+    // Check if ChatKit is loaded
+    if (typeof window === "undefined" || !(window as any).ChatKit) {
+      console.error("❌ [ChatKit] ChatKit library not loaded");
+      return;
+    }
+
+    console.log("🚀 [ChatKit] Initializing with direct API");
+
+    const options = {
       workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
       domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
       theme: {
@@ -67,7 +79,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         attachments: {
           enabled: true,
           maxCount: 5,
-          maxSize: 10 * 1024 * 1024, // 10MB
+          maxSize: 10 * 1024 * 1024,
         }
       },
       startScreen: {
@@ -95,34 +107,37 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
           }
         ]
       }
-    } as any;
-  }, [isDarkMode]);
+    };
 
-  console.log("🚀 [ChatKit] Initializing widget");
-
-  // Initialize ChatKit - only once per options change
-  const chatkit = useChatKit(options);
-
-  // Log ref status - only when it changes
-  useEffect(() => {
-    if (chatkit.ref?.current) {
-      console.log("✅ [ChatKit] Widget mounted, children:", chatkit.ref.current.children.length);
-      
-      // Check if widget actually loaded
-      const hasWidget = chatkit.ref.current.children.length > 1 || 
-                       chatkit.ref.current.querySelector('[data-chatkit]');
-      
-      if (!hasWidget) {
-        console.warn("⚠️ [ChatKit] Widget container exists but no ChatKit UI found");
-      } else {
-        console.log("🎉 [ChatKit] Widget UI successfully loaded!");
+    try {
+      // Destroy previous instance if exists
+      if (chatkitInstanceRef.current) {
+        console.log("🔄 [ChatKit] Destroying previous instance");
+        chatkitInstanceRef.current.destroy?.();
       }
+
+      // Mount ChatKit
+      const chatkit = (window as any).ChatKit.mount(containerRef.current, options);
+      chatkitInstanceRef.current = chatkit;
+      
+      console.log("✅ [ChatKit] Widget mounted successfully");
+    } catch (error) {
+      console.error("❌ [ChatKit] Failed to mount:", error);
     }
-  }, [chatkit.ref?.current?.children.length]);
+
+    // Cleanup
+    return () => {
+      if (chatkitInstanceRef.current) {
+        console.log("🧹 [ChatKit] Cleaning up");
+        chatkitInstanceRef.current.destroy?.();
+        chatkitInstanceRef.current = null;
+      }
+    };
+  }, [isDarkMode]); // Re-mount when theme changes
 
   return (
     <div
-      ref={chatkit.ref as any}
+      ref={containerRef}
       className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
@@ -137,15 +152,15 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         overflow: "hidden"
       }}
     >
-      {/* Fallback - will be replaced by ChatKit */}
+      {/* Fallback while loading */}
       <div style={{ 
         padding: "20px", 
         color: isDarkMode ? "white" : "black",
         fontSize: "14px"
       }}>
-        <p>🔄 ChatKit initializing...</p>
+        <p>🔄 ChatKit loading...</p>
         <p style={{ fontSize: "12px", opacity: 0.7, marginTop: "10px" }}>
-          Workflow: {options.workflowId.substring(0, 20)}...
+          If you see this, check the console for errors.
         </p>
       </div>
     </div>
