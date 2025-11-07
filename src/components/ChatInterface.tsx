@@ -24,9 +24,10 @@ type ToolActivity = {
 type Props = {
   className?: string;
   onWorkflowTrigger?: () => void;
+  onWorkflowClose?: () => void;
 };
 
-const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger }) => {
+const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkflowClose }) => {
   const [debug, setDebug] = useState(false);
   useEffect(() => {
     try {
@@ -54,6 +55,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger }) => {
   const timersRef = useRef<Map<number, { fadeTimeout?: number; removeTimeout?: number }>>(new Map());
   const activityListenersAttached = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const workflowTriggeredRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -215,18 +217,48 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger }) => {
     });
   }, [messages, lastUserActivity, chatVisibleMs, chatFadeMs]);
 
-  // Détection du message "Chargement du workflow..."
+  // Détection du message "Chargement du workflow..." et remplacement par "Agent actif."
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (
       lastMessage &&
       lastMessage.type === "agent" &&
-      lastMessage.text.trim() === "Chargement du workflow..."
+      lastMessage.text.trim() === "Chargement du workflow..." &&
+      !workflowTriggeredRef.current
     ) {
-      dlog("Workflow trigger detected!");
+      dlog("Workflow trigger detected! Replacing message and opening ChatKit");
+      
+      // Remplacer le message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === lastMessage.id ? { ...msg, text: "Agent actif." } : msg
+        )
+      );
+      
+      // Déclencher l'ouverture du ChatKit
+      workflowTriggeredRef.current = true;
       onWorkflowTrigger?.();
     }
   }, [messages, onWorkflowTrigger, dlog]);
+
+  // Détection du message "Conclu." et fermeture automatique du ChatKit
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.type === "agent" &&
+      lastMessage.text.trim() === "Conclu." &&
+      !lastMessage.streaming
+    ) {
+      dlog("Workflow concluded! Closing ChatKit");
+      
+      // Attendre un peu avant de fermer pour que l'utilisateur voie le message
+      setTimeout(() => {
+        onWorkflowClose?.();
+        workflowTriggeredRef.current = false;
+      }, 1500);
+    }
+  }, [messages, onWorkflowClose, dlog]);
 
   useEffect(() => {
     return () => {

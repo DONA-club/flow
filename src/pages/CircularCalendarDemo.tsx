@@ -743,7 +743,6 @@ const Visualiser = () => {
     return () => window.clearInterval(id);
   }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
-  // Générer le contexte de page à chaque changement significatif
   useEffect(() => {
     if (!chatkitExpanded) return;
 
@@ -828,6 +827,7 @@ const Visualiser = () => {
 
       <ChatInterface 
         onWorkflowTrigger={() => setChatkitExpanded(true)}
+        onWorkflowClose={() => setChatkitExpanded(false)}
       />
 
       {hasAnyConnection && (
