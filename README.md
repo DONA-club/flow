@@ -565,7 +565,7 @@ L'insight central : **chaque projet est une vie**. Naissance, croissance, maturi
 
 C'est l'outil fondateur de DONA.club pour maîtriser la qualité de vie des projets à travers l'intelligence temporelle.
 
-**Ce Qu'il Fait :**
+**Ce qu'il fait :**
 
 - **Référentiel Temporel** : Log d'événements immuable avec timestamps microseconde et préservation contexte complet
 - **Observation Multipartite** : Même chronologie vue depuis perspectives humaine, machine et parties prenantes
