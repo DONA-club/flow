@@ -18,6 +18,7 @@ type Props = {
   onSelect?: (e: EventLike) => void;
   maxItems?: number;
   className?: string;
+  chatkitExpanded?: boolean;
 };
 
 function getEventStartDate(e: EventLike, nowRef: Date): Date | null {
@@ -133,12 +134,13 @@ async function savePreference(open: boolean): Promise<void> {
   }
 }
 
-const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
+const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className, chatkitExpanded = false }) => {
   const [open, setOpen] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [isAnimating, setIsAnimating] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const mountTimeRef = React.useRef<number>(Date.now());
+  const prevChatkitExpandedRef = React.useRef(chatkitExpanded);
 
   React.useEffect(() => {
     const checkTheme = () => {
@@ -160,6 +162,22 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       setLoading(false);
     });
   }, []);
+
+  // Auto-close when ChatKit opens
+  React.useEffect(() => {
+    const wasCollapsed = !prevChatkitExpandedRef.current;
+    const isNowExpanded = chatkitExpanded;
+    
+    if (wasCollapsed && isNowExpanded && open) {
+      // ChatKit just opened and we're currently open -> close
+      setIsAnimating(true);
+      setOpen(false);
+      savePreference(false);
+      setTimeout(() => setIsAnimating(false), 400);
+    }
+    
+    prevChatkitExpandedRef.current = chatkitExpanded;
+  }, [chatkitExpanded, open]);
 
   const upcoming = React.useMemo(() => {
     const now = new Date();
@@ -206,11 +224,15 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   const cursorColor = isDarkMode ? "#bfdbfe" : "#1d4ed8";
   const nowRef = new Date();
 
+  // When manually opened, appear above ChatKit (z-index 10000)
+  // When collapsed, stay at z-index 50
+  const zIndex = open ? 10000 : 50;
+
   if (!open) {
     return (
       <div 
         className="fixed top-4 left-4 pointer-events-none"
-        style={{ zIndex: 50 }}
+        style={{ zIndex }}
       >
         <button
           type="button"
@@ -241,7 +263,7 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   return (
     <div 
       className="fixed top-4 left-4 pointer-events-none"
-      style={{ zIndex: 50 }}
+      style={{ zIndex }}
     >
       <div
         className={[

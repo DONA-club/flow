@@ -743,7 +743,6 @@ const Visualiser = () => {
     return () => window.clearInterval(id);
   }, [googleEnabled, msEnabled, refreshGoogle, refreshOutlook, refreshFit]);
 
-  // ✅ Générer le contexte et l'exposer globalement
   useEffect(() => {
     if (sunLoading || authLoading || latitude === null || longitude === null) {
       return;
@@ -773,13 +772,11 @@ const Visualiser = () => {
 
     setPageContext(context);
 
-    // ✅ Exposer globalement pour debug
     (window as any).getPageContext = () => {
       console.log("📋 Page Context:", context);
       return context;
     };
 
-    // ✅ Écouter l'événement personnalisé
     const handleGetContext = () => {
       console.log("📋 Page Context (via event):", context);
     };
@@ -859,6 +856,7 @@ const Visualiser = () => {
           onSelect={(evt) => {
             setSelectedEventFromList(evt);
           }}
+          chatkitExpanded={chatkitExpanded}
         />
       )}
 
