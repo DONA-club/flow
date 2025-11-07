@@ -249,9 +249,6 @@ export function useOutlookCalendar(options?: Options): Result {
     }
 
     setConnected(true);
-    window.dispatchEvent(new CustomEvent("app-log", { 
-      detail: { message: "Outlook synchronisé", type: "success" } 
-    }));
     
     const json = await res.json();
     const items: any[] = json?.value ?? [];
@@ -290,6 +287,13 @@ export function useOutlookCalendar(options?: Options): Result {
 
     setEvents(upcoming);
     setLoading(false);
+    
+    // Log avec nombre d'événements
+    const eventCount = upcoming.length;
+    const eventWord = eventCount > 1 ? "événements" : "événement";
+    window.dispatchEvent(new CustomEvent("app-log", { 
+      detail: { message: `Microsoft ${eventCount} ${eventWord}`, type: "success" } 
+    }));
   }, [enabled]);
 
   React.useEffect(() => {

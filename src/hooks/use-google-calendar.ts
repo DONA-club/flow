@@ -216,9 +216,6 @@ export function useGoogleCalendar(options?: Options): Result {
     }
 
     setConnected(true);
-    window.dispatchEvent(new CustomEvent("app-log", { 
-      detail: { message: "Google synchronisé", type: "success" } 
-    }));
     
     const json = await res.json();
     const items: any[] = json?.items ?? [];
@@ -247,6 +244,13 @@ export function useGoogleCalendar(options?: Options): Result {
 
     setEvents(mapped);
     setLoading(false);
+    
+    // Log avec nombre d'événements
+    const eventCount = mapped.length;
+    const eventWord = eventCount > 1 ? "événements" : "événement";
+    window.dispatchEvent(new CustomEvent("app-log", { 
+      detail: { message: `Google ${eventCount} ${eventWord}`, type: "success" } 
+    }));
   }, [enabled]);
 
   React.useEffect(() => {
