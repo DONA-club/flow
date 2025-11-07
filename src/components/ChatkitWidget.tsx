@@ -27,6 +27,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
   const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const initAttempted = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -80,7 +81,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     return () => document.removeEventListener('securitypolicyviolation', handleCSPViolation);
   }, []);
 
-  // ✅ MANUAL INITIALIZATION (workaround for v1.2.0 bug)
+  // Manual session initialization
   useEffect(() => {
     if (initAttempted.current || !healthCheck?.has_OPENAI_KEY || !healthCheck?.has_WORKFLOW_ID) {
       return;
@@ -131,11 +132,10 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
 
   console.log("🎨 [ChatKit] Component rendering, isDarkMode:", isDarkMode);
 
-  // ✅ CONFIG WITH MANUAL CLIENT SECRET
+  // Config with manual client secret
   const config = useMemo(() => {
     console.log("⚙️ [ChatKit] Creating config object");
     
-    // If we have a client secret, provide it directly
     if (clientSecret) {
       return {
         api: {
@@ -208,7 +208,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       };
     }
 
-    // Fallback config (won't work but prevents errors)
     return {
       api: {},
       theme: {
@@ -238,6 +237,22 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       </div>
     );
   }
+
+  // Force mounting when we have both control and clientSecret
+  useEffect(() => {
+    if (!control || !clientSecret || !containerRef.current) {
+      return;
+    }
+
+    console.log("🎯 [ChatKit] Forcing setInstance with container");
+    
+    try {
+      control.setInstance(containerRef.current);
+      console.log("✅ [ChatKit] setInstance called successfully");
+    } catch (err) {
+      console.error("💥 [ChatKit] setInstance failed:", err);
+    }
+  }, [control, clientSecret]);
 
   console.log("🎬 [ChatKit] Rendering ChatKit component");
 
@@ -286,8 +301,10 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         </div>
       )}
       
-      {/* ChatKit component */}
-      {clientSecret && <ChatKit control={control} className="w-full h-full" />}
+      {/* ChatKit container - using ref for setInstance */}
+      {clientSecret && (
+        <div ref={containerRef} className="w-full h-full" />
+      )}
       
       {/* Debug overlay */}
       <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50 max-w-[150px]">
