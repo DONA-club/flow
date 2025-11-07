@@ -94,7 +94,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
             if (!response.ok) {
               const errorText = await response.text();
-              console.error("❌ [ChatKit] Session creation failed:", response.status);
+              console.error("❌ [ChatKit] Session creation failed:", response.status, errorText);
               throw new Error(`Session failed: ${response.status}`);
             }
 

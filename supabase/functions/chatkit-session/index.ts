@@ -52,6 +52,8 @@ serve(async (req) => {
       if (!CHATKIT_WORKFLOW_ID) missing.push("CHATKIT_WORKFLOW_ID");
       if (!CHATKIT_DOMAIN_KEY) missing.push("CHATKIT_DOMAIN_KEY");
       
+      console.error("[ChatKit] Missing secrets:", missing);
+      
       return new Response(
         JSON.stringify({ 
           error: "Server configuration error",
@@ -64,7 +66,8 @@ serve(async (req) => {
     let body;
     try {
       body = await req.json();
-    } catch {
+    } catch (e) {
+      console.error("[ChatKit] Invalid JSON body:", e);
       return new Response(
         JSON.stringify({ error: "Invalid JSON body" }),
         { status: 400, headers: cors({ "Content-Type": "application/json" }) }
@@ -74,6 +77,7 @@ serve(async (req) => {
     const { deviceId, existingClientSecret, pageContext } = body;
 
     if (!deviceId || typeof deviceId !== "string") {
+      console.error("[ChatKit] Missing or invalid deviceId");
       return new Response(
         JSON.stringify({ error: "Missing or invalid deviceId" }),
         { status: 400, headers: cors({ "Content-Type": "application/json" }) }
@@ -106,6 +110,8 @@ serve(async (req) => {
       headers["X-ChatKit-Domain-Key"] = CHATKIT_DOMAIN_KEY;
     }
 
+    console.log("[ChatKit] Creating session with payload:", JSON.stringify(sessionPayload, null, 2));
+
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
       headers,
@@ -120,6 +126,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Failed to create ChatKit session",
           status: sessionResponse.status,
+          details: errorText,
         }),
         { status: sessionResponse.status, headers: cors({ "Content-Type": "application/json" }) }
       );
@@ -145,6 +152,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
+        message: err.message || String(err),
       }),
       { status: 500, headers: cors({ "Content-Type": "application/json" }) }
     );
