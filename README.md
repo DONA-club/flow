@@ -1,6 +1,6 @@
 # DONA.club — Visualiser
 
-> **A temporal consciousness interface and chronological repository that enables multi-party observation of shared growth intentions, elevating project quality of life without constraint.**
+> **A temporal consciousness interface and chronological repository that transforms how humans and machines perceive, navigate, and master the lifecycle of projects. Available for white-label deployment.**
 
 [🇫🇷 Version française](#version-française) | [🇬🇧 English version](#english-version)
 
@@ -47,7 +47,7 @@ Visualiser solves this by creating a shared temporal reference—a single source
 - **Decision timeline reconstruction** for embedded systems and autonomous agents
 - **Sliding horizon windows** for real-time temporal planning
 - **Temporal relativity engine** for replaying event sequences at different scales
-- **MCP-compatible interface** for high-level machine coordination
+- **MCP-compatible interface** (Model Context Protocol) for AI agent tool integration
 - **System perspective** on project evolution
 
 #### 👥 For Teams: Shared Growth Observation
@@ -120,42 +120,206 @@ The human-facing circular visualization that makes time intuitive:
 - **Perspective selector**: Switch between personal, team, project, and stakeholder views
 - **Elevation without constraint**: Interface adapts to user's need for detail vs. overview
 
-#### 3. **Machine Coordination Layer**
-The protocol interface for autonomous systems and embedded devices:
+#### 3. **AI Agent Integration Layer**
+The Model Context Protocol (MCP) interface for AI agents and autonomous systems:
+
+**What is MCP?**
+
+Model Context Protocol (MCP) is an open standard that enables AI agents to interface with external tools and data sources. Visualiser implements MCP to expose temporal intelligence as callable tools for AI systems.
+
+**Available MCP Tools:**
 
 ```typescript
-// MCP (Machine Coordination Protocol) Interface
-interface MCPTemporalInterface {
-  // Query temporal events within horizon window
-  queryHorizon(start: number, end: number, filters?: EventFilter[]): TemporalEvent[];
-  
-  // Register decision event with full context
-  recordDecision(decision: Decision, context: TemporalContext): void;
-  
+// MCP Tool Catalog for Visualiser
+interface TemporalMCPTools {
+  // Query temporal events within time window
+  temporal_query: {
+    description: "Query chronological events within specified time range";
+    parameters: {
+      start: number;        // Unix microseconds
+      end: number;          // Unix microseconds
+      filters?: {
+        eventType?: string[];
+        actor?: string;
+        role?: string;
+        source?: string[];
+      };
+      perspective?: {
+        actor: string;
+        role: string;
+      };
+    };
+    returns: {
+      events: TemporalEvent[];
+      patterns: TemporalPattern[];
+      summary: string;
+    };
+  };
+
   // Replay event sequence at different time scale
-  replaySequence(start: number, end: number, scale: TimeScale): EventSequence;
-  
-  // Get temporal patterns for prediction
-  analyzePatterns(window: TimeWindow): TemporalPattern[];
-  
-  // Synchronize with other temporal systems
-  syncWithPeer(peerId: string, protocol: SyncProtocol): void;
-  
-  // Multi-party observation
-  observeFromPerspective(perspective: ActorPerspective): TemporalView;
-  
-  // Project quality of life metrics
-  assessProjectHealth(window: TimeWindow): ProjectHealthMetrics;
+  temporal_replay: {
+    description: "Replay and analyze event sequences at different temporal scales";
+    parameters: {
+      start: number;
+      end: number;
+      scale: "microsecond" | "circadian" | "lifecycle" | "strategic";
+      perspective: "human" | "machine" | "project" | "stakeholder";
+      focus?: string[];     // Event types to emphasize
+    };
+    returns: {
+      sequence: EventSequence;
+      analysis: TemporalAnalysis;
+      insights: string[];
+    };
+  };
+
+  // Assess project quality of life
+  project_health: {
+    description: "Calculate comprehensive project health metrics";
+    parameters: {
+      projectId: string;
+      window: {
+        start: number;
+        end: number;
+      };
+      perspective?: string; // Observer role
+    };
+    returns: {
+      metrics: ProjectHealthMetrics;
+      trends: HealthTrends;
+      recommendations: string[];
+      elevationPotential: number;
+    };
+  };
+
+  // Reconstruct decision context (temporal archaeology)
+  decision_archaeology: {
+    description: "Reconstruct complete context of past decision moments";
+    parameters: {
+      decisionTimestamp: number;
+      radius: string;       // e.g., "24h", "1w"
+      perspectives: Array<{
+        actor: string;
+        role: string;
+      }>;
+      includeFactors: string[];
+    };
+    returns: {
+      contexts: Map<string, DecisionContext>;
+      teamState: TeamState;
+      externalFactors: ExternalFactors[];
+      reconstruction: string;
+    };
+  };
+
+  // Analyze temporal patterns
+  pattern_analysis: {
+    description: "Identify recurring temporal patterns and anomalies";
+    parameters: {
+      window: TimeWindow;
+      patternTypes?: string[];
+      sensitivity?: number;
+    };
+    returns: {
+      patterns: TemporalPattern[];
+      anomalies: Anomaly[];
+      predictions: Prediction[];
+      confidence: number;
+    };
+  };
+
+  // Get upcoming events with context
+  upcoming_events: {
+    description: "Retrieve upcoming events with full temporal context";
+    parameters: {
+      horizon: string;      // e.g., "24h", "3d", "1w"
+      actor?: string;
+      includeContext?: boolean;
+    };
+    returns: {
+      events: Array<{
+        event: TemporalEvent;
+        timeUntil: number;
+        context: TemporalContext;
+        preparation: string[];
+      }>;
+    };
+  };
+
+  // Record decision event
+  record_decision: {
+    description: "Log a decision event with full temporal context";
+    parameters: {
+      decision: {
+        title: string;
+        description: string;
+        actor: string;
+        role: string;
+        rationale?: string;
+      };
+      context: TemporalContext;
+      visibility?: string[];
+    };
+    returns: {
+      eventId: string;
+      timestamp: number;
+      recorded: boolean;
+    };
+  };
+
+  // Synchronize with external temporal systems
+  temporal_sync: {
+    description: "Synchronize temporal state with external systems";
+    parameters: {
+      peerId: string;
+      protocol: "bidirectional" | "push" | "pull";
+      window?: TimeWindow;
+    };
+    returns: {
+      synced: boolean;
+      eventsExchanged: number;
+      conflicts: Conflict[];
+    };
+  };
 }
 ```
 
-**Machine Use Cases:**
-- **Embedded systems**: Log decision events with temporal context
-- **Autonomous agents**: Query sliding horizon windows for planning
-- **Distributed systems**: Synchronize temporal state across nodes
-- **Temporal analytics**: Analyze decision patterns over project lifecycle
-- **Predictive systems**: Learn from historical temporal patterns
-- **Quality of life monitoring**: Track project health indicators over time
+**MCP Integration Benefits:**
+
+- **AI Agent Awareness**: Agents can query temporal context before making decisions
+- **Temporal Intelligence**: AI systems gain understanding of project rhythms and patterns
+- **Decision Support**: Agents can reconstruct past contexts to inform current choices
+- **Predictive Capabilities**: Pattern analysis enables proactive recommendations
+- **Multi-Agent Coordination**: Shared temporal reference for distributed AI systems
+- **Human-AI Collaboration**: Agents observe same timeline as human team members
+
+**Example MCP Usage:**
+
+```typescript
+// AI agent querying Visualiser via MCP
+const agent = new MCPAgent({
+  tools: ["temporal_query", "project_health", "upcoming_events"]
+});
+
+// Agent checks project health before recommending action
+const health = await agent.call("project_health", {
+  projectId: "project-alpha",
+  window: { start: now - 7days, end: now }
+});
+
+if (health.metrics.burnoutRisk > 70) {
+  // Agent recommends reducing workload
+  agent.recommend("Team showing high burnout risk. Suggest postponing non-critical tasks.");
+}
+
+// Agent retrieves upcoming events to avoid scheduling conflicts
+const upcoming = await agent.call("upcoming_events", {
+  horizon: "48h",
+  includeContext: true
+});
+
+// Agent uses temporal context to make informed scheduling decision
+```
 
 ---
 
@@ -383,7 +547,7 @@ Visualiser's integration philosophy:
 - **Google Fit API** for biometric temporal data
 - **Sunrise-Sunset API** for natural cycle calculations
 - **OpenAI GPT-4** for natural language temporal understanding
-- **Custom MCP endpoints** for machine coordination
+- **Model Context Protocol (MCP)** for AI agent tool integration
 
 **Temporal Repository:**
 - **Append-only event log** with microsecond timestamps
@@ -514,25 +678,55 @@ Body: { messages, stream, thread_id, actorPerspective }
 Returns: Server-Sent Events stream
 ```
 
-**`temporal-query`** — Query temporal repository (MCP interface)
+**MCP Tool Endpoints:**
+
+**`temporal-query`** — Query temporal repository (MCP tool)
 ```typescript
 POST /functions/v1/temporal-query
 Body: { start, end, filters, perspective, actorRole }
 Returns: { events: TemporalEvent[], patterns: TemporalPattern[] }
 ```
 
-**`temporal-replay`** — Replay event sequence at different scale
+**`temporal-replay`** — Replay event sequence at different scale (MCP tool)
 ```typescript
 POST /functions/v1/temporal-replay
 Body: { start, end, scale, perspective, focus, actorRole }
 Returns: { sequence: EventSequence, analysis: TemporalAnalysis }
 ```
 
-**`project-health`** — Assess project quality of life
+**`project-health`** — Assess project quality of life (MCP tool)
 ```typescript
 POST /functions/v1/project-health
 Body: { projectId, window, perspective }
 Returns: { metrics: ProjectHealthMetrics, insights: string[] }
+```
+
+**`decision-archaeology`** — Reconstruct decision context (MCP tool)
+```typescript
+POST /functions/v1/decision-archaeology
+Body: { decisionTimestamp, radius, perspectives, includeFactors }
+Returns: { contexts: Map, teamState, externalFactors, reconstruction }
+```
+
+**`pattern-analysis`** — Analyze temporal patterns (MCP tool)
+```typescript
+POST /functions/v1/pattern-analysis
+Body: { window, patternTypes, sensitivity }
+Returns: { patterns, anomalies, predictions, confidence }
+```
+
+**`upcoming-events`** — Get upcoming events with context (MCP tool)
+```typescript
+POST /functions/v1/upcoming-events
+Body: { horizon, actor, includeContext }
+Returns: { events: Array<{ event, timeUntil, context, preparation }> }
+```
+
+**`record-decision`** — Log decision event (MCP tool)
+```typescript
+POST /functions/v1/record-decision
+Body: { decision, context, visibility }
+Returns: { eventId, timestamp, recorded }
 ```
 
 ---
@@ -632,7 +826,7 @@ npm run build
 
 ### 🎨 White-Label Adaptation
 
-Visualiser is architected as a **white-label temporal intelligence platform**:
+Visualiser is architected as a **white-label temporal intelligence platform** ready for deployment under your brand.
 
 #### Brand Identity
 ```typescript
@@ -807,7 +1001,7 @@ npm run build
 - [ ] Token refresh on expiration
 - [ ] Multi-day temporal navigation
 - [ ] Temporal replay at different scales
-- [ ] MCP interface for machine coordination
+- [ ] MCP interface for AI agent coordination
 - [ ] Project lifecycle visualization
 - [ ] Multi-party observation with perspective switching
 - [ ] Quality of life metrics calculation
@@ -868,6 +1062,7 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 - **Vercel** for shadcn/ui components
 - **Radix UI** for accessible primitives
 - **Lucide** for iconography
+- **Anthropic** for Model Context Protocol (MCP) standard
 
 ---
 
