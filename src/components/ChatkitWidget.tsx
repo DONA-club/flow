@@ -42,7 +42,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  // Inject ChatKit script BEFORE useChatKit
+  // Inject ChatKit script BEFORE rendering
   useEffect(() => {
     const scriptId = "chatkit-web-component-script";
     
@@ -70,12 +70,6 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     };
     
     document.head.appendChild(s);
-
-    return () => {
-      // Cleanup on unmount (optional, usually you want to keep it)
-      // const existing = document.getElementById(scriptId);
-      // if (existing) existing.remove();
-    };
   }, [debug]);
 
   // Health check
@@ -223,26 +217,10 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     };
   }, [isDarkMode, debug]);
 
-  // Wait for script to load before calling useChatKit
-  let control;
-  try {
-    if (!scriptLoaded) {
-      dlog("Waiting for ChatKit script to load...");
-      control = null;
-    } else {
-      const result = useChatKit(config as any);
-      control = result.control;
-      dlog("useChatKit returned control:", Boolean(control));
-    }
-  } catch (err) {
-    console.error("[ChatKit] useChatKit exception:", err);
-    return (
-      <div className="fixed bottom-4 left-4 p-4 bg-red-500 text-white rounded-xl max-w-md z-[10000]">
-        <p className="font-bold">ChatKit Error</p>
-        <p className="text-sm">{String(err)}</p>
-      </div>
-    );
-  }
+  // ALWAYS call useChatKit (hooks rules)
+  const { control } = useChatKit(config as any);
+  
+  dlog("useChatKit returned control:", Boolean(control));
 
   // Show loading state while script loads
   if (!scriptLoaded) {
