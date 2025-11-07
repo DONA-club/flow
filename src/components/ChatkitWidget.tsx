@@ -45,15 +45,8 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     s.src = "https://cdn.platform.openai.com/deployments/chatkit/chatkit.js";
     s.async = true;
     
-    s.onload = () => {
-      console.log("✅ [ChatKit] Script loaded successfully");
-      setScriptLoaded(true);
-    };
-    
-    s.onerror = () => {
-      console.error("❌ [ChatKit] Failed to load web component script");
-      setScriptLoaded(false);
-    };
+    s.onload = () => setScriptLoaded(true);
+    s.onerror = () => console.error("❌ [ChatKit] Script load failed");
     
     document.head.appendChild(s);
   }, []);
@@ -65,12 +58,12 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           "https://scnaqjixwuqakppnahfg.supabase.co/functions/v1/chatkit-session/health",
         );
         const data = await response.json();
-        console.log("🏥 [ChatKit] Health check:", data);
         setHealthCheck(data);
         if (!data.has_OPENAI_KEY || !data.has_WORKFLOW_ID) {
-          console.error(
-            "❌ [ChatKit] Configuration Edge Function manquante (OPENAI_API_KEY / CHATKIT_WORKFLOW_ID).",
-          );
+          console.error("❌ [ChatKit] Missing config:", { 
+            has_key: data.has_OPENAI_KEY, 
+            has_workflow: data.has_WORKFLOW_ID 
+          });
         }
       } catch (err) {
         console.error("❌ [ChatKit] Health check failed:", err);
@@ -83,7 +76,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   useEffect(() => {
     const handleCSPViolation = (e: SecurityPolicyViolationEvent) => {
       const violation = `${e.violatedDirective}: ${e.blockedURI}`;
-      console.warn("⚠️ [ChatKit] CSP Violation:", violation);
+      console.warn("⚠️ [ChatKit] CSP:", violation);
       setCspViolations((prev) => [...prev, violation]);
     };
 
@@ -92,12 +85,8 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
       document.removeEventListener("securitypolicyviolation", handleCSPViolation);
   }, []);
 
-  // Formater le contexte en JSON compact pour le workflow
   const formattedContext = useMemo(() => {
-    if (!pageContext) {
-      console.log("⚠️ [ChatKit] Pas de pageContext disponible");
-      return null;
-    }
+    if (!pageContext) return null;
     
     const context = JSON.stringify({
       localisation: {
@@ -146,48 +135,23 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
       },
     }, null, 2);
     
-    console.log("📋 [ChatKit] page_context formaté:", context);
+    console.log("📋 [ChatKit] Context ready:", {
+      size: context.length,
+      events: pageContext.events.total,
+      sleep: !!pageContext.sleep.connected,
+    });
+    
     return context;
   }, [pageContext]);
 
-  // Log quand le contexte change
-  useEffect(() => {
-    if (formattedContext) {
-      console.log("🔄 [ChatKit] Nouveau page_context disponible");
-      console.log("📊 [ChatKit] Taille du contexte:", formattedContext.length, "caractères");
-      
-      // Afficher un résumé du contexte
-      try {
-        const parsed = JSON.parse(formattedContext);
-        console.log("📈 [ChatKit] Résumé du contexte:", {
-          localisation: !!parsed.localisation,
-          calendrier: !!parsed.calendrier,
-          nb_evenements: parsed.evenements?.total || 0,
-          sommeil_connecte: !!parsed.sommeil,
-          nb_connexions: parsed.connexions?.length || 0,
-        });
-      } catch (e) {
-        console.error("❌ [ChatKit] Erreur parsing contexte:", e);
-      }
-    }
-  }, [formattedContext]);
-
   const config = useMemo(() => {
-    console.log("⚙️ [ChatKit] Configuration du widget");
-    
     return {
       api: {
         async getClientSecret(existing?: string) {
-          console.log("🔑 [ChatKit] Demande de client_secret", existing ? "(refresh)" : "(nouveau)");
-          
           try {
             const deviceId = getDeviceId();
-            console.log("📱 [ChatKit] Device ID:", deviceId.substring(0, 8) + "...");
-            
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
             const url = `${supabaseUrl}/functions/v1/chatkit-session`;
-
-            console.log("📤 [ChatKit] Appel Edge Function:", url);
 
             const response = await fetch(url, {
               method: "POST",
@@ -200,19 +164,14 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
             if (!response.ok) {
               const errorText = await response.text();
-              console.error(
-                "❌ [ChatKit] Session creation failed:",
-                response.status,
-                errorText,
-              );
+              console.error("❌ [ChatKit] Session failed:", response.status, errorText);
               throw new Error(`chatkit-session ${response.status}: ${errorText}`);
             }
 
             const data = await response.json();
-            console.log("✅ [ChatKit] Client secret obtenu");
             return data.client_secret;
           } catch (err) {
-            console.error("💥 [ChatKit] getClientSecret error:", err);
+            console.error("❌ [ChatKit] getClientSecret error:", err);
             throw err;
           }
         },
@@ -272,42 +231,22 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           { label: "Contexte", prompt: "Affiche mon page_context" },
         ],
       },
-      // Intercepter les messages pour ajouter le contexte
       onBeforeSendMessage: (message: string) => {
-        console.log("📨 [ChatKit] onBeforeSendMessage appelé");
-        console.log("💬 [ChatKit] Message utilisateur:", message);
-        
-        // Vérifier si le contexte a changé
         const contextChanged = formattedContext !== lastSentContextRef.current;
         
-        console.log("🔍 [ChatKit] Contexte changé?", contextChanged);
-        console.log("🔍 [ChatKit] Contexte disponible?", !!formattedContext);
-        
         if (formattedContext && contextChanged) {
-          console.log("✅ [ChatKit] Envoi message AVEC page_context mis à jour");
-          console.log("📋 [ChatKit] Longueur du contexte:", formattedContext.length, "caractères");
-          
+          console.log("✅ [ChatKit] Sending WITH context:", formattedContext.length, "chars");
           lastSentContextRef.current = formattedContext;
           
           const messageWithContext = `${message}\n\n[CONTEXTE SYSTÈME - page_context]:\n${formattedContext}`;
           
-          console.log("📤 [ChatKit] Message final (avec contexte):");
-          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          console.log("📤 [ChatKit] Full message:");
           console.log(messageWithContext);
-          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
           
           return messageWithContext;
         }
         
-        console.log("⚠️ [ChatKit] Envoi message SANS page_context");
-        if (!formattedContext) {
-          console.log("   Raison: Pas de contexte disponible");
-        } else if (!contextChanged) {
-          console.log("   Raison: Contexte inchangé depuis le dernier envoi");
-        }
-        
-        console.log("📤 [ChatKit] Message final (sans contexte):", message);
-        
+        console.log("⚠️ [ChatKit] Sending WITHOUT context");
         return message;
       },
     };
@@ -315,40 +254,15 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   const { control } = useChatKit(config as any);
 
-  // Réinitialiser le contexte envoyé quand le ChatKit se ferme
   useEffect(() => {
     if (!isExpanded) {
-      console.log("🔄 [ChatKit] Widget fermé - réinitialisation du contexte");
       lastSentContextRef.current = null;
-    } else {
-      console.log("👁️ [ChatKit] Widget ouvert");
     }
   }, [isExpanded]);
 
-  // Log quand le pageContext change
-  useEffect(() => {
-    if (pageContext) {
-      console.log("🆕 [ChatKit] pageContext reçu des props:", {
-        timestamp: pageContext.timestamp,
-        page: pageContext.page.pathname,
-        events_total: pageContext.events.total,
-        sleep_connected: pageContext.sleep.connected,
-      });
-    } else {
-      console.log("⚠️ [ChatKit] Aucun pageContext dans les props");
-    }
-  }, [pageContext]);
-
-  if (!scriptLoaded) {
-    console.log("⏳ [ChatKit] En attente du chargement du script...");
+  if (!scriptLoaded || !isExpanded) {
     return null;
   }
-
-  if (!isExpanded) {
-    return null;
-  }
-
-  console.log("🎨 [ChatKit] Rendu du widget");
 
   return (
     <div
