@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { ChevronDown } from "lucide-react";
 import type { PageContext } from "@/utils/page-context";
@@ -33,20 +33,16 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   useEffect(() => {
     const scriptId = "chatkit-web-component-script";
-    
     if (document.getElementById(scriptId)) {
       setScriptLoaded(true);
       return;
     }
-
     const s = document.createElement("script");
     s.id = scriptId;
     s.src = "https://cdn.platform.openai.com/deployments/chatkit/chatkit.js";
     s.async = true;
-    
     s.onload = () => setScriptLoaded(true);
     s.onerror = () => console.error("❌ [ChatKit] Script failed to load");
-    
     document.head.appendChild(s);
   }, []);
 
@@ -58,11 +54,10 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         );
         const data = await response.json();
         setHealthCheck(data);
-      } catch (err) {
+      } catch {
         console.error("❌ [ChatKit] Health check failed");
       }
     };
-
     checkHealth();
   }, []);
 
@@ -75,11 +70,13 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
             const url = `${supabaseUrl}/functions/v1/chatkit-session`;
 
-            // Envoyer le contexte uniquement une fois
-            const shouldSendContext = !contextSentRef.current && pageContext;
-            
-            if (shouldSendContext) {
-              console.log("📤 [ChatKit] Sending page_context to assistant");
+            const shouldSendContext = !contextSentRef.current && !!pageContext;
+
+            if (shouldSendContext && pageContext) {
+              const json = JSON.stringify(pageContext);
+              const bytes = new TextEncoder().encode(json).length;
+              (window as any).__page_context = pageContext;
+              console.log(`📤 [ChatKit] page_context size: ${bytes} bytes`, pageContext);
             }
 
             const response = await fetch(url, {
@@ -93,18 +90,22 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             });
 
             if (!response.ok) {
-              const errorText = await response.text();
-              console.error("❌ [ChatKit] Session creation failed:", response.status);
+              let openaiError = "";
+              try {
+                const errJson = await response.json();
+                openaiError = errJson?.openai_error || "";
+              } catch {
+                // ignore parse error
+              }
+              console.error("❌ [ChatKit] Session creation failed:", response.status, openaiError);
               throw new Error(`Session failed: ${response.status}`);
             }
 
             const data = await response.json();
-            
             if (shouldSendContext && data.context_sent) {
               contextSentRef.current = true;
               console.log("✅ [ChatKit] page_context sent successfully");
             }
-            
             return data.client_secret;
           } catch (err) {
             console.error("❌ [ChatKit] Error:", err);
@@ -160,10 +161,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         prompts: [
           { label: "Mes événements", prompt: "Quels sont mes prochains événements ?" },
           { label: "Mon sommeil", prompt: "Comment est mon sommeil récemment ?" },
-          {
-            label: "Lever/coucher du soleil",
-            prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-          },
+          { label: "Lever/coucher du soleil", prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?" },
         ],
       },
     };
@@ -171,7 +169,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   const { control } = useChatKit(config as any);
 
-  // Reset du flag quand le widget se ferme
   useEffect(() => {
     if (!isExpanded) {
       contextSentRef.current = false;
@@ -206,9 +203,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         <div
           onClick={onToggle}
           className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
-          style={{
-            pointerEvents: "auto",
-          }}
+          style={{ pointerEvents: "auto" }}
         >
           <div
             className="px-4 py-2 rounded-b-xl flex items-center justify-center transition-all duration-300 group-hover:py-3"
@@ -221,8 +216,8 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
               boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
             }}
           >
-            <ChevronDown 
-              className="w-4 h-4 text-white/50 group-hover:text-white/70 transition-colors" 
+            <ChevronDown
+              className="w-4 h-4 text-white/50 group-hover:text-white/70 transition-colors"
               strokeWidth={2.5}
             />
           </div>
@@ -252,3 +247,4 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 };
 
 export default ChatkitWidget;
+export { ChatkitWidget };
