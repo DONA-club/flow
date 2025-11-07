@@ -25,9 +25,10 @@ type Props = {
   className?: string;
   onWorkflowTrigger?: () => void;
   onWorkflowClose?: () => void;
+  chatkitExpanded?: boolean;
 };
 
-const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkflowClose }) => {
+const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkflowClose, chatkitExpanded = false }) => {
   const [debug, setDebug] = useState(false);
   useEffect(() => {
     try {
@@ -57,6 +58,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
   const activityListenersAttached = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const workflowTriggeredRef = useRef(false);
+  const prevChatkitExpandedRef = useRef(chatkitExpanded);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -258,6 +260,30 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
     }
   }, [messages, onWorkflowTrigger, dlog]);
 
+  // Détection de la fermeture du ChatKit quand "Agent actif." est affiché
+  useEffect(() => {
+    const wasExpanded = prevChatkitExpandedRef.current;
+    const isNowClosed = !chatkitExpanded;
+    
+    if (wasExpanded && isNowClosed) {
+      const lastMessage = messages[messages.length - 1];
+      
+      if (lastMessage && lastMessage.type === "agent" && lastMessage.text.trim() === "Agent actif.") {
+        dlog("ChatKit closed while 'Agent actif.' displayed, changing to 'Conclu.'");
+        
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === lastMessage.id ? { ...msg, text: "Conclu." } : msg
+          )
+        );
+        
+        workflowTriggeredRef.current = false;
+      }
+    }
+    
+    prevChatkitExpandedRef.current = chatkitExpanded;
+  }, [chatkitExpanded, messages, dlog]);
+
   // Détection du message "Conclu." et fermeture automatique du ChatKit
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -265,7 +291,8 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
       lastMessage &&
       lastMessage.type === "agent" &&
       lastMessage.text.trim() === "Conclu." &&
-      !lastMessage.streaming
+      !lastMessage.streaming &&
+      chatkitExpanded
     ) {
       dlog("Workflow concluded! Closing ChatKit");
       
@@ -275,7 +302,7 @@ const ChatInterface: React.FC<Props> = ({ className, onWorkflowTrigger, onWorkfl
         workflowTriggeredRef.current = false;
       }, 1500);
     }
-  }, [messages, onWorkflowClose, dlog]);
+  }, [messages, onWorkflowClose, chatkitExpanded, dlog]);
 
   useEffect(() => {
     return () => {

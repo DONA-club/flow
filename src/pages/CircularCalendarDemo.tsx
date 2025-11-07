@@ -845,6 +845,7 @@ const Visualiser = () => {
       <ChatInterface 
         onWorkflowTrigger={() => setChatkitExpanded(true)}
         onWorkflowClose={() => setChatkitExpanded(false)}
+        chatkitExpanded={chatkitExpanded}
       />
 
       {hasAnyConnection && (
