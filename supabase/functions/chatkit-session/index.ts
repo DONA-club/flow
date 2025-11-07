@@ -93,7 +93,7 @@ serve(async (req) => {
       });
     }
 
-    // Create ChatKit session with metadata
+    // Create ChatKit session WITHOUT metadata (not supported by API)
     const sessionPayload: any = {
       workflow: {
         id: CHATKIT_WORKFLOW_ID,
@@ -101,14 +101,8 @@ serve(async (req) => {
       user: deviceId,
     };
 
-    // Add page context as metadata if provided
-    if (pageContext) {
-      sessionPayload.metadata = {
-        pageContext: JSON.stringify(pageContext),
-        timestamp: pageContext.timestamp || new Date().toISOString(),
-        url: pageContext.page?.url || "unknown",
-      };
-    }
+    // Note: metadata is not supported by ChatKit API
+    // The page context will be sent via the first user message instead
 
     const sessionResponse = await fetch("https://api.openai.com/v1/chatkit/sessions", {
       method: "POST",
@@ -141,11 +135,13 @@ serve(async (req) => {
 
     const sessionData = await sessionResponse.json();
     
-    console.log(`[ChatKit] Session created successfully with context`);
+    console.log(`[ChatKit] Session created successfully`);
 
+    // Return both client_secret and pageContext so frontend can send it in first message
     return new Response(
       JSON.stringify({ 
-        client_secret: sessionData.client_secret 
+        client_secret: sessionData.client_secret,
+        page_context: pageContext || null
       }),
       { status: 200, headers: cors({ "Content-Type": "application/json" }) }
     );
