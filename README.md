@@ -563,7 +563,7 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 L'insight central : **chaque projet est une vie**. Naissance, croissance, maturité, transmission. Visualiser capture ce cycle de vie comme ADN temporel immuable—permettant aux équipes, parties prenantes et systèmes d'observer la même intention de croissance depuis leurs perspectives uniques.
 
-C'est l'outil fondateur de DONA.club pour maîtriser la qualité de vie des projets à travers l'intelligence temporelle.
+C'est un outil fondateur de DONA.club pour maîtriser la qualité de vie des projets à travers l'intelligence temporelle.
 
 **Ce qu'il fait :**
 
