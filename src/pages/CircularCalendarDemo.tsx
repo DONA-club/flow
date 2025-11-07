@@ -778,6 +778,12 @@ const Visualiser = () => {
     });
 
     setPageContext(context);
+
+    // ✅ Exposer le contexte globalement pour debug
+    (window as any).getPageContext = () => {
+      console.log("📋 Page Context:", context);
+      return context;
+    };
   }, [
     chatkitExpanded,
     sunLoading,
