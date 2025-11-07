@@ -26,6 +26,22 @@ type Props = {
 };
 
 const ChatInterface: React.FC<Props> = ({ className }) => {
+  // Debug flag contrôlable par query ?debug=1 ou localStorage.setItem('debug_chat','1')
+  const [debug, setDebug] = useState(false);
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const byQuery = q.get("debug") === "1";
+      const byStorage = localStorage.getItem("debug_chat") === "1";
+      setDebug(Boolean(byQuery || byStorage));
+    } catch {
+      setDebug(false);
+    }
+  }, []);
+  const dlog = (...args: any[]) => {
+    if (debug) console.log("[Chat]", ...args);
+  };
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -50,19 +66,17 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   useEffect(() => {
     if (activityListenersAttached.current) return;
 
-    const updateActivity = () => {
-      setLastUserActivity(Date.now());
-    };
+    const updateActivity = () => setLastUserActivity(Date.now());
 
-    const events = ['click', 'scroll', 'touchstart', 'touchmove', 'keydown', 'mousemove', 'wheel'];
-    events.forEach(event => {
+    const events = ["click", "scroll", "touchstart", "touchmove", "keydown", "mousemove", "wheel"];
+    events.forEach((event) => {
       window.addEventListener(event, updateActivity, { passive: true });
     });
 
     activityListenersAttached.current = true;
 
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         window.removeEventListener(event, updateActivity);
       });
       activityListenersAttached.current = false;
@@ -78,9 +92,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       setMessages((prev) => {
         if (lastMessage && lastMessage.text.includes("...") && !isEllipsis) {
           return prev.map((msg, idx) =>
-            idx === prev.length - 1
-              ? { ...msg, text: customEvent.detail.message, fading: false }
-              : msg
+            idx === prev.length - 1 ? { ...msg, text: customEvent.detail.message, fading: false } : msg,
           );
         }
 
@@ -119,9 +131,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
       if (already) return;
 
       const fadeTimeout = window.setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
       }, systemVisibleMs);
 
       const removeTimeout = window.setTimeout(() => {
@@ -137,39 +147,35 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
   const chatVisibleMs = 30000;
   const chatFadeMs = 5000;
-  const chatTotalMs = chatVisibleMs + chatFadeMs;
 
   useEffect(() => {
     const pairIds = new Set<number>();
-    messages.forEach(msg => {
+    messages.forEach((msg) => {
       if (msg.pairId !== undefined && (msg.type === "user" || msg.type === "agent")) {
         pairIds.add(msg.pairId);
       }
     });
 
     const pairIdsArray = Array.from(pairIds).sort((a, b) => a - b);
-    
     const lastPairId = pairIdsArray[pairIdsArray.length - 1];
 
-    pairIdsArray.forEach((pairId, index) => {
+    pairIdsArray.forEach((pairId) => {
       const isLastPair = pairId === lastPairId;
-      const pairMessages = messages.filter(m => m.pairId === pairId);
-      
-      const hasUser = pairMessages.some(m => m.type === "user");
-      const hasAgent = pairMessages.some(m => m.type === "agent");
+      const pairMessages = messages.filter((m) => m.pairId === pairId);
+
+      const hasUser = pairMessages.some((m) => m.type === "user");
+      const hasAgent = pairMessages.some((m) => m.type === "agent");
       const isComplete = hasUser && hasAgent;
 
       if (!isComplete) return;
 
       if (!isLastPair) {
-        pairMessages.forEach(msg => {
+        pairMessages.forEach((msg) => {
           const already = timersRef.current.get(msg.id);
           if (already) return;
 
           const fadeTimeout = window.setTimeout(() => {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
-            );
+            setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
           }, 10000);
 
           const removeTimeout = window.setTimeout(() => {
@@ -180,18 +186,16 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
           timersRef.current.set(msg.id, { fadeTimeout, removeTimeout });
         });
       } else {
-        pairMessages.forEach(msg => {
+        pairMessages.forEach((msg) => {
           const already = timersRef.current.get(msg.id);
           if (already) return;
 
           const checkActivity = () => {
             const timeSinceActivity = Date.now() - lastUserActivity;
-            
+
             if (timeSinceActivity >= chatVisibleMs) {
               const fadeTimeout = window.setTimeout(() => {
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m))
-                );
+                setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, fading: true } : m)));
               }, 0);
 
               const removeTimeout = window.setTimeout(() => {
@@ -223,7 +227,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
 
   const stopStreaming = () => {
     if (abortControllerRef.current) {
-      console.log("🛑 [Chat] Stopping stream");
+      dlog("Stopping stream");
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
@@ -234,7 +238,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    console.log("💬 [Chat] User sending message:", input.trim());
+    dlog("User sending message:", input.trim());
 
     const currentPairId = ++pairIdCounter.current;
 
@@ -268,14 +272,14 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     // Create abort controller
     abortControllerRef.current = new AbortController();
 
-    console.log("🌊 [Chat] Starting stream...");
+    dlog("Starting stream...");
 
     try {
       // Build conversation history
       const conversationMessages = messages
-        .filter(m => m.type === "user" || m.type === "agent")
-        .map(m => ({
-          role: m.type === "user" ? "user" as const : "assistant" as const,
+        .filter((m) => m.type === "user" || m.type === "agent")
+        .map((m) => ({
+          role: m.type === "user" ? ("user" as const) : ("assistant" as const),
           content: m.text,
         }));
 
@@ -288,55 +292,44 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         messages: conversationMessages,
         onToken: (token) => {
           setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === agentMessageId
-                ? { ...msg, text: msg.text + token }
-                : msg
-            )
+            prev.map((msg) => (msg.id === agentMessageId ? { ...msg, text: msg.text + token } : msg)),
           );
         },
         onToolDelta: (payload) => {
-          const toolName = 
-            payload?.tool_call?.name ?? 
-            payload?.function_call?.name ?? 
-            payload?.tool?.name ?? 
+          const toolName =
+            payload?.tool_call?.name ??
+            payload?.function_call?.name ??
+            payload?.tool?.name ??
             "outil";
-          console.log("🔧 [Chat] Tool activity:", toolName);
+          dlog("Tool activity:", toolName);
           setToolActivity({ name: toolName, status: "running" });
         },
-        onToolResult: (payload) => {
-          console.log("✅ [Chat] Tool completed");
-          setToolActivity(prev => prev ? { ...prev, status: "done" } : { status: "done" });
-          // Auto-hide after 2s
+        onToolResult: () => {
+          dlog("Tool completed");
+          setToolActivity((prev) => (prev ? { ...prev, status: "done" } : { status: "done" }));
           setTimeout(() => setToolActivity(null), 2000);
         },
         onToolStatus: (payload) => {
-          console.log("📊 [Chat] Tool status:", payload?.status);
+          dlog("Tool status:", payload?.status);
         },
         onEvent: (payload) => {
-          console.log("📡 [Chat] Generic event:", payload);
+          dlog("Event:", payload);
         },
         onDone: () => {
-          console.log("✅ [Chat] Stream completed");
+          dlog("Stream completed");
           setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === agentMessageId
-                ? { ...msg, streaming: false }
-                : msg
-            )
+            prev.map((msg) => (msg.id === agentMessageId ? { ...msg, streaming: false } : msg)),
           );
           setIsLoading(false);
           setToolActivity(null);
           abortControllerRef.current = null;
         },
         onError: (error) => {
-          console.error("💥 [Chat] Stream error:", error);
+          console.warn("[Chat] Stream error:", error);
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === agentMessageId
-                ? { ...msg, text: "Une erreur est survenue.", streaming: false }
-                : msg
-            )
+              msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false } : msg,
+            ),
           );
           setIsLoading(false);
           setToolActivity(null);
@@ -345,14 +338,11 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         signal: abortControllerRef.current.signal,
       });
     } catch (error) {
-      console.error("💥 [Chat] Error:", error);
-      
+      console.warn("[Chat] Error:", error);
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === agentMessageId
-            ? { ...msg, text: "Une erreur est survenue.", streaming: false }
-            : msg
-        )
+          msg.id === agentMessageId ? { ...msg, text: "Une erreur est survenue.", streaming: false } : msg,
+        ),
       );
       setIsLoading(false);
       setToolActivity(null);
@@ -374,7 +364,7 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
     >
       {/* Tool activity indicator */}
       {toolActivity && (
-        <div 
+        <div
           className="mb-2 flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
           style={{
             backgroundColor: "rgba(251, 191, 36, 0.15)",
@@ -384,82 +374,82 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         >
           <Wrench className="w-3.5 h-3.5 animate-pulse" />
           <span className="italic">
-            {toolActivity.name ? `${toolActivity.name}` : "Outil"} 
+            {toolActivity.name ? `${toolActivity.name}` : "Outil"}
             {toolActivity.status === "running" ? " en cours…" : " terminé"}
           </span>
         </div>
       )}
 
-      <div 
+      <div
         className="flex flex-col items-end gap-0 w-full max-h-[280px] mb-2"
-        style={{ 
+        style={{
           overflowY: "hidden",
           overflowX: "hidden",
-          paddingRight: "calc(14px + 0.5rem + 3.5px + 0.5rem)"
+          paddingRight: "calc(14px + 0.5rem + 3.5px + 0.5rem)",
         }}
       >
         {messages.map((message, index) => {
           const prevMessage = index > 0 ? messages[index - 1] : null;
           const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
-          
-          const isFirstOfPair = message.pairId !== undefined && 
+
+          const isFirstOfPair =
+            message.pairId !== undefined &&
             (!prevMessage || prevMessage.pairId !== message.pairId);
-          
+
           const isUserInPair = message.type === "user" && message.pairId !== undefined;
           const isAgentInPair = message.type === "agent" && message.pairId !== undefined;
           const hasAgentAfter = isUserInPair && nextMessage?.pairId === message.pairId && nextMessage?.type === "agent";
-          
+
           // Spacing logic
           let marginTop = "0";
           let marginBottom = "0";
-          
+
           if (message.type === "system") {
-            // System messages: normal spacing
             marginTop = index > 0 ? "0.125rem" : "0";
           } else if (isUserInPair) {
-            // User message in pair: larger top margin, small bottom if agent follows
             marginTop = index > 0 ? "0.5rem" : "0";
             marginBottom = hasAgentAfter ? "0.125rem" : "0";
           } else if (isAgentInPair) {
-            // Agent message in pair: small top margin (already set by user), normal bottom
             marginTop = "0";
             marginBottom = "0";
           }
-          
+
           return (
-            <div
-              key={message.id}
-              className="w-full"
-              style={{
-                marginTop,
-                marginBottom,
-              }}
-            >
+            <div key={message.id} className="w-full" style={{ marginTop, marginBottom }}>
               {/* Liquid glass connector for Q&A pairs */}
               {isUserInPair && hasAgentAfter && (
-                <div 
+                <div
                   className="w-full h-px mb-0.5"
                   style={{
-                    background: "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
+                    background:
+                      "linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)",
                     opacity: message.fading ? 0.2 : 0.6,
                     transition: "opacity 300ms ease",
                   }}
                 />
               )}
-              
+
               <div
                 className={`text-[13px] leading-snug tracking-tight select-none transition-all italic px-2 py-0.5 rounded flex items-center gap-2 justify-end text-right ${
                   message.fading ? "opacity-20 translate-y-1" : "opacity-100 translate-y-0"
                 }`}
                 style={{
-                  color: message.type === "user" 
-                    ? "rgba(255, 255, 255, 0.65)" 
-                    : "rgba(255, 255, 255, 0.45)",
+                  color:
+                    message.type === "user"
+                      ? "rgba(255, 255, 255, 0.65)"
+                      : "rgba(255, 255, 255, 0.45)",
                   backgroundColor: "transparent",
-                  transition: `opacity ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300}ms ease, transform ${message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220}ms ease`,
+                  transition: `opacity ${
+                    message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 300
+                  }ms ease, transform ${
+                    message.fading ? (message.type === "system" ? systemFadeMs : chatFadeMs) : 220
+                  }ms ease`,
                 }}
               >
-                <span className="text-right">{message.text}{message.streaming && "▊"}</span>
+                <span className="text-right">
+                  {message.text}
+                  {message.streaming && "▊"}
+                </span>
                 {message.type === "agent" && !message.streaming && (
                   <Volume2 className="w-3.5 h-3.5 flex-shrink-0" style={{ opacity: 0.6 }} />
                 )}
@@ -488,22 +478,19 @@ const ChatInterface: React.FC<Props> = ({ className }) => {
         />
         <span
           className="text-xs select-none flex-shrink-0 animate-pulse-soft"
-          style={{ 
-            color: "rgba(255, 255, 255, 0.45)",
-            animation: "pulse-soft 2s ease-in-out infinite",
-          }}
+          style={{ color: "rgba(255, 255, 255, 0.45)", animation: "pulse-soft 2s ease-in-out infinite" }}
         >
           &lt;
         </span>
         {isLoading ? (
-          <Square 
-            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+          <Square
+            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             style={{ color: "rgba(255, 255, 255, 0.45)" }}
             onClick={stopStreaming}
           />
         ) : (
-          <Mic 
-            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity" 
+          <Mic
+            className="w-3.5 h-3.5 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             style={{ color: "rgba(255, 255, 255, 0.45)" }}
           />
         )}
