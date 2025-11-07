@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useChatKit } from "@openai/chatkit-react";
-import type { ChatKitOptions } from "@openai/chatkit-react";
 
 type Props = {
   className?: string;
@@ -16,6 +15,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     const updateTheme = () => {
       const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDarkMode(dark);
+      console.log("🎨 [ChatKit] Theme updated:", dark ? "dark" : "light");
     };
     
     updateTheme();
@@ -28,8 +28,8 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   }, []);
 
-  // ChatKit options
-  const options: ChatKitOptions = {
+  // ChatKit options - use any to bypass strict typing
+  const options: any = {
     workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
     domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
     theme: {
@@ -95,21 +95,79 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     }
   };
 
+  console.log("🚀 [ChatKit] Initializing with options:", {
+    workflowId: options.workflowId,
+    domainKey: options.domainKey?.substring(0, 20) + "...",
+    theme: options.theme?.colorScheme
+  });
+
   // Initialize ChatKit
   const chatkit = useChatKit(options);
+
+  useEffect(() => {
+    console.log("📦 [ChatKit] Hook returned:", {
+      hasRef: !!chatkit.ref,
+      refCurrent: chatkit.ref?.current,
+      chatkitKeys: Object.keys(chatkit)
+    });
+
+    if (chatkit.ref?.current) {
+      console.log("✅ [ChatKit] Ref is mounted:", {
+        element: chatkit.ref.current,
+        children: chatkit.ref.current.children.length,
+        innerHTML: chatkit.ref.current.innerHTML.substring(0, 100)
+      });
+    } else {
+      console.warn("⚠️ [ChatKit] Ref is not mounted yet");
+    }
+  }, [chatkit]);
+
+  // Monitor ref changes
+  useEffect(() => {
+    if (!chatkit.ref?.current) return;
+
+    const observer = new MutationObserver((mutations) => {
+      console.log("🔄 [ChatKit] DOM changed:", mutations.length, "mutations");
+    });
+
+    observer.observe(chatkit.ref.current, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    });
+
+    return () => observer.disconnect();
+  }, [chatkit.ref]);
 
   return (
     <div
       ref={chatkit.ref as any}
-      className={`fixed bottom-4 left-4 z-50 ${className || ""}`}
+      className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
         maxWidth: "calc(100vw - 2rem)",
         height: "600px",
         maxHeight: "calc(100vh - 2rem)",
-        pointerEvents: "auto"
+        pointerEvents: "auto",
+        zIndex: 9999, // Très haut pour être sûr
+        backgroundColor: isDarkMode ? "rgba(30, 30, 30, 0.95)" : "rgba(255, 255, 255, 0.95)",
+        border: "2px solid red", // Debug: bordure rouge pour voir le container
+        borderRadius: "12px",
+        overflow: "hidden"
       }}
-    />
+    >
+      {/* Fallback si le widget ne charge pas */}
+      <div style={{ 
+        padding: "20px", 
+        color: isDarkMode ? "white" : "black",
+        fontSize: "14px"
+      }}>
+        <p>🔄 ChatKit loading...</p>
+        <p style={{ fontSize: "12px", opacity: 0.7, marginTop: "10px" }}>
+          If you see this, the widget hasn't loaded yet.
+        </p>
+      </div>
+    </div>
   );
 };
 
