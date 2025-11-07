@@ -41,6 +41,19 @@ declare module "npm:openai@4" {
 
   type StreamingResponse = AsyncIterable<ChatCompletionChunk>;
 
+  type ChatkitSession = {
+    id: string;
+    workflow?: { id: string };
+    user?: string;
+    messages?: Array<{ role: string; content: string }>;
+  };
+
+  type ChatkitMessageChunk = {
+    delta?: {
+      content?: string;
+    };
+  };
+
   export default class OpenAI {
     constructor(config: { apiKey: string | undefined });
     chat: {
@@ -57,6 +70,33 @@ declare module "npm:openai@4" {
           temperature?: number;
           stream?: false;
         }): Promise<ChatCompletionResponse>;
+      };
+    };
+    chatkit: {
+      sessions: {
+        create(params: {
+          workflow: { id: string };
+          user: string;
+        }): Promise<ChatkitSession>;
+        retrieve(sessionId: string): Promise<ChatkitSession>;
+        messages: {
+          create(
+            sessionId: string,
+            params: {
+              role: string;
+              content: string;
+              stream: true;
+            }
+          ): Promise<AsyncIterable<ChatkitMessageChunk>>;
+          create(
+            sessionId: string,
+            params: {
+              role: string;
+              content: string;
+              stream?: false;
+            }
+          ): Promise<{ role: string; content: string }>;
+        };
       };
     };
   }

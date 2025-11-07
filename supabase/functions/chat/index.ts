@@ -1,13 +1,13 @@
 /* @ts-nocheck */
-// Supabase Edge (Deno) — Proxy vers Chatkit Workflow avec SSE côté client
+// Supabase Edge (Deno) — OpenAI ChatKit Sessions API avec workflow personnalisé
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import OpenAI from "npm:openai@4";
 
 const ORIGIN = "*"; // In production: "https://visualiser.dona.club"
 const te = new TextEncoder();
 
-const CHATKIT_ENDPOINT = Deno.env.get("CHATKIT_ENDPOINT");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const CHATKIT_WORKFLOW_ID = Deno.env.get("CHATKIT_WORKFLOW_ID");
-const CHATKIT_DOMAIN_KEY = Deno.env.get("CHATKIT_DOMAIN_KEY");
 
 function cors(h: Record<string, string> = {}) {
   return {
@@ -39,11 +39,11 @@ serve(async (req) => {
 
   try {
     // Check required env vars
-    if (!CHATKIT_ENDPOINT || !CHATKIT_WORKFLOW_ID || !CHATKIT_DOMAIN_KEY) {
-      console.error("❌ [Chat] Missing Chatkit configuration");
+    if (!OPENAI_API_KEY || !CHATKIT_WORKFLOW_ID) {
+      console.error("❌ [Chat] Missing configuration");
       return new Response(
         JSON.stringify({ 
-          error: "Server configuration error: Missing CHATKIT_ENDPOINT, CHATKIT_WORKFLOW_ID, or CHATKIT_DOMAIN_KEY" 
+          error: "Server configuration error: Missing OPENAI_API_KEY or CHATKIT_WORKFLOW_ID" 
         }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
@@ -72,7 +72,7 @@ serve(async (req) => {
       );
     }
 
-    const { messages, stream = true, workflow_input = {} } = body;
+    const { messages, stream = true, user_id = "anonymous" } = body;
 
     if (!messages || !Array.isArray(messages)) {
       console.error("❌ [Chat] Missing or invalid messages field");
@@ -82,44 +82,45 @@ serve(async (req) => {
       );
     }
 
-    console.log("💬 [Chat] Processing", messages.length, "messages");
+    console.log("💬 [Chat] Processing", messages.length, "messages for user:", user_id);
+
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+    // Create ChatKit session with workflow
+    console.log("🔄 [Chat] Creating ChatKit session with workflow:", CHATKIT_WORKFLOW_ID);
+    
+    const session = await openai.chatkit.sessions.create({
+      workflow: { id: CHATKIT_WORKFLOW_ID },
+      user: user_id,
+    });
+
+    console.log("✅ [Chat] Session created:", session.id);
 
     // --- Mode non-stream (fallback)
     if (!stream) {
       console.log("🤖 [Chat] Non-streaming mode");
       
-      const payload = {
-        workflow_id: CHATKIT_WORKFLOW_ID,
-        input: { messages, ...workflow_input },
-        stream: false,
-      };
-
-      const rsp = await fetch(CHATKIT_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${CHATKIT_DOMAIN_KEY}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const text = await rsp.text();
-      if (!rsp.ok) {
-        console.error("❌ [Chat] Chatkit error:", rsp.status, text);
-        return new Response(
-          JSON.stringify({ error: `CHATKIT_${rsp.status}`, details: text }),
-          { status: 502, headers: cors({ "Content-Type": "application/json" }) }
-        );
+      // Send messages to session
+      for (const msg of messages) {
+        await openai.chatkit.sessions.messages.create(session.id, {
+          role: msg.role,
+          content: msg.content,
+        });
       }
 
+      // Get response
+      const response = await openai.chatkit.sessions.retrieve(session.id);
+      
       console.log("✅ [Chat] Non-streaming response received");
-      return new Response(text, { 
-        status: 200, 
-        headers: cors({ "Content-Type": "application/json" }) 
-      });
+      return new Response(
+        JSON.stringify({ 
+          output_text: response.messages?.[response.messages.length - 1]?.content || "" 
+        }), 
+        { status: 200, headers: cors({ "Content-Type": "application/json" }) }
+      );
     }
 
-    // --- STREAMING : on proxifie le flux Chatkit et on le normalise en {token: "..."}
+    // --- STREAMING
     console.log("🌊 [Chat] Streaming mode enabled");
 
     const streamBody = new ReadableStream<Uint8Array>({
@@ -129,114 +130,30 @@ serve(async (req) => {
           controller.enqueue(te.encode("event: open\n\n"));
           console.log("📡 [Chat] Stream opened");
 
-          // Démarre le workflow en mode stream
-          const payload = {
-            workflow_id: CHATKIT_WORKFLOW_ID,
-            input: { messages, ...workflow_input },
-            stream: true,
-          };
-
-          console.log("🔄 [Chat] Calling Chatkit workflow...");
-
-          const rsp = await fetch(CHATKIT_ENDPOINT, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${CHATKIT_DOMAIN_KEY}`,
-            },
-            body: JSON.stringify(payload),
-          });
-
-          if (!rsp.ok || !rsp.body) {
-            const errText = await rsp.text().catch(() => "");
-            console.error("❌ [Chat] Chatkit stream error:", rsp.status, errText);
-            sendLine(controller, { error: `CHATKIT_${rsp.status}`, details: errText || "no body" });
-            controller.enqueue(te.encode("data: [DONE]\n\n"));
-            controller.close();
-            return;
+          // Send all messages except the last one
+          for (let i = 0; i < messages.length - 1; i++) {
+            await openai.chatkit.sessions.messages.create(session.id, {
+              role: messages[i].role,
+              content: messages[i].content,
+            });
           }
 
-          console.log("📡 [Chat] Chatkit stream connection established");
+          // Stream the last message
+          const lastMessage = messages[messages.length - 1];
+          console.log("📤 [Chat] Streaming last message...");
 
-          const reader = rsp.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
+          const stream = await openai.chatkit.sessions.messages.create(session.id, {
+            role: lastMessage.role,
+            content: lastMessage.content,
+            stream: true,
+          });
 
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-              console.log("✅ [Chat] Chatkit stream ended");
-              break;
-            }
+          console.log("📡 [Chat] Stream connection established");
 
-            const chunk = decoder.decode(value, { stream: true });
-            buffer += chunk;
-
-            // Process lines
-            if (buffer.includes("\n")) {
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                const trimmed = line.trim();
-
-                // a) Ligne SSE "data: {...}"
-                if (trimmed.startsWith("data:")) {
-                  const payload = trimmed.slice(5).trim();
-
-                  if (payload === "[DONE]") {
-                    console.log("🏁 [Chat] Received [DONE] from Chatkit");
-                    controller.enqueue(te.encode("data: [DONE]\n\n"));
-                    controller.close();
-                    return;
-                  }
-
-                  // Parse and normalize
-                  try {
-                    const json = JSON.parse(payload);
-
-                    // Normalize token from various formats
-                    const token =
-                      json?.delta?.content ??
-                      json?.output_text ??
-                      json?.choices?.[0]?.delta?.content ??
-                      json?.content ??
-                      null;
-
-                    if (typeof token === "string" && token.length) {
-                      sendLine(controller, { token });
-                    } else {
-                      // Relay raw event (useful for tool_calls)
-                      sendLine(controller, json);
-                    }
-                  } catch {
-                    // Non-JSON payload: relay as-is
-                    controller.enqueue(te.encode(line + "\n"));
-                  }
-
-                  continue;
-                }
-
-                // b) NDJSON (one line = one JSON)
-                if (trimmed.startsWith("{")) {
-                  try {
-                    const json = JSON.parse(trimmed);
-                    const token =
-                      json?.delta?.content ??
-                      json?.output_text ??
-                      json?.choices?.[0]?.delta?.content ??
-                      json?.content ??
-                      null;
-                    if (typeof token === "string" && token.length) {
-                      sendLine(controller, { token });
-                    } else {
-                      sendLine(controller, json);
-                    }
-                  } catch {
-                    // Non-JSON line: ignore
-                  }
-                }
-              }
+          for await (const chunk of stream) {
+            const delta = chunk.delta?.content;
+            if (delta) {
+              sendLine(controller, { token: delta });
             }
           }
 
