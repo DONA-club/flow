@@ -2,7 +2,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=portrait" />
     
     <!-- SEO -->
     <title>DONA.club - Visualiseur de Calendrier Circulaire</title>
@@ -33,6 +33,37 @@
     
     <!-- Theme color -->
     <meta name="theme-color" content="#6d28d9" />
+    
+    <!-- Screen orientation control -->
+    <style>
+      /* Lock portrait on mobile (< 768px) */
+      @media screen and (max-width: 767px) and (orientation: landscape) {
+        body::before {
+          content: "Veuillez tourner votre appareil en mode portrait";
+          position: fixed;
+          inset: 0;
+          background: #181c2a;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          text-align: center;
+          padding: 2rem;
+          z-index: 999999;
+          font-family: 'Inter', 'Aptos', Arial, Helvetica, sans-serif;
+        }
+        
+        body > *:not(style) {
+          display: none !important;
+        }
+      }
+      
+      /* Allow landscape on tablet (≥ 768px) */
+      @media screen and (min-width: 768px) {
+        /* No restrictions */
+      }
+    </style>
   </head>
 
   <body>

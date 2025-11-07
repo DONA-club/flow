@@ -265,9 +265,28 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
       className="fixed top-4 left-4 pointer-events-none"
       style={{ zIndex }}
     >
+      <style>{`
+        .upcoming-events-container {
+          width: 88vw;
+          max-width: calc(100vw - 2rem);
+        }
+        
+        @media (min-width: 640px) {
+          .upcoming-events-container {
+            width: 320px;
+          }
+        }
+        
+        @media (min-width: 768px) {
+          .upcoming-events-container {
+            width: 360px;
+          }
+        }
+      `}</style>
+      
       <div
         className={[
-          "w-[88vw] sm:w-[320px] md:w-[360px] pointer-events-auto",
+          "upcoming-events-container pointer-events-auto",
           "glass p-3 sm:p-4 backdrop-blur-md rounded-lg",
           "relative overflow-hidden",
           className || "",
