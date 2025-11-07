@@ -599,16 +599,15 @@ L'intention de Visualiser résout ceci en créant une référence temporelle par
 
 ### 📄 Licence
 
-Licence MIT — voir fichier [LICENSE](LICENSE) pour détails.
+Licence MIT.
 
 ---
 
 ### 📞 Support
 
-- **Documentation** : [docs.dona.club](https://docs.dona.club)
-- **Issues** : [GitHub Issues](https://github.com/votreusername/dona-club/issues)
-- **Email** : support@dona.club
-- **Discord** : [Rejoindre communauté](https://discord.gg/dona-club)
+- **Issues** : [GitHub Issues](https://github.com/sachaulysse/dona-club/issues)
+- **Email** : conscience@dona.club
+- **Discord** : [Rejoindre communauté](https://discord.gg/6gXjVhacp)
 
 ---
 
