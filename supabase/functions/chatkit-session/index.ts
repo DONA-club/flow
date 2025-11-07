@@ -25,8 +25,6 @@ serve(async (req) => {
       has_OPENAI_KEY: !!OPENAI_API_KEY,
       has_WORKFLOW_ID: !!CHATKIT_WORKFLOW_ID,
       has_DOMAIN_KEY: !!CHATKIT_DOMAIN_KEY,
-      beta_header_needed: true,
-      region: Deno.env.get("SUPABASE_REGION") ?? null,
       timestamp: new Date().toISOString(),
     };
     
@@ -58,7 +56,6 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Server configuration error",
           missing_secrets: missing,
-          hint: "Set these secrets in Supabase Dashboard > Edge Functions > Manage Secrets"
         }),
         { status: 500, headers: cors({ "Content-Type": "application/json" }) }
       );
@@ -83,19 +80,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[ChatKit] Creating session for device: ${deviceId.substring(0, 8)}...`);
-    console.log(`[ChatKit] Using workflow ID: ${CHATKIT_WORKFLOW_ID}`);
-    console.log(`[ChatKit] Using domain key: ${CHATKIT_DOMAIN_KEY ? CHATKIT_DOMAIN_KEY.substring(0, 10) + "..." : "none"}`);
-    
-    if (pageContext) {
-      console.log(`[ChatKit] Page context received:`, JSON.stringify({
-        page: pageContext.page?.url,
-        events: pageContext.events?.total,
-        sleep: pageContext.sleep?.connected,
-        connections: Object.keys(pageContext.connections || {}).filter(k => pageContext.connections[k]),
-      }, null, 2));
-    }
-
     // Create ChatKit session with context
     const sessionPayload: any = {
       workflow: {
@@ -104,7 +88,7 @@ serve(async (req) => {
       user: deviceId,
     };
 
-    // ✅ Ajouter le contexte dans la session initiale
+    // Add context to session if provided
     if (pageContext) {
       sessionPayload.context = {
         page_context: JSON.stringify(pageContext, null, 2)
@@ -112,14 +96,12 @@ serve(async (req) => {
       console.log(`[ChatKit] Context added to session (${JSON.stringify(pageContext).length} chars)`);
     }
 
-    // Build headers with domain key if needed
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
       "OpenAI-Beta": "chatkit_beta=v1",
     };
 
-    // Add domain key header if ChatKit requires it
     if (CHATKIT_DOMAIN_KEY) {
       headers["X-ChatKit-Domain-Key"] = CHATKIT_DOMAIN_KEY;
     }
@@ -132,20 +114,12 @@ serve(async (req) => {
 
     if (!sessionResponse.ok) {
       const errorText = await sessionResponse.text();
-      console.error(`[ChatKit] OpenAI API error ${sessionResponse.status}:`, errorText);
+      console.error(`[ChatKit] API error ${sessionResponse.status}:`, errorText);
       
       return new Response(
         JSON.stringify({ 
           error: "Failed to create ChatKit session",
           status: sessionResponse.status,
-          details: errorText,
-          hint: sessionResponse.status === 401 
-            ? "Check OPENAI_API_KEY is valid"
-            : sessionResponse.status === 404
-            ? "Check CHATKIT_WORKFLOW_ID exists in your OpenAI account"
-            : sessionResponse.status === 403
-            ? "Check CHATKIT_DOMAIN_KEY is valid for this domain"
-            : "Check OpenAI API status"
         }),
         { status: sessionResponse.status, headers: cors({ "Content-Type": "application/json" }) }
       );
@@ -153,7 +127,9 @@ serve(async (req) => {
 
     const sessionData = await sessionResponse.json();
     
-    console.log(`[ChatKit] Session created successfully with context`);
+    if (pageContext) {
+      console.log("[ChatKit] Session created with page_context");
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -164,13 +140,11 @@ serve(async (req) => {
     );
 
   } catch (err) {
-    console.error("[ChatKit] Unexpected error:", err);
+    console.error("[ChatKit] Error:", err);
     
     return new Response(
       JSON.stringify({ 
         error: "Internal server error",
-        message: String(err),
-        stack: err instanceof Error ? err.stack : undefined
       }),
       { status: 500, headers: cors({ "Content-Type": "application/json" }) }
     );

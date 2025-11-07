@@ -295,9 +295,6 @@ export function generatePageContext(params: {
     },
   };
 
-  // ✅ LOG CLAIR UNE SEULE FOIS
-  console.log("📋 [PageContext] Generated:", JSON.stringify(context, null, 2));
-
   return context;
 }
 

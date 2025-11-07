@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { ChevronDown } from "lucide-react";
 import type { PageContext } from "@/utils/page-context";
@@ -25,6 +25,7 @@ type Props = {
 const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle, pageContext }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const contextSentRef = useRef(false);
 
   const isDarkMode =
     typeof window !== "undefined" &&
@@ -44,7 +45,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     s.async = true;
     
     s.onload = () => setScriptLoaded(true);
-    s.onerror = () => console.error("❌ [ChatKit] Script load failed");
+    s.onerror = () => console.error("❌ [ChatKit] Script failed to load");
     
     document.head.appendChild(s);
   }, []);
@@ -58,7 +59,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         const data = await response.json();
         setHealthCheck(data);
       } catch (err) {
-        console.error("❌ [ChatKit] Health check failed:", err);
+        console.error("❌ [ChatKit] Health check failed");
       }
     };
 
@@ -74,7 +75,12 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
             const url = `${supabaseUrl}/functions/v1/chatkit-session`;
 
-            console.log("📤 [ChatKit] Sending context to server:", !!pageContext);
+            // Envoyer le contexte uniquement une fois
+            const shouldSendContext = !contextSentRef.current && pageContext;
+            
+            if (shouldSendContext) {
+              console.log("📤 [ChatKit] Sending page_context to assistant");
+            }
 
             const response = await fetch(url, {
               method: "POST",
@@ -82,21 +88,26 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
               body: JSON.stringify({
                 deviceId,
                 existingClientSecret: existing || null,
-                pageContext: pageContext || null,
+                pageContext: shouldSendContext ? pageContext : null,
               }),
             });
 
             if (!response.ok) {
               const errorText = await response.text();
-              console.error("❌ [ChatKit] Session failed:", response.status, errorText);
-              throw new Error(`chatkit-session ${response.status}: ${errorText}`);
+              console.error("❌ [ChatKit] Session creation failed:", response.status);
+              throw new Error(`Session failed: ${response.status}`);
             }
 
             const data = await response.json();
-            console.log("✅ [ChatKit] Session created, context sent:", data.context_sent);
+            
+            if (shouldSendContext && data.context_sent) {
+              contextSentRef.current = true;
+              console.log("✅ [ChatKit] page_context sent successfully");
+            }
+            
             return data.client_secret;
           } catch (err) {
-            console.error("❌ [ChatKit] getClientSecret error:", err);
+            console.error("❌ [ChatKit] Error:", err);
             throw err;
           }
         },
@@ -159,6 +170,13 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   }, [isDarkMode, pageContext]);
 
   const { control } = useChatKit(config as any);
+
+  // Reset du flag quand le widget se ferme
+  useEffect(() => {
+    if (!isExpanded) {
+      contextSentRef.current = false;
+    }
+  }, [isExpanded]);
 
   if (!scriptLoaded || !isExpanded) {
     return null;
