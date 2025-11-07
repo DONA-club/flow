@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { ChevronDown } from "lucide-react";
 import type { PageContext } from "@/utils/page-context";
@@ -41,6 +41,8 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const contextSentRef = useRef(false);
+  const controlRef = useRef<any>(null);
 
   const isDarkMode =
     typeof window !== "undefined" &&
@@ -229,6 +231,121 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   
   dlog("useChatKit returned control:", Boolean(control));
 
+  // Stocker le control dans une ref pour y accéder plus tard
+  useEffect(() => {
+    if (control) {
+      controlRef.current = control;
+    }
+  }, [control]);
+
+  // Envoyer le contexte automatiquement à l'ouverture
+  useEffect(() => {
+    if (!isExpanded || !controlRef.current || contextSentRef.current || !pageContext) {
+      return;
+    }
+
+    const sendContextMessage = async () => {
+      try {
+        dlog("Sending initial context message...");
+        
+        // Formater le contexte de manière lisible pour le workflow
+        const contextMessage = `[CONTEXTE SYSTÈME - Ne pas afficher à l'utilisateur]
+
+Informations de localisation et utilisateur:
+- Localisation: ${pageContext.calendar.latitude?.toFixed(2)}°, ${pageContext.calendar.longitude?.toFixed(2)}°
+- Fuseau horaire: ${pageContext.user.timezone} (offset: ${pageContext.calendar.timezoneOffset}h)
+- Langue: ${pageContext.user.language}
+- Device ID: ${pageContext.user.deviceId}
+- User Agent: ${pageContext.user.userAgent}
+
+État de la page:
+- URL: ${pageContext.page.url}
+- Titre: ${pageContext.page.title}
+- Viewport: ${pageContext.viewport.width}x${pageContext.viewport.height} (${pageContext.viewport.orientation})
+- Thème: ${pageContext.theme.colorScheme}
+
+Calendrier:
+- Date actuelle: ${pageContext.calendar.currentDate}
+- Date virtuelle: ${pageContext.calendar.virtualDate || "aucune"}
+- Jour affiché: ${pageContext.calendar.displayedDay}
+- Lever du soleil: ${pageContext.calendar.sunrise}h
+- Coucher du soleil: ${pageContext.calendar.sunset}h
+
+Événements (${pageContext.events.total} total):
+${pageContext.events.upcoming.length > 0 ? pageContext.events.upcoming.map((e, i) => 
+  `${i + 1}. "${e.title}" - ${e.organizer}
+     Début: ${new Date(e.start).toLocaleString('fr-FR')}
+     Durée: ${e.duration}h
+     ${e.timeUntil !== null ? `Dans ${e.timeUntil.toFixed(1)}h` : 'En cours'}
+     ${e.hasVideoLink ? '📹 Lien vidéo disponible' : ''}
+     Lieu: ${e.location}`
+).join('\n\n') : 'Aucun événement à venir'}
+
+${pageContext.events.currentEvent ? `Événement en cours:
+- "${pageContext.events.currentEvent.title}" par ${pageContext.events.currentEvent.organizer}
+- Temps restant: ${pageContext.events.currentEvent.timeRemaining.toFixed(1)}h` : 'Aucun événement en cours'}
+
+Sommeil:
+${pageContext.sleep.connected ? `- Connecté: Oui
+- Réveil: ${pageContext.sleep.wakeHour !== null ? pageContext.sleep.wakeHour.toFixed(2) + 'h' : 'N/A'}
+- Coucher: ${pageContext.sleep.bedHour !== null ? pageContext.sleep.bedHour.toFixed(2) + 'h' : 'N/A'}
+- Total sommeil: ${pageContext.sleep.totalSleepHours !== null ? pageContext.sleep.totalSleepHours.toFixed(1) + 'h' : 'N/A'}
+- ${pageContext.sleep.debtOrCapital ? 
+    (pageContext.sleep.debtOrCapital.type === 'debt' 
+      ? `Dette de sommeil: ${pageContext.sleep.debtOrCapital.hours.toFixed(1)}h sur ${pageContext.sleep.debtOrCapital.daysCount} jours`
+      : `Capital de sommeil: ${pageContext.sleep.debtOrCapital.hours.toFixed(1)}h sur ${pageContext.sleep.debtOrCapital.daysCount} jours`)
+    : 'Pas de données dette/capital'}
+- Heure de coucher idéale: ${pageContext.sleep.idealBedHour !== null ? pageContext.sleep.idealBedHour.toFixed(2) + 'h' : 'N/A'}
+${pageContext.sleep.sleepSessions && pageContext.sleep.sleepSessions.length > 0 ? 
+  `- Sessions de sommeil: ${pageContext.sleep.sleepSessions.map(s => 
+    `${s.bedHour.toFixed(2)}h → ${s.wakeHour.toFixed(2)}h`
+  ).join(', ')}` : ''}` : '- Connecté: Non'}
+
+Connexions actives:
+${Object.entries(pageContext.connections).filter(([_, v]) => v).map(([k]) => `- ${k}`).join('\n') || '- Aucune'}
+
+Interface:
+- Taille calendrier: ${pageContext.ui.calendarSize}px
+- Survol anneau: ${pageContext.ui.isHoveringRing ? 'Oui' : 'Non'}
+- Événement sélectionné: ${pageContext.ui.selectedEvent || 'Aucun'}
+- ChatKit ouvert: ${pageContext.ui.chatkitExpanded ? 'Oui' : 'Non'}
+
+[FIN DU CONTEXTE SYSTÈME]`;
+
+        // Envoyer le message via l'API du control
+        if (controlRef.current?.sendMessage) {
+          await controlRef.current.sendMessage(contextMessage);
+          dlog("Context message sent successfully");
+          contextSentRef.current = true;
+        } else {
+          dlog("Control does not have sendMessage method, trying alternative...");
+          // Alternative: utiliser l'API interne si disponible
+          const chatElement = document.querySelector('chatkit-element');
+          if (chatElement && (chatElement as any).sendMessage) {
+            await (chatElement as any).sendMessage(contextMessage);
+            dlog("Context message sent via chatElement");
+            contextSentRef.current = true;
+          } else {
+            console.warn("[ChatKit] Could not find method to send context message");
+          }
+        }
+      } catch (err) {
+        console.error("[ChatKit] Failed to send context message:", err);
+      }
+    };
+
+    // Attendre un peu que le ChatKit soit complètement initialisé
+    const timer = setTimeout(sendContextMessage, 500);
+    return () => clearTimeout(timer);
+  }, [isExpanded, pageContext, dlog]);
+
+  // Réinitialiser le flag quand le ChatKit se ferme
+  useEffect(() => {
+    if (!isExpanded) {
+      contextSentRef.current = false;
+    }
+  }, [isExpanded]);
+
   if (!scriptLoaded) {
     return null;
   }
@@ -309,6 +426,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             <div>Health: {healthCheck ? "✅" : "⏳"}</div>
             <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
             <div>Context: {pageContext ? "✅" : "❌"}</div>
+            <div>Sent: {contextSentRef.current ? "✅" : "⏳"}</div>
           </div>
         )}
       </div>
