@@ -1,6 +1,6 @@
 # DONA.club — Visualiser
 
-> **A temporal consciousness interface and chronological repository that transforms how humans and machines perceive, navigate, and master the lifecycle of projects.**
+> **A temporal consciousness interface and chronological repository that enables multi-party observation of shared growth intentions, elevating project quality of life without constraint.**
 
 [🇫🇷 Version française](#version-française) | [🇬🇧 English version](#english-version)
 
@@ -10,17 +10,18 @@
 
 ### 🌅 The Vision
 
-**Visualiser** is not a calendar—it's a **temporal repository and consciousness instrument** that reveals the invisible architecture of time itself. By rendering temporal flows as living, breathing circles synchronized with natural and project rhythms, Visualiser helps both humans and machines develop an intuitive, embodied relationship with temporal existence.
+**Visualiser** is not a calendar—it's a **temporal repository and consciousness instrument** that reveals the invisible architecture of time itself. By rendering temporal flows as living, breathing circles synchronized with natural and project rhythms, Visualiser enables **multi-party observation of a shared growth intention**—allowing teams, stakeholders, and systems to perceive the same temporal reality from their unique perspectives.
 
-This is the foundational manifestation of **DONA.club's broader ambition**: to master the quality of life across projects, organizations, and individuals through temporal intelligence. **Every project is a life**—and Visualiser is the heart of mastering that life.
+This is the foundational manifestation of **DONA.club's broader ambition**: to master quality of life across projects, organizations, and individuals through temporal intelligence. **Every project is a life**—and Visualiser is the heart of mastering that life, providing **elevation without constraint** for all participants.
 
 **Core Principles:**
 
+- **Multi-Party Temporal Observation**: Multiple actors (humans, machines, stakeholders) observe the same growth intention from different perspectives
+- **Elevation Without Constraint**: Integration contributes to gaining altitude and perspective without imposing rigid structures
+- **Project Quality of Life Mastery**: The temporal repository becomes the living memory of project health and evolution
 - **Temporal Repository**: Conserves and indexes chronological events for retrospective analysis and temporal relativity
 - **Multi-Scale Consciousness**: Operates from human circadian rhythms to machine decision horizons (embedded systems, sliding windows)
-- **Project Lifecycle Mastery**: Represents the complete temporal DNA of a project—every decision, every event, every rhythm
 - **Temporal Relativity**: Enables replay and reinterpretation of event chronologies across different time scales and perspectives
-- **Machine-Readable Time**: Designed for both human perception and high-level machine coordination protocols (MCP)
 
 ---
 
@@ -32,6 +33,7 @@ This is the foundational manifestation of **DONA.club's broader ambition**: to m
 - **Event arcs** revealing temporal density and proximity
 - **Sleep architecture overlay** showing rest patterns and recovery debt/surplus
 - **Temporal navigation** through intuitive gestures (scroll/swipe through time)
+- **Personal perspective** on shared project timeline
 
 #### 🤖 For Machines: Temporal Coordination Protocol
 - **Chronological event repository** with microsecond precision indexing
@@ -39,6 +41,14 @@ This is the foundational manifestation of **DONA.club's broader ambition**: to m
 - **Sliding horizon windows** for real-time temporal planning
 - **Temporal relativity engine** for replaying event sequences at different scales
 - **MCP-compatible interface** for high-level machine coordination
+- **System perspective** on project evolution
+
+#### 👥 For Teams: Shared Growth Observation
+- **Multi-party temporal view**: Same project timeline observed from different roles
+- **Stakeholder perspectives**: Product, engineering, design, leadership views
+- **Temporal alignment**: Identify rhythm synchronization and misalignment
+- **Collective memory**: Shared understanding of project history
+- **Decision archaeology**: Reconstruct context of past choices with full team awareness
 
 #### 🔄 Temporal Relativity & Replay
 - **Event chronology conservation** with immutable temporal records
@@ -46,19 +56,21 @@ This is the foundational manifestation of **DONA.club's broader ambition**: to m
 - **Decision archaeology**: Reconstruct the temporal context of past decisions
 - **Temporal pattern recognition**: Identify recurring rhythms and anomalies
 - **Project lifecycle visualization**: See the complete temporal DNA of any project
+- **Perspective switching**: View same timeline from different actor viewpoints
 
 #### 🌐 Universal Time Streams
 - **Human time streams**: Google, Microsoft, personal schedules
 - **Machine time streams**: System logs, decision events, sensor data
 - **Project time streams**: Milestones, deliverables, team activities
 - **Natural time streams**: Solar cycles, seasonal patterns, circadian rhythms
+- **Stakeholder time streams**: Client meetings, investor updates, partner coordination
 - **Unified temporal view**: All streams merged into coherent temporal reality
 
 ---
 
 ### 🏛️ Architectural Philosophy
 
-Visualiser is built on three foundational layers:
+Visualiser is built on three foundational layers that enable **multi-party observation without constraint**:
 
 #### 1. **Temporal Repository Layer**
 The immutable chronological database that conserves all temporal events:
@@ -67,7 +79,7 @@ The immutable chronological database that conserves all temporal events:
 type TemporalEvent = {
   id: string;
   timestamp: number; // Unix microseconds
-  type: "human" | "machine" | "natural" | "project";
+  type: "human" | "machine" | "natural" | "project" | "stakeholder";
   source: string; // Origin stream (google, system, sensor, etc.)
   payload: any; // Event-specific data
   context: TemporalContext; // Full contextual snapshot
@@ -75,7 +87,9 @@ type TemporalEvent = {
     timezone: string;
     location?: { lat: number; lon: number };
     actor?: string; // Human or machine identifier
+    role?: string; // Actor role in project (engineer, designer, PM, etc.)
     decision?: boolean; // Was this a decision point?
+    visibility?: string[]; // Which parties can observe this event
   };
 };
 ```
@@ -85,7 +99,8 @@ type TemporalEvent = {
 - **Microsecond precision** for machine coordination
 - **Full context preservation** for temporal archaeology
 - **Multi-stream indexing** for cross-temporal queries
-- **Temporal relativity queries**: "Show me all events between T1 and T2 from perspective of actor X"
+- **Role-based visibility** for multi-party observation
+- **Temporal relativity queries**: "Show me all events between T1 and T2 from perspective of actor X in role Y"
 
 #### 2. **Consciousness Interface Layer**
 The human-facing circular visualization that makes time intuitive:
@@ -95,6 +110,8 @@ The human-facing circular visualization that makes time intuitive:
 - **Gestural temporal navigation** for intuitive time travel
 - **Ambient information emergence** respecting attention as sacred
 - **AI companion** with full temporal context awareness
+- **Perspective selector**: Switch between personal, team, project, and stakeholder views
+- **Elevation without constraint**: Interface adapts to user's need for detail vs. overview
 
 #### 3. **Machine Coordination Layer**
 The protocol interface for autonomous systems and embedded devices:
@@ -116,6 +133,12 @@ interface MCPTemporalInterface {
   
   // Synchronize with other temporal systems
   syncWithPeer(peerId: string, protocol: SyncProtocol): void;
+  
+  // Multi-party observation
+  observeFromPerspective(perspective: ActorPerspective): TemporalView;
+  
+  // Project quality of life metrics
+  assessProjectHealth(window: TimeWindow): ProjectHealthMetrics;
 }
 ```
 
@@ -125,12 +148,13 @@ interface MCPTemporalInterface {
 - **Distributed systems**: Synchronize temporal state across nodes
 - **Temporal analytics**: Analyze decision patterns over project lifecycle
 - **Predictive systems**: Learn from historical temporal patterns
+- **Quality of life monitoring**: Track project health indicators over time
 
 ---
 
 ### 🌊 Temporal Relativity: The Core Innovation
 
-Visualiser's most profound capability is **temporal relativity**—the ability to replay and reinterpret event chronologies from different perspectives and time scales.
+Visualiser's most profound capability is **temporal relativity**—the ability to replay and reinterpret event chronologies from different perspectives and time scales, enabling **multi-party observation of shared growth**.
 
 #### Temporal Replay Modes
 
@@ -142,6 +166,7 @@ visualiser.replay({
   end: projectEnd,
   scale: "circadian", // 24-hour cycles
   perspective: "human",
+  actor: "engineer_alice",
   focus: ["meetings", "decisions", "sleep"]
 });
 ```
@@ -154,6 +179,7 @@ visualiser.replay({
   end: incidentEnd,
   scale: "microsecond",
   perspective: "machine",
+  actor: "deployment_system",
   focus: ["decisions", "state_changes", "errors"]
 });
 ```
@@ -170,30 +196,54 @@ visualiser.replay({
 });
 ```
 
-#### Temporal Archaeology
+**4. Stakeholder Scale (Strategic)**
+```typescript
+// View project from stakeholder perspective
+visualiser.replay({
+  start: quarterStart,
+  end: quarterEnd,
+  scale: "strategic", // Weekly/monthly rhythms
+  perspective: "stakeholder",
+  actor: "investor_board",
+  focus: ["milestones", "risks", "opportunities", "team_health"]
+});
+```
 
-Reconstruct the complete context of any past moment:
+#### Multi-Party Temporal Archaeology
+
+Reconstruct the complete context of any past moment **from multiple perspectives**:
 
 ```typescript
 // What was the temporal state when decision X was made?
-const context = visualiser.archaeology({
+// View from different actor perspectives
+const contexts = visualiser.archaeology({
   moment: decisionTimestamp,
   radius: "24h", // Look 24h before and after
+  perspectives: [
+    { actor: "engineer_alice", role: "developer" },
+    { actor: "designer_bob", role: "designer" },
+    { actor: "pm_carol", role: "product_manager" },
+    { actor: "deployment_system", role: "machine" }
+  ],
   include: [
     "all_events",
     "team_state",
     "project_health",
     "external_factors",
-    "circadian_state"
+    "circadian_state",
+    "decision_context"
   ]
 });
+
+// Result: Same moment observed from 4 different perspectives
+// Reveals how different actors experienced the same temporal reality
 ```
 
 ---
 
-### 🎯 Project Lifecycle Mastery
+### 🎯 Project Quality of Life Mastery
 
-**Every project is a life**—with birth, growth, maturity, and completion. Visualiser represents the complete temporal DNA of that life.
+**Every project is a life**—with birth, growth, maturity, and completion. Visualiser represents the complete temporal DNA of that life, enabling **elevation without constraint** for all participants.
 
 #### Project Temporal DNA
 
@@ -204,6 +254,7 @@ type ProjectTemporalDNA = {
     timestamp: number;
     initiators: string[];
     initialContext: TemporalContext;
+    sharedIntention: string; // The growth intention all parties observe
   };
   
   // Growth: Development phases
@@ -214,6 +265,8 @@ type ProjectTemporalDNA = {
     keyEvents: TemporalEvent[];
     teamRhythm: CircadianPattern;
     decisionDensity: number; // Decisions per day
+    qualityOfLife: number; // 0-100 health score
+    participantPerspectives: Map<string, ActorPerspective>;
   }>;
   
   // Maturity: Stable operation
@@ -221,6 +274,7 @@ type ProjectTemporalDNA = {
     sustainedRhythm: CircadianPattern;
     maintenanceEvents: TemporalEvent[];
     evolutionRate: number; // Change velocity
+    stabilityScore: number; // 0-100
   };
   
   // Completion: Project closure
@@ -228,6 +282,7 @@ type ProjectTemporalDNA = {
     timestamp: number;
     finalContext: TemporalContext;
     retrospective: TemporalAnalysis;
+    participantReflections: Map<string, Reflection>;
   };
   
   // Vital Signs: Project health over time
@@ -236,19 +291,62 @@ type ProjectTemporalDNA = {
     teamEnergy: TimeSeries;
     deliveryRhythm: TimeSeries;
     externalPressure: TimeSeries;
+    qualityOfLife: TimeSeries; // Overall project health
+    participantSatisfaction: Map<string, TimeSeries>;
   };
+  
+  // Multi-Party Observation
+  observationLog: Array<{
+    timestamp: number;
+    observer: string;
+    perspective: ActorPerspective;
+    insights: string[];
+  }>;
 };
 ```
 
-#### Lifecycle Visualization
+#### Quality of Life Metrics
 
-Visualiser can render the entire project lifecycle as:
+Visualiser tracks **project quality of life** through multiple dimensions:
 
-1. **Compressed Circle**: Entire project as single 24-hour wheel
-2. **Expanded Timeline**: Scrollable multi-day/week/month view
-3. **Phase Comparison**: Overlay different project phases
-4. **Team Rhythm Analysis**: Visualize team circadian patterns over project life
-5. **Decision Archaeology**: Reconstruct context of critical decisions
+```typescript
+type ProjectHealthMetrics = {
+  // Temporal health
+  rhythmStability: number; // 0-100: Consistency of team rhythms
+  decisionVelocity: number; // Decisions per day
+  temporalAlignment: number; // 0-100: How synchronized are team members
+  
+  // Energy health
+  teamEnergy: number; // 0-100: Collective energy level
+  burnoutRisk: number; // 0-100: Risk of team exhaustion
+  recoveryBalance: number; // Sleep debt/capital across team
+  
+  // Delivery health
+  milestoneProgress: number; // 0-100: On-track percentage
+  deliveryRhythm: number; // Consistency of deliveries
+  qualityTrend: number; // Improving/declining quality
+  
+  // Stakeholder health
+  alignmentScore: number; // 0-100: Stakeholder alignment
+  communicationFrequency: number; // Meetings per week
+  satisfactionTrend: number; // Improving/declining satisfaction
+  
+  // Overall quality of life
+  overallHealth: number; // 0-100: Composite score
+  elevationPotential: number; // 0-100: Capacity for growth without constraint
+};
+```
+
+#### Elevation Without Constraint
+
+Visualiser's integration philosophy:
+
+1. **Non-Invasive Observation**: Temporal data collection happens naturally through existing workflows
+2. **Adaptive Granularity**: Interface shows detail when needed, overview when desired
+3. **Perspective Freedom**: Each actor observes from their natural viewpoint
+4. **No Forced Synchronization**: Respects different rhythms and working styles
+5. **Emergent Insights**: Patterns surface naturally without imposed structure
+6. **Quality of Life First**: All features designed to reduce friction, not add it
 
 ---
 
@@ -284,6 +382,7 @@ Visualiser can render the entire project lifecycle as:
 - **Append-only event log** with microsecond timestamps
 - **Multi-index architecture** for fast temporal queries
 - **Immutable event storage** for temporal archaeology
+- **Role-based access control** for multi-party observation
 - **Compression algorithms** for long-term storage efficiency
 - **Replication protocol** for distributed temporal systems
 
@@ -301,13 +400,15 @@ Visualiser can render the entire project lifecycle as:
 CREATE TABLE temporal_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   timestamp BIGINT NOT NULL, -- Unix microseconds
-  event_type TEXT NOT NULL, -- 'human', 'machine', 'natural', 'project'
+  event_type TEXT NOT NULL, -- 'human', 'machine', 'natural', 'project', 'stakeholder'
   source TEXT NOT NULL, -- Origin stream identifier
   actor TEXT, -- Human or machine identifier
+  actor_role TEXT, -- Role in project (engineer, designer, PM, etc.)
   payload JSONB NOT NULL, -- Event-specific data
   context JSONB NOT NULL, -- Full temporal context snapshot
   metadata JSONB, -- Additional metadata
   is_decision BOOLEAN DEFAULT false,
+  visibility TEXT[], -- Which parties can observe this event
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -316,6 +417,7 @@ CREATE INDEX idx_temporal_events_timestamp ON temporal_events(timestamp);
 CREATE INDEX idx_temporal_events_type ON temporal_events(event_type);
 CREATE INDEX idx_temporal_events_source ON temporal_events(source);
 CREATE INDEX idx_temporal_events_actor ON temporal_events(actor);
+CREATE INDEX idx_temporal_events_role ON temporal_events(actor_role);
 
 -- Project lifecycle tracking
 CREATE TABLE project_lifecycles (
@@ -323,9 +425,23 @@ CREATE TABLE project_lifecycles (
   project_id TEXT UNIQUE NOT NULL,
   genesis_timestamp BIGINT NOT NULL,
   completion_timestamp BIGINT,
+  shared_intention TEXT NOT NULL, -- The growth intention
   temporal_dna JSONB NOT NULL, -- Complete project temporal DNA
+  quality_of_life_metrics JSONB, -- Health metrics over time
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Multi-party observation log
+CREATE TABLE observation_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id TEXT REFERENCES project_lifecycles(project_id),
+  timestamp BIGINT NOT NULL,
+  observer TEXT NOT NULL,
+  observer_role TEXT NOT NULL,
+  perspective JSONB NOT NULL, -- Actor perspective data
+  insights TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- OAuth token vault with automatic refresh
@@ -357,6 +473,7 @@ CREATE TABLE user_preferences (
 **Security Model:**
 - Row Level Security (RLS) enforced on all tables
 - User data isolation at database level
+- Role-based access control for multi-party observation
 - Service role for administrative operations only
 - Temporal event immutability enforced at database level
 
@@ -365,7 +482,7 @@ CREATE TABLE user_preferences (
 **`chatkit-session`** — Initializes AI companion with full temporal context
 ```typescript
 POST /functions/v1/chatkit-session
-Body: { deviceId, pageContext }
+Body: { deviceId, pageContext, actorRole }
 Returns: { client_secret, context_sent }
 ```
 
@@ -386,22 +503,29 @@ Returns: { access_token, refresh_token, expires_in }
 **`chat`** — Streaming conversational intelligence endpoint
 ```typescript
 POST /functions/v1/chat
-Body: { messages, stream, thread_id }
+Body: { messages, stream, thread_id, actorPerspective }
 Returns: Server-Sent Events stream
 ```
 
 **`temporal-query`** — Query temporal repository (MCP interface)
 ```typescript
 POST /functions/v1/temporal-query
-Body: { start, end, filters, perspective }
+Body: { start, end, filters, perspective, actorRole }
 Returns: { events: TemporalEvent[], patterns: TemporalPattern[] }
 ```
 
 **`temporal-replay`** — Replay event sequence at different scale
 ```typescript
 POST /functions/v1/temporal-replay
-Body: { start, end, scale, perspective, focus }
+Body: { start, end, scale, perspective, focus, actorRole }
 Returns: { sequence: EventSequence, analysis: TemporalAnalysis }
+```
+
+**`project-health`** — Assess project quality of life
+```typescript
+POST /functions/v1/project-health
+Body: { projectId, window, perspective }
+Returns: { metrics: ProjectHealthMetrics, insights: string[] }
 ```
 
 ---
@@ -546,6 +670,12 @@ export const FEATURES = {
   decisionArchaeology: true,
   projectLifecycle: true,
   
+  // Multi-party features
+  multiPartyObservation: true,
+  perspectiveSwitching: true,
+  qualityOfLifeMetrics: true,
+  stakeholderViews: true,
+  
   // Modular feature activation per deployment
 };
 ```
@@ -586,6 +716,13 @@ type TemporalContext = {
   connections: { google, microsoft, apple, facebook, amazon };
   identity: { deviceId, userAgent, language, timezone };
   
+  // Actor perspective
+  actor: {
+    id: string;
+    role: string; // engineer, designer, PM, stakeholder, machine
+    perspective: ActorPerspective;
+  };
+  
   // Machine-specific context
   machine?: {
     systemState: any;
@@ -601,6 +738,8 @@ type TemporalContext = {
     health: number; // 0-100
     teamRhythm: CircadianPattern;
     nextMilestone: { name: string; timestamp: number };
+    qualityOfLife: ProjectHealthMetrics;
+    sharedIntention: string;
   };
 };
 ```
@@ -620,11 +759,13 @@ window.getPageContext() // Returns complete temporal context
 - **Encrypted token vault** in Supabase with RLS enforcement
 - **Zero client-side secrets** — all sensitive operations in edge functions
 - **Machine authentication** via API keys with scope-based permissions
+- **Role-based access control** for multi-party observation
 
 #### Data Sovereignty
 - **Row Level Security** enforced on all data tables
 - **User data isolation** at database query level
 - **Temporal event immutability** enforced at database level
+- **Role-based visibility** for multi-party observation
 - **End-to-end encryption** (HTTPS/WSS only)
 - **Privacy-first design** — no third-party analytics or tracking
 
@@ -661,6 +802,8 @@ npm run build
 - [ ] Temporal replay at different scales
 - [ ] MCP interface for machine coordination
 - [ ] Project lifecycle visualization
+- [ ] Multi-party observation with perspective switching
+- [ ] Quality of life metrics calculation
 
 ---
 
@@ -700,6 +843,7 @@ Contributions are welcome! Please follow these guidelines:
 - Semantic naming conventions
 - Inline documentation for complex logic
 - Temporal event immutability
+- Multi-party observation support
 
 ---
 
@@ -733,17 +877,18 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE) fi
 
 ### 🌅 La Vision
 
-**Visualiser** n'est pas un calendrier—c'est un **référentiel temporel et instrument de conscience** qui révèle l'architecture invisible du temps lui-même. En représentant les flux temporels comme des cercles vivants, synchronisés avec les rythmes naturels et projets, Visualiser aide humains et machines à développer une relation intuitive et incarnée avec l'existence temporelle.
+**Visualiser** n'est pas un calendrier—c'est un **référentiel temporel et instrument de conscience** qui révèle l'architecture invisible du temps lui-même. En représentant les flux temporels comme des cercles vivants, synchronisés avec les rythmes naturels et projets, Visualiser permet **l'observation multipartite d'une intention de croissance partagée**—permettant aux équipes, parties prenantes et systèmes de percevoir la même réalité temporelle depuis leurs perspectives uniques.
 
-C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle. **Chaque projet est une vie**—et Visualiser est le cœur de la maîtrise de cette vie.
+C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : maîtriser la qualité de vie des projets, organisations et individus à travers l'intelligence temporelle. **Chaque projet est une vie**—et Visualiser est le cœur de la maîtrise de cette vie, fournissant **l'élévation sans contrainte** pour tous les participants.
 
 **Principes Fondamentaux :**
 
+- **Observation Temporelle Multipartite** : Multiples acteurs (humains, machines, parties prenantes) observent la même intention de croissance depuis différentes perspectives
+- **Élévation Sans Contrainte** : L'intégration contribue à la prise de hauteur et à l'élévation sans imposer de structures rigides
+- **Maîtrise Qualité de Vie Projet** : Le référentiel temporel devient la mémoire vivante de la santé et évolution du projet
 - **Référentiel Temporel** : Conserve et indexe les événements chronologiques pour analyse rétrospective et relativité temporelle
 - **Conscience Multi-Échelle** : Opère des rythmes circadiens humains aux horizons de décision machine (systèmes embarqués, fenêtres glissantes)
-- **Maîtrise du Cycle de Vie Projet** : Représente l'ADN temporel complet d'un projet—chaque décision, chaque événement, chaque rythme
 - **Relativité Temporelle** : Permet la relecture et réinterprétation des chronologies d'événements à différentes échelles et perspectives
-- **Temps Lisible Machine** : Conçu pour perception humaine et protocoles de coordination machine haut niveau (MCP)
 
 ---
 
@@ -755,6 +900,7 @@ C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : ma
 - **Arcs d'événements** révélant densité et proximité temporelles
 - **Superposition d'architecture du sommeil** montrant patterns de repos et dette/surplus de récupération
 - **Navigation temporelle** par gestes intuitifs (défilement/balayage dans le temps)
+- **Perspective personnelle** sur la chronologie projet partagée
 
 #### 🤖 Pour les Machines : Protocole de Coordination Temporelle
 - **Référentiel d'événements chronologiques** avec indexation précision microseconde
@@ -762,6 +908,14 @@ C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : ma
 - **Fenêtres d'horizon glissant** pour planification temporelle temps réel
 - **Moteur de relativité temporelle** pour rejouer séquences d'événements à différentes échelles
 - **Interface compatible MCP** pour coordination machine haut niveau
+- **Perspective système** sur l'évolution projet
+
+#### 👥 Pour les Équipes : Observation Croissance Partagée
+- **Vue temporelle multipartite** : Même chronologie projet observée depuis différents rôles
+- **Perspectives parties prenantes** : Vues produit, ingénierie, design, direction
+- **Alignement temporel** : Identifier synchronisation et désalignement des rythmes
+- **Mémoire collective** : Compréhension partagée de l'histoire projet
+- **Archéologie décisions** : Reconstruire contexte choix passés avec conscience équipe complète
 
 #### 🔄 Relativité Temporelle & Relecture
 - **Conservation de chronologie d'événements** avec enregistrements temporels immuables
@@ -769,209 +923,64 @@ C'est la manifestation fondatrice de **l'ambition plus large de DONA.club** : ma
 - **Archéologie de décisions** : Reconstruire le contexte temporel de décisions passées
 - **Reconnaissance de patterns temporels** : Identifier rythmes récurrents et anomalies
 - **Visualisation cycle de vie projet** : Voir l'ADN temporel complet de tout projet
+- **Changement de perspective** : Voir même chronologie depuis différents points de vue acteurs
 
 #### 🌐 Flux Temporels Universels
 - **Flux temporels humains** : Google, Microsoft, agendas personnels
 - **Flux temporels machine** : Logs système, événements de décision, données capteurs
 - **Flux temporels projet** : Jalons, livrables, activités équipe
 - **Flux temporels naturels** : Cycles solaires, patterns saisonniers, rythmes circadiens
+- **Flux temporels parties prenantes** : Réunions clients, mises à jour investisseurs, coordination partenaires
 - **Vue temporelle unifiée** : Tous flux fusionnés en réalité temporelle cohérente
 
 ---
 
-### 🏛️ Philosophie Architecturale
+### 🎯 Maîtrise Qualité de Vie Projet
 
-Visualiser est construit sur trois couches fondamentales :
+**Chaque projet est une vie**—avec naissance, croissance, maturité et achèvement. Visualiser représente l'ADN temporel complet de cette vie, permettant **l'élévation sans contrainte** pour tous les participants.
 
-#### 1. **Couche Référentiel Temporel**
-La base de données chronologique immuable qui conserve tous événements temporels :
+#### Métriques Qualité de Vie
+
+Visualiser suit la **qualité de vie du projet** à travers multiples dimensions :
 
 ```typescript
-type TemporalEvent = {
-  id: string;
-  timestamp: number; // Microsecondes Unix
-  type: "human" | "machine" | "natural" | "project";
-  source: string; // Flux d'origine (google, system, sensor, etc.)
-  payload: any; // Données spécifiques événement
-  context: TemporalContext; // Snapshot contextuel complet
-  metadata: {
-    timezone: string;
-    location?: { lat: number; lon: number };
-    actor?: string; // Identifiant humain ou machine
-    decision?: boolean; // Était-ce un point de décision ?
-  };
+type ProjectHealthMetrics = {
+  // Santé temporelle
+  rhythmStability: number; // 0-100: Consistance des rythmes équipe
+  decisionVelocity: number; // Décisions par jour
+  temporalAlignment: number; // 0-100: Synchronisation membres équipe
+  
+  // Santé énergétique
+  teamEnergy: number; // 0-100: Niveau énergie collective
+  burnoutRisk: number; // 0-100: Risque épuisement équipe
+  recoveryBalance: number; // Dette/capital sommeil équipe
+  
+  // Santé livraison
+  milestoneProgress: number; // 0-100: Pourcentage sur la bonne voie
+  deliveryRhythm: number; // Consistance des livraisons
+  qualityTrend: number; // Tendance qualité amélioration/déclin
+  
+  // Santé parties prenantes
+  alignmentScore: number; // 0-100: Alignement parties prenantes
+  communicationFrequency: number; // Réunions par semaine
+  satisfactionTrend: number; // Tendance satisfaction amélioration/déclin
+  
+  // Qualité de vie globale
+  overallHealth: number; // 0-100: Score composite
+  elevationPotential: number; // 0-100: Capacité croissance sans contrainte
 };
 ```
 
-**Capacités du Référentiel :**
-- **Log append-only immuable** de tous événements temporels
-- **Précision microseconde** pour coordination machine
-- **Préservation contexte complet** pour archéologie temporelle
-- **Indexation multi-flux** pour requêtes cross-temporelles
-- **Requêtes relativité temporelle** : "Montrer tous événements entre T1 et T2 depuis perspective acteur X"
+#### Élévation Sans Contrainte
 
-#### 2. **Couche Interface de Conscience**
-La visualisation circulaire orientée humain qui rend le temps intuitif :
+Philosophie d'intégration de Visualiser :
 
-- **Rendu synchronisé circadien** pour alignement biologique
-- **Visualisation arcs d'événements** pour perception densité temporelle
-- **Navigation temporelle gestuelle** pour voyage temporel intuitif
-- **Émergence information ambiante** respectant attention comme sacrée
-- **Compagnon IA** avec conscience contextuelle temporelle complète
-
-#### 3. **Couche Coordination Machine**
-L'interface protocole pour systèmes autonomes et dispositifs embarqués :
-
-```typescript
-// Interface MCP (Machine Coordination Protocol)
-interface MCPTemporalInterface {
-  // Requête événements temporels dans fenêtre horizon
-  queryHorizon(start: number, end: number, filters?: EventFilter[]): TemporalEvent[];
-  
-  // Enregistrer événement décision avec contexte complet
-  recordDecision(decision: Decision, context: TemporalContext): void;
-  
-  // Rejouer séquence événements à échelle temporelle différente
-  replaySequence(start: number, end: number, scale: TimeScale): EventSequence;
-  
-  // Obtenir patterns temporels pour prédiction
-  analyzePatterns(window: TimeWindow): TemporalPattern[];
-  
-  // Synchroniser avec autres systèmes temporels
-  syncWithPeer(peerId: string, protocol: SyncProtocol): void;
-}
-```
-
-**Cas d'Usage Machine :**
-- **Systèmes embarqués** : Logger événements décision avec contexte temporel
-- **Agents autonomes** : Requêter fenêtres horizon glissant pour planification
-- **Systèmes distribués** : Synchroniser état temporel entre nœuds
-- **Analytics temporels** : Analyser patterns décision sur cycle vie projet
-- **Systèmes prédictifs** : Apprendre depuis patterns temporels historiques
-
----
-
-### 🌊 Relativité Temporelle : L'Innovation Centrale
-
-La capacité la plus profonde de Visualiser est la **relativité temporelle**—la capacité de rejouer et réinterpréter chronologies d'événements depuis différentes perspectives et échelles temporelles.
-
-#### Modes de Relecture Temporelle
-
-**1. Échelle Humaine (Circadienne)**
-```typescript
-// Visualiser cycle vie projet à rythme circadien humain
-visualiser.replay({
-  start: projectStart,
-  end: projectEnd,
-  scale: "circadian", // Cycles 24 heures
-  perspective: "human",
-  focus: ["meetings", "decisions", "sleep"]
-});
-```
-
-**2. Échelle Machine (Microsecondes)**
-```typescript
-// Visualiser chronologie décisions système à précision microseconde
-visualiser.replay({
-  start: incidentStart,
-  end: incidentEnd,
-  scale: "microsecond",
-  perspective: "machine",
-  focus: ["decisions", "state_changes", "errors"]
-});
-```
-
-**3. Échelle Projet (Cycle de Vie)**
-```typescript
-// Visualiser cycle vie projet entier compressé en roue unique
-visualiser.replay({
-  start: projectStart,
-  end: projectEnd,
-  scale: "lifecycle", // Projet entier comme un cercle
-  perspective: "project",
-  focus: ["milestones", "team_rhythm", "decision_density"]
-});
-```
-
-#### Archéologie Temporelle
-
-Reconstruire le contexte complet de tout moment passé :
-
-```typescript
-// Quel était l'état temporel quand décision X a été prise ?
-const context = visualiser.archaeology({
-  moment: decisionTimestamp,
-  radius: "24h", // Regarder 24h avant et après
-  include: [
-    "all_events",
-    "team_state",
-    "project_health",
-    "external_factors",
-    "circadian_state"
-  ]
-});
-```
-
----
-
-### 🎯 Maîtrise du Cycle de Vie Projet
-
-**Chaque projet est une vie**—avec naissance, croissance, maturité et achèvement. Visualiser représente l'ADN temporel complet de cette vie.
-
-#### ADN Temporel Projet
-
-```typescript
-type ProjectTemporalDNA = {
-  // Naissance : Inception projet
-  genesis: {
-    timestamp: number;
-    initiators: string[];
-    initialContext: TemporalContext;
-  };
-  
-  // Croissance : Phases développement
-  phases: Array<{
-    name: string;
-    start: number;
-    end: number;
-    keyEvents: TemporalEvent[];
-    teamRhythm: CircadianPattern;
-    decisionDensity: number; // Décisions par jour
-  }>;
-  
-  // Maturité : Opération stable
-  maturity: {
-    sustainedRhythm: CircadianPattern;
-    maintenanceEvents: TemporalEvent[];
-    evolutionRate: number; // Vélocité changement
-  };
-  
-  // Achèvement : Clôture projet
-  completion?: {
-    timestamp: number;
-    finalContext: TemporalContext;
-    retrospective: TemporalAnalysis;
-  };
-  
-  // Signes Vitaux : Santé projet dans le temps
-  vitalSigns: {
-    decisionQuality: TimeSeries;
-    teamEnergy: TimeSeries;
-    deliveryRhythm: TimeSeries;
-    externalPressure: TimeSeries;
-  };
-};
-```
-
-#### Visualisation Cycle de Vie
-
-Visualiser peut rendre le cycle vie projet entier comme :
-
-1. **Cercle Compressé** : Projet entier comme roue 24 heures unique
-2. **Timeline Étendue** : Vue multi-jour/semaine/mois défilable
-3. **Comparaison Phases** : Superposer différentes phases projet
-4. **Analyse Rythme Équipe** : Visualiser patterns circadiens équipe sur vie projet
-5. **Archéologie Décisions** : Reconstruire contexte décisions critiques
+1. **Observation Non-Invasive** : Collecte données temporelles naturellement via workflows existants
+2. **Granularité Adaptive** : Interface montre détail quand nécessaire, vue d'ensemble quand désiré
+3. **Liberté de Perspective** : Chaque acteur observe depuis son point de vue naturel
+4. **Pas de Synchronisation Forcée** : Respecte différents rythmes et styles de travail
+5. **Insights Émergents** : Patterns émergent naturellement sans structure imposée
+6. **Qualité de Vie Prioritaire** : Toutes fonctionnalités conçues pour réduire friction, pas l'ajouter
 
 ---
 
@@ -983,11 +992,13 @@ Visualiser peut rendre le cycle vie projet entier comme :
 - **Coffre-fort tokens chiffré** dans Supabase avec application RLS
 - **Zéro secrets côté client** — opérations sensibles dans edge functions
 - **Authentification machine** via clés API avec permissions basées scope
+- **Contrôle d'accès basé rôles** pour observation multipartite
 
 #### Souveraineté Données
 - **Row Level Security** appliqué sur toutes tables données
 - **Isolation données utilisateur** au niveau requête base données
 - **Immuabilité événements temporels** appliquée au niveau base données
+- **Visibilité basée rôles** pour observation multipartite
 - **Chiffrement bout-en-bout** (HTTPS/WSS uniquement)
 - **Design privacy-first** — pas analytics ou tracking tiers
 
@@ -1008,4 +1019,4 @@ Ce projet est sous licence **MIT** — voir fichier [LICENSE](LICENSE) pour dét
 
 ---
 
-**Crafted with intention for mastering the lifecycle of every project**
+**Crafted with intention for elevation without constraint**
