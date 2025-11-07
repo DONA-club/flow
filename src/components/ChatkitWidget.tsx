@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
 function getDeviceId(): string {
@@ -21,8 +21,9 @@ type Props = {
 };
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [healthCheck, setHealthCheck] = useState<any>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const initAttempted = useRef(false);
 
   const isDarkMode = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -60,6 +61,8 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       async getClientSecret(existingClientSecret?: string) {
         console.log("🔑 [ChatKit] getClientSecret called");
         console.log("🔑 [ChatKit] existingClientSecret:", existingClientSecret ? "exists" : "null");
+        
+        setIsInitialized(true);
         
         const deviceId = getDeviceId();
         const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
@@ -179,6 +182,30 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
     );
   }
 
+  // Try to force initialization after mount
+  useEffect(() => {
+    if (!initAttempted.current && control) {
+      initAttempted.current = true;
+      console.log("🚀 [ChatKit] Attempting to force initialization...");
+      
+      // Try to trigger the control methods
+      setTimeout(() => {
+        console.log("🔍 [ChatKit] Control methods:", Object.keys(control));
+        
+        // Check if there's an init or start method
+        if (typeof (control as any).init === 'function') {
+          console.log("🎯 [ChatKit] Calling control.init()");
+          (control as any).init();
+        }
+        
+        if (typeof (control as any).start === 'function') {
+          console.log("🎯 [ChatKit] Calling control.start()");
+          (control as any).start();
+        }
+      }, 1000);
+    }
+  }, [control]);
+
   console.log("🎬 [ChatKit] Rendering ChatKit component");
 
   return (
@@ -191,7 +218,7 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        border: "2px solid red", // Debug border
+        border: "2px solid red",
       }}
     >
       {healthCheck && !healthCheck.has_OPENAI_KEY && (
@@ -211,10 +238,20 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
       <ChatKit control={control} className="w-full h-full" />
       
       {/* Debug overlay */}
-      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none">
+      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs p-2 rounded pointer-events-none z-50">
         <div>Control: {control ? "✅" : "❌"}</div>
         <div>Health: {healthCheck ? "✅" : "⏳"}</div>
+        <div>Init: {isInitialized ? "✅" : "⏳"}</div>
       </div>
+      
+      {/* Warning if not initialized after 3 seconds */}
+      {!isInitialized && (
+        <div className="absolute inset-0 flex items-center justify-center bg-yellow-500/20 pointer-events-none">
+          <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm">
+            Waiting for ChatKit initialization...
+          </div>
+        </div>
+      )}
     </div>
   );
 };
