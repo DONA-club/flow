@@ -171,12 +171,12 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   const { control } = useChatKit(config as any);
 
-  // Animation du conteneur
+  // Animation du conteneur - un seul bounce synchrone
   useEffect(() => {
     if (scriptLoaded && isExpanded && control) {
       const timer = setTimeout(() => {
         setContainerReady(true);
-      }, 100);
+      }, 50);
       return () => clearTimeout(timer);
     } else if (!isExpanded) {
       setContainerReady(false);
@@ -194,6 +194,11 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     return null;
   }
 
+  // Couleurs de fond selon le thème
+  const backgroundColor = isDarkMode 
+    ? "hsl(270, 8%, 15%)" // Dark mode: teinte violette sombre
+    : "hsl(185, 8%, 95%)"; // Light mode: teinte cyan très claire
+
   return (
     <div
       className={`fixed bottom-4 left-4 flex flex-col ${className || ""}`}
@@ -209,6 +214,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
         style={{
           height: "600px",
           maxHeight: "calc(100vh - 8rem)",
+          backgroundColor: backgroundColor,
           opacity: containerReady ? 1 : 0,
           transform: containerReady ? "scaleY(1)" : "scaleY(0)",
           transformOrigin: "bottom",
@@ -218,6 +224,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             : "0 0 0 rgba(0, 0, 0, 0)",
         }}
       >
+        {/* Bouton flèche - même animation synchrone */}
         <div
           onClick={onToggle}
           className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
@@ -225,7 +232,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             pointerEvents: "auto",
             opacity: containerReady ? 1 : 0,
             transform: containerReady ? "translateY(0)" : "translateY(-10px)",
-            transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s",
+            transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
           <div
@@ -263,7 +270,17 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           </div>
         )}
 
-        {control && <ChatKit control={control} className="w-full h-full" />}
+        {/* ChatKit avec fade-in léger après le bounce */}
+        {control && (
+          <div
+            style={{
+              opacity: containerReady ? 1 : 0,
+              transition: "opacity 0.4s ease 0.3s",
+            }}
+          >
+            <ChatKit control={control} className="w-full h-full" />
+          </div>
+        )}
       </div>
     </div>
   );
