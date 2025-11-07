@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ChatKit, useChatKit } from "@openai/chatkit-react";
+import React, { useEffect, useRef, useState } from "react";
 
 type Props = {
   className?: string;
@@ -14,129 +13,178 @@ function getDeviceId(): string {
   if (!id) {
     id = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     localStorage.setItem(key, id);
-    console.log("🆔 [ChatKit] New device ID created:", id);
-  } else {
-    console.log("🆔 [ChatKit] Existing device ID:", id);
   }
   return id;
 }
 
 const ChatkitWidget: React.FC<Props> = ({ className }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chatkitInstanceRef = useRef<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
-  const [error, setError] = useState<string | null>(null);
 
-  console.log("🎨 [ChatKit] Component rendering, theme:", isDarkMode ? "dark" : "light");
-
-  // Detect theme changes
+  // Load ChatKit CDN script
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => {
-      console.log("🎨 [ChatKit] Theme changed:", e.matches ? "dark" : "light");
-      setIsDarkMode(e.matches);
+    if (typeof window === "undefined") return;
+
+    // Check if script already exists
+    const existingScript = document.querySelector('script[src*="chatkit.js"]');
+    if (existingScript) return;
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.platform.openai.com/deployments/chatkit/chatkit.js";
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script on unmount
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
-    
-    if (mq.addEventListener) {
-      mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
-    }
   }, []);
 
-  // Get client secret from Edge Function
-  const getClientSecret = async (existingClientSecret?: string) => {
-    console.log("🔑 [ChatKit] Requesting client secret...", {
-      hasExisting: !!existingClientSecret,
-      deviceId: getDeviceId()
-    });
+  // Mount ChatKit widget
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-    const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
-    const url = `${supabaseUrl}/functions/v1/chatkit-session`;
-    
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          deviceId: getDeviceId(),
-          existingClientSecret 
-        }),
-      });
-
-      console.log("📡 [ChatKit] Edge Function response:", response.status, response.statusText);
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("❌ [ChatKit] Failed to get client secret:", error);
-        setError(`Failed to get client secret: ${error}`);
-        throw new Error("Failed to get client secret");
+    const checkAndMount = () => {
+      if (typeof window === "undefined" || !(window as any).ChatKit) {
+        return false;
       }
 
-      const data = await response.json();
-      console.log("✅ [ChatKit] Client secret received:", data.client_secret ? "YES" : "NO");
-      setError(null);
-      return data.client_secret;
-    } catch (err) {
-      console.error("💥 [ChatKit] Error getting client secret:", err);
-      setError(String(err));
-      throw err;
-    }
-  };
-
-  // Initialize ChatKit with secure client secret
-  console.log("🔧 [ChatKit] Calling useChatKit...");
-  
-  let control;
-  try {
-    const result = useChatKit({
-      api: { getClientSecret },
-      theme: {
-        colorScheme: isDarkMode ? ("dark" as const) : ("light" as const),
-        typography: {
-          baseSize: 16,
-          fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+      const options = {
+        workflowId: "wf_68e76f7e35b08190a65e0350e1b43ff20dc8cbc65c270e59",
+        domainKey: "domain_pk_690cd9bd2a34819082a4eae88e1e171b035be3ede42b08e4",
+        theme: {
+          colorScheme: "auto" as const,
+          radius: "soft" as const,
+          density: "normal" as const,
+          color: {
+            grayscale: {
+              hue: 220,
+              tint: 10,
+              shade: -10,
+            },
+            accent: {
+              primary: "#6d28d9",
+              level: 5,
+            },
+          },
+          typography: {
+            baseSize: 16,
+            fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+          },
         },
-        radius: "soft" as const,
-        density: "normal" as const,
-      },
-      composer: {
-        placeholder: "Posez votre question...",
-      },
-      startScreen: {
-        greeting: "Bonjour ! Comment puis-je vous aider ?",
-        prompts: [
-          {
-            label: "Mes événements",
-            prompt: "Quels sont mes prochains événements ?",
-          },
-          {
-            label: "Mon sommeil",
-            prompt: "Comment est mon sommeil récemment ?",
-          },
-          {
-            label: "Lever/coucher du soleil",
-            prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
-          },
-          {
-            label: "Aide",
-            prompt: "Comment utiliser cette application ?",
-          }
-        ]
-      }
-    } as any);
-    
-    control = result.control;
-    console.log("✅ [ChatKit] useChatKit returned control:", !!control);
-  } catch (err) {
-    console.error("💥 [ChatKit] useChatKit error:", err);
-    setError(String(err));
-  }
+        composer: {
+          placeholder: "Posez votre question...",
+        },
+        startScreen: {
+          greeting: "Bonjour ! Comment puis-je vous aider ?",
+          prompts: [
+            {
+              label: "Mes événements",
+              prompt: "Quels sont mes prochains événements ?",
+            },
+            {
+              label: "Mon sommeil",
+              prompt: "Comment est mon sommeil récemment ?",
+            },
+            {
+              label: "Lever/coucher du soleil",
+              prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
+            },
+            {
+              label: "Aide",
+              prompt: "Comment utiliser cette application ?",
+            }
+          ]
+        }
+      };
 
-  console.log("🎯 [ChatKit] Rendering ChatKit component...");
+      try {
+        if (chatkitInstanceRef.current) {
+          chatkitInstanceRef.current.destroy?.();
+        }
+
+        const chatkit = (window as any).ChatKit.mount(containerRef.current, options);
+        chatkitInstanceRef.current = chatkit;
+        
+        return true;
+      } catch (err) {
+        console.error("ChatKit mount error:", err);
+        return false;
+      }
+    };
+
+    // Try to mount immediately
+    if (checkAndMount()) return;
+
+    // If not ready, poll until ChatKit is available
+    const interval = setInterval(() => {
+      if (checkAndMount()) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Give up after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      if (chatkitInstanceRef.current) {
+        chatkitInstanceRef.current.destroy?.();
+        chatkitInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Auto theme switching
+  useEffect(() => {
+    if (!chatkitInstanceRef.current) return;
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    
+    const updateTheme = () => {
+      const colorScheme = mq.matches ? "dark" : "light";
+      setIsDarkMode(mq.matches);
+      
+      chatkitInstanceRef.current?.update?.({
+        theme: {
+          colorScheme,
+          radius: "soft",
+          density: "normal",
+          color: {
+            grayscale: {
+              hue: 220,
+              tint: 10,
+              shade: -10,
+            },
+            accent: {
+              primary: "#6d28d9",
+              level: 5,
+            },
+          },
+          typography: {
+            baseSize: 16,
+            fontFamily: "Inter, 'Aptos', Arial, Helvetica, sans-serif",
+          },
+        },
+      });
+    };
+
+    mq.addEventListener("change", updateTheme);
+    return () => mq.removeEventListener("change", updateTheme);
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       className={`fixed bottom-4 left-4 ${className || ""}`}
       style={{
         width: "400px",
@@ -145,50 +193,11 @@ const ChatkitWidget: React.FC<Props> = ({ className }) => {
         maxHeight: "calc(100vh - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
-        backgroundColor: isDarkMode ? "rgba(30, 30, 30, 0.95)" : "rgba(255, 255, 255, 0.95)",
-        border: error ? "2px solid red" : "2px solid green",
         borderRadius: "12px",
         overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
       }}
-    >
-      {error && (
-        <div style={{ 
-          padding: "20px", 
-          color: "red",
-          fontSize: "12px",
-          borderBottom: "1px solid red"
-        }}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-      
-      {control ? (
-        <>
-          <div style={{ 
-            padding: "10px", 
-            fontSize: "10px", 
-            color: "green",
-            borderBottom: "1px solid green"
-          }}>
-            ✅ Control ready
-          </div>
-          <ChatKit 
-            control={control} 
-            className="flex-1"
-          />
-        </>
-      ) : (
-        <div style={{ 
-          padding: "20px", 
-          color: isDarkMode ? "white" : "black",
-          fontSize: "14px"
-        }}>
-          ⏳ Initializing ChatKit...
-        </div>
-      )}
-    </div>
+    />
   );
 };
 
