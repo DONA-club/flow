@@ -41,7 +41,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [cspViolations, setCspViolations] = useState<string[]>([]);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const contextSentRef = useRef(false);
+  const lastSentContextRef = useRef<string | null>(null);
 
   const isDarkMode =
     typeof window !== "undefined" &&
@@ -166,7 +166,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   }, [pageContext]);
 
   const config = useMemo(() => {
-    dlog("Creating config with formatted context");
+    dlog("Creating config");
 
     return {
       api: {
@@ -184,7 +184,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
               body: JSON.stringify({
                 deviceId,
                 existingClientSecret: existing || null,
-                pageContext: formattedContext,
               }),
             });
 
@@ -268,6 +267,24 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           { label: "Contexte", prompt: "Affiche mon page_context" },
         ],
       },
+      // Intercepter les messages pour ajouter le contexte
+      onBeforeSendMessage: (message: string) => {
+        dlog("onBeforeSendMessage called with:", message.substring(0, 50) + "...");
+        
+        // Vérifier si le contexte a changé
+        const contextChanged = formattedContext !== lastSentContextRef.current;
+        
+        if (formattedContext && contextChanged) {
+          dlog("Context changed, appending to message");
+          lastSentContextRef.current = formattedContext;
+          
+          // Ajouter le contexte au message de l'utilisateur
+          return `${message}\n\n[CONTEXTE SYSTÈME - page_context]:\n${formattedContext}`;
+        }
+        
+        dlog("Context unchanged, sending message as-is");
+        return message;
+      },
     };
   }, [isDarkMode, debug, formattedContext]);
 
@@ -275,10 +292,10 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
   
   dlog("useChatKit returned control:", Boolean(control));
 
-  // Réinitialiser le flag quand le ChatKit se ferme
+  // Réinitialiser le contexte envoyé quand le ChatKit se ferme
   useEffect(() => {
     if (!isExpanded) {
-      contextSentRef.current = false;
+      lastSentContextRef.current = null;
     }
   }, [isExpanded]);
 
@@ -362,6 +379,7 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             <div>Health: {healthCheck ? "✅" : "⏳"}</div>
             <div>CSP: {cspViolations.length === 0 ? "✅" : `❌ ${cspViolations.length}`}</div>
             <div>Context: {formattedContext ? "✅" : "❌"}</div>
+            <div>Last sent: {lastSentContextRef.current ? "✅" : "❌"}</div>
           </div>
         )}
       </div>
