@@ -25,6 +25,7 @@ type Props = {
 const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggle, pageContext }) => {
   const [healthCheck, setHealthCheck] = useState<any>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const contextSentRef = useRef(false);
 
   const isDarkMode =
@@ -75,7 +76,6 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             const supabaseUrl = "https://scnaqjixwuqakppnahfg.supabase.co";
             const url = `${supabaseUrl}/functions/v1/chatkit-session`;
 
-            // Envoyer le contexte uniquement une fois
             const shouldSendContext = !contextSentRef.current && pageContext;
             
             if (shouldSendContext) {
@@ -171,6 +171,19 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
 
   const { control } = useChatKit(config as any);
 
+  // Marquer comme prêt quand le script est chargé et le widget est expanded
+  useEffect(() => {
+    if (scriptLoaded && isExpanded && control) {
+      // Petit délai pour s'assurer que tout est bien initialisé
+      const timer = setTimeout(() => {
+        setIsReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (!isExpanded) {
+      setIsReady(false);
+    }
+  }, [scriptLoaded, isExpanded, control]);
+
   // Reset du flag quand le widget se ferme
   useEffect(() => {
     if (!isExpanded) {
@@ -193,14 +206,17 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
       }}
     >
       <div
-        className="rounded-xl overflow-hidden shadow-2xl relative"
+        className="rounded-xl overflow-hidden relative"
         style={{
           height: "600px",
           maxHeight: "calc(100vh - 8rem)",
-          opacity: isExpanded ? 1 : 0,
-          transform: isExpanded ? "scaleY(1)" : "scaleY(0)",
-          transformOrigin: "top",
-          transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          opacity: isReady ? 1 : 0,
+          transform: isReady ? "scaleY(1)" : "scaleY(0)",
+          transformOrigin: "bottom",
+          transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+          boxShadow: isReady 
+            ? "0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2)"
+            : "0 0 0 rgba(0, 0, 0, 0)",
         }}
       >
         <div
@@ -208,6 +224,9 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           className="absolute top-0 left-1/2 -translate-x-1/2 z-50 cursor-pointer group"
           style={{
             pointerEvents: "auto",
+            opacity: isReady ? 1 : 0,
+            transform: isReady ? "translateY(0)" : "translateY(-10px)",
+            transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s",
           }}
         >
           <div
@@ -245,7 +264,16 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
           </div>
         )}
 
-        {control && <ChatKit control={control} className="w-full h-full" />}
+        {control && (
+          <div 
+            style={{
+              opacity: isReady ? 1 : 0,
+              transition: "opacity 0.3s ease 0.3s",
+            }}
+          >
+            <ChatKit control={control} className="w-full h-full" />
+          </div>
+        )}
       </div>
     </div>
   );
