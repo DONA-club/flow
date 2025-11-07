@@ -68,10 +68,14 @@ function getDaysDifference(date1: Date, date2: Date): number {
   return Math.round((d1.getTime() - d2.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+const STORAGE_KEY = "upcoming_events_panel_open";
+const INTERACTION_THRESHOLD_MS = 3000;
+
 const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, className }) => {
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [isAnimating, setIsAnimating] = React.useState(false);
+  const mountTimeRef = React.useRef<number>(Date.now());
 
   React.useEffect(() => {
     const checkTheme = () => {
@@ -84,6 +88,18 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
     if (mq.addEventListener) {
       mq.addEventListener("change", handler);
       return () => mq.removeEventListener("change", handler);
+    }
+  }, []);
+
+  // Charger la préférence au montage
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null) {
+        setOpen(stored === "true");
+      }
+    } catch (err) {
+      console.warn("Failed to load upcoming events panel preference:", err);
     }
   }, []);
 
@@ -115,8 +131,20 @@ const UpcomingEventsList: React.FC<Props> = ({ events, onSelect, maxItems = 6, c
   };
 
   const handleToggle = () => {
+    const newState = !open;
+    const timeSinceMount = Date.now() - mountTimeRef.current;
+    
+    // Si l'interaction se fait dans les 3 premières secondes, sauvegarder la préférence
+    if (timeSinceMount <= INTERACTION_THRESHOLD_MS) {
+      try {
+        localStorage.setItem(STORAGE_KEY, String(newState));
+      } catch (err) {
+        console.warn("Failed to save upcoming events panel preference:", err);
+      }
+    }
+    
     setIsAnimating(true);
-    setOpen(!open);
+    setOpen(newState);
     setTimeout(() => setIsAnimating(false), 400);
   };
 
