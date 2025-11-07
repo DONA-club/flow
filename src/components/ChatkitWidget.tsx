@@ -203,14 +203,27 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
     <div
       className={`fixed bottom-4 left-4 flex flex-col ${className || ""}`}
       style={{
-        width: "400px",
+        width: "88vw",
         maxWidth: "calc(100vw - 2rem)",
         pointerEvents: "auto",
         zIndex: 9999,
       }}
     >
+      <style>{`
+        @media (min-width: 640px) {
+          .chatkit-container {
+            width: 320px !important;
+          }
+        }
+        @media (min-width: 768px) {
+          .chatkit-container {
+            width: 360px !important;
+          }
+        }
+      `}</style>
+      
       <div
-        className="rounded-xl relative"
+        className="chatkit-container rounded-xl relative"
         style={{
           height: "600px",
           maxHeight: "calc(100vh - 8rem)",
