@@ -558,25 +558,41 @@ MIT License.
 
 ### 🌅 La Vision
 
-**Visualiser** est un référentiel temporel qui rend le temps visible, interrogeable et actionnable à travers les échelles humaines et machines. Il conserve les événements chronologiques avec une précision microseconde tout en les rendant sous forme d'interfaces circulaires intuitives synchronisées avec les rythmes naturels.
+**Visualiser** est un référentiel temporel qui rend le temps **visible, interrogeable et actionnable** à travers les échelles humaines et machinelles.  
+Il enregistre les événements chronologiques avec une **précision à la microseconde**, tout en les représentant sous forme **d’interfaces circulaires intuitives**, synchronisées avec les **rythmes naturels**.
 
-L'insight central : **chaque projet est une vie**. Naissance, croissance, maturité, transmission. Visualiser capture ce cycle de vie comme ADN temporel immuable—permettant aux équipes, parties prenantes et systèmes d'observer la même intention de croissance depuis leurs perspectives uniques.
+---
 
-C'est un outil fondateur de DONA.club pour maîtriser la qualité de vie des projets à travers l'intelligence temporelle.
+## 💡 L’insight central
 
-**Ce qu'il fait :**
+> Chaque projet est une vie — avec sa naissance, sa croissance, sa maturité et sa transmission.
 
-- **Référentiel temporel** : Log d'événements immuable avec timestamps microseconde et préservation contexte complet
-- **Observation multipartite** : Même chronologie vue depuis perspectives humaine, machine et parties prenantes
-- **Relativité temporelle** : Rejouer séquences événements à différentes échelles (circadienne, microseconde, lifecycle)
-- **Métriques Qualité de Vie** : Suivre santé projet via stabilité rythmes, niveaux énergie et patterns livraison
-- **Élévation sans contrainte** : Intégration qui fournit altitude sans imposer structure
+**Visualiser** capture ce cycle de vie comme un **ADN temporel immuable**, permettant aux équipes, aux parties prenantes et aux systèmes d’observer **une même intention de croissance**, chacun selon sa propre perspective.
 
-**Pourquoi c'est important :**
+C’est un **outil fondateur de DONA.club**, conçu pour **maîtriser la qualité de vie des projets** grâce à l’intelligence temporelle.
 
-Les projets échouent non par manque d'outils, mais par désalignement temporel. Les équipes opèrent sur différents rythmes. Les décisions manquent de contexte historique. Les parties prenantes voient différentes réalités. Les machines optimisent pour des horizons biaisés.
+---
 
-L'intention de Visualiser résout ceci en créant une référence temporelle partagée—une source commune de réalité qui s'adapte à la perspective naturelle de chaque observateur tout en maintenant cohérence à travers toutes les vues.
+## ⚙️ Ce que Visualiser fait 
+
+- **Référentiel temporel :** journal d’événements immuable, horodaté à la microseconde, avec conservation intégrale du contexte.  
+- **Observation multipartite :** une même chronologie accessible depuis les points de vue humains, machinels et décisionnels.  
+- **Relativité temporelle :** possibilité de rejouer les séquences d’événements à différentes échelles — du rythme circadien à la microseconde, jusqu’au cycle de vie complet d’un projet.  
+- **Métriques de qualité de vie :** suivi de la santé du projet à travers la stabilité de ses rythmes, ses niveaux d’énergie et ses schémas de livraison.  
+- **Élévation sans contrainte :** une intégration qui offre la hauteur d’analyse sans imposer de structure rigide.  
+
+---
+
+## 🎯 Pourquoi c’est important
+
+Les projets n’échouent pas par manque d’outils, mais par **désalignement temporel**.  
+Les équipes opèrent sur des **rythmes différents**.  
+Les décisions se prennent **sans contexte historique**.  
+Les parties prenantes perçoivent **des réalités divergentes**.  
+Les machines optimisent selon **des horizons biaisés**.  
+
+**Visualiser** répond à ces fractures en instaurant une **référence temporelle partagée** —  
+une **source commune de réalité**, capable de s’adapter à la perspective naturelle de chaque observateur tout en préservant la cohérence à travers toutes les vues.
 
 ---
 
