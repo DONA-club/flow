@@ -1,7 +1,7 @@
 {
   "name": "DONA.club Visualiseur",
   "short_name": "DONA.club",
-  "description": "Visualiseur de calendrier circulaire",
+  "description": "Visualiser",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#181c2a",
