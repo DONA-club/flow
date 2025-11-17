@@ -164,6 +164,10 @@ const ChatkitWidget: React.FC<Props> = ({ className, isExpanded = false, onToggl
             label: "Lever/coucher du soleil",
             prompt: "À quelle heure se lève et se couche le soleil aujourd'hui ?",
           },
+          {
+            label: "Qualité de l'Air",
+            prompt: "Quelle est la qualité de l'air à Paris aujourd'hui ?",
+          },
         ],
       },
     };
