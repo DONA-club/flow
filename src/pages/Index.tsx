@@ -67,7 +67,7 @@ const Index = () => {
           <button
             onClick={handleOpenCalendar}
             className={`point-blanc cursor-pointer ${burstActive ? "point-pulse" : ""}`}
-            aria-label="Ouvrir le calendrier circulaire"
+            aria-label="Visualiser"
           />
           <div className="absolute left-1/2 -translate-x-1/2 top-full mt-6">
             <div className="relative">
