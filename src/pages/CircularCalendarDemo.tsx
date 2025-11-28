@@ -473,7 +473,7 @@ const Visualiser = () => {
   }
 
   useEffect(() => {
-    document.title = "DONA.club Visualiser";
+    document.title = "Flow";
     document.body.classList.add("visualiser-page");
     
     const viewport = document.querySelector('meta[name="viewport"]');

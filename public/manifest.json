@@ -1,7 +1,7 @@
 {
-  "name": "DONA.club - Visualiser",
-  "short_name": "DONA.club",
-  "description": "Visualiser",
+  "name": "Flow",
+  "short_name": "Flow",
+  "description": "Flow",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#181c2a",

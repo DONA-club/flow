@@ -1,4 +1,4 @@
-# DONA.club — Visualiser
+# DONA.club — Flow
 
 > **A temporal consciousness interface and chronological repository that transforms how humans and machines perceive, navigate, and master the lifecycle of projects. Available for white-label deployment.**
 
@@ -10,9 +10,9 @@
 
 ### 🌅 The Vision
 
-**Visualiser** is a temporal repository that makes time visible, queryable, and actionable across human and machine scales. It conserves chronological events with microsecond precision while rendering them as intuitive circular interfaces synchronized with natural rhythms.
+**Flow** is a temporal repository that makes time visible, queryable, and actionable across human and machine scales. It conserves chronological events with microsecond precision while rendering them as intuitive circular interfaces synchronized with natural rhythms.
 
-The core insight: **every project is a life**. Birth, growth, maturity, transmission. Visualiser captures this lifecycle as immutable temporal DNA—enabling teams, stakeholders, and systems to observe the same growth intention from their unique perspectives.
+The core insight: **every project is a life**. Birth, growth, maturity, transmission. Flow captures this lifecycle as immutable temporal DNA—enabling teams, stakeholders, and systems to observe the same growth intention from their unique perspectives.
 
 This is a DONA.club's foundational tool for mastering project quality of life through temporal intelligence.
 
@@ -28,7 +28,7 @@ This is a DONA.club's foundational tool for mastering project quality of life th
 
 Projects fail not from lack of tools, but from temporal misalignment. Teams operate on different rhythms. Decisions lack historical context. Stakeholders see different realities. Machines optimize for wrong horizons.
 
-Visualiser's intention solves this by creating a shared temporal reference—a single source of truth that adapts to each observer's natural perspective while maintaining coherence across all views.
+Flow's intention solves this by creating a shared temporal reference—a single source of truth that adapts to each observer's natural perspective while maintaining coherence across all views.
 
 ---
 
@@ -65,7 +65,7 @@ Visualiser's intention solves this by creating a shared temporal reference—a s
 
 **What is MCP?**
 
-Model Context Protocol (MCP) is an open standard that enables AI agents to interface with external tools and data sources. Visualiser exposes temporal intelligence through MCP-compatible endpoints.
+Model Context Protocol (MCP) is an open standard that enables AI agents to interface with external tools and data sources. Flow exposes temporal intelligence through MCP-compatible endpoints.
 
 **Currently Available MCP Tools:**
 
@@ -340,7 +340,7 @@ npm run build
 
 ### 🎨 White-Label Deployment
 
-Visualiser is designed for white-label deployment under your brand.
+Flow is designed for white-label deployment under your brand.
 
 #### Brand Configuration
 
@@ -386,7 +386,7 @@ export const FEATURES = {
 
 ### 📊 Temporal Context System
 
-Visualiser generates rich contextual awareness:
+Flow generates rich contextual awareness:
 
 ```typescript
 type TemporalContext = {
@@ -558,41 +558,41 @@ MIT License.
 
 ### 🌅 La Vision
 
-**Visualiser** est un référentiel temporel qui rend le temps **visible, interrogeable et actionnable** à travers les échelles humaines et machinelles.  
-Il enregistre les événements chronologiques avec une **précision à la microseconde**, tout en les représentant sous forme **d’interfaces circulaires intuitives**, synchronisées avec les **rythmes naturels**.
+**Flow** est un référentiel temporel qui rend le temps **visible, interrogeable et actionnable** à travers les échelles humaines et machinelles.  
+Il enregistre les événements chronologiques avec une **précision à la microseconde**, tout en les représentant sous forme **d'interfaces circulaires intuitives**, synchronisées avec les **rythmes naturels**.
 
 ---
 
-## 💡 L’insight central
+## 💡 L'insight central
 
 > Chaque projet est une vie — avec sa naissance, sa croissance, sa maturité et sa transmission.
 
-**Visualiser** capture ce cycle de vie comme un **ADN temporel immuable**, permettant aux équipes, aux parties prenantes et aux systèmes d’observer **une même intention de croissance**, chacun selon sa propre perspective.
+**Flow** capture ce cycle de vie comme un **ADN temporel immuable**, permettant aux équipes, aux parties prenantes et aux systèmes d'observer **une même intention de croissance**, chacun selon sa propre perspective.
 
-C’est un **outil fondateur de DONA.club**, conçu pour **maîtriser la qualité de vie des projets** grâce à l’intelligence temporelle.
+C'est un **outil fondateur de DONA.club**, conçu pour **maîtriser la qualité de vie des projets** grâce à l'intelligence temporelle.
 
 ---
 
-## ⚙️ Ce que Visualiser fait 
+## ⚙️ Ce que Flow fait 
 
-- **Référentiel temporel :** journal d’événements immuable, horodaté à la microseconde, avec conservation intégrale du contexte.  
+- **Référentiel temporel :** journal d'événements immuable, horodaté à la microseconde, avec conservation intégrale du contexte.  
 - **Observation multipartite :** une même chronologie accessible depuis les points de vue humains, machinels et décisionnels.  
-- **Relativité temporelle :** possibilité de rejouer les séquences d’événements à différentes échelles — du rythme circadien à la microseconde, jusqu’au cycle de vie complet d’un projet.  
-- **Métriques de qualité de vie :** suivi de la santé du projet à travers la stabilité de ses rythmes, ses niveaux d’énergie et ses schémas de livraison.  
-- **Élévation sans contrainte :** une intégration qui offre la hauteur d’analyse sans imposer de structure rigide.  
+- **Relativité temporelle :** possibilité de rejouer les séquences d'événements à différentes échelles — du rythme circadien à la microseconde, jusqu'au cycle de vie complet d'un projet.  
+- **Métriques de qualité de vie :** suivi de la santé du projet à travers la stabilité de ses rythmes, ses niveaux d'énergie et ses schémas de livraison.  
+- **Élévation sans contrainte :** une intégration qui offre la hauteur d'analyse sans imposer de structure rigide.  
 
 ---
 
-## 🎯 Pourquoi c’est important
+## 🎯 Pourquoi c'est important
 
-Les projets n’échouent pas par manque d’outils, mais par **désalignement temporel**.  
+Les projets n'échouent pas par manque d'outils, mais par **désalignement temporel**.  
 Les équipes opèrent sur des **rythmes différents**.  
 Les décisions se prennent **sans contexte historique**.  
 Les parties prenantes perçoivent **des réalités divergentes**.  
 Les machines optimisent selon **des horizons biaisés**.  
 
-**Visualiser** répond à ces fractures en instaurant une **référence temporelle partagée** —  
-une **source commune de réalité**, capable de s’adapter à la perspective naturelle de chaque observateur tout en préservant la cohérence à travers toutes les vues.
+**Flow** répond à ces fractures en instaurant une **référence temporelle partagée** —  
+une **source commune de réalité**, capable de s'adapter à la perspective naturelle de chaque observateur tout en préservant la cohérence à travers toutes les vues.
 
 ---
 

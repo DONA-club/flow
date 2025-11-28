@@ -1,4 +1,4 @@
-# Documentation de Déploiement - DONA.club
+# Documentation de Déploiement - Flow
 
 ## 🚀 Déploiement rapide
 
@@ -49,4 +49,4 @@ VITE_APP_URL=https://visualiser.dona.club
 ## 📞 Support
 - OVH: https://www.ovh.com/manager/
 - Supabase: https://supabase.com/dashboard
-- GitHub: https://github.com/DONA.club/visualiser
+- GitHub: https://github.com/DONA.club/flow
