@@ -27,7 +27,7 @@ ls -lah dist/
 ```env
 VITE_SUPABASE_URL=https://scnaqjixwuqakppnahfg.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_APP_URL=https://visualiser.dona.club
+VITE_APP_URL=https://flow.dona.club
 ```
 
 ### Identifiants FTP OVH

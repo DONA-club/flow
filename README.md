@@ -167,7 +167,7 @@ upcoming_events: {
 
 **Deployment:**
 - GitHub Actions CI/CD
-- OVH Cloud Web hosting
+- OVH Cloud Web hosting (https://flow.dona.club)
 - Capacitor for iOS/Android
 - Service Workers for offline support
 
@@ -293,6 +293,7 @@ npm install
 # Create .env.local
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_APP_URL=https://flow.dona.club
 ```
 
 3. **Configure Supabase secrets:**
